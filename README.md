@@ -2,7 +2,7 @@
 
 A simple template for writing MCP servers using [Deno](https://deno.com/), publishing them using [JSR.io](https://jsr.io), and optionally using hosting on [Deno Deploy](https://deno.com/deploy).
 
-The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool, and [Deno Cron](https://docs.deno.com/deploy/kv/manual/cron/) for tasks on the SSE endpoint.
+The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool.
 
 ℹ️ **Deno is required**. Use `npm install -g deno` or `curl -fsSL <https://deno.land/install.sh> | sh`
 
