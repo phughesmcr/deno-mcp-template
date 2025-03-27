@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+      "deno-mcp-server": {
+        "command": "deno",
+        "args": ["run", "-A", "main.ts"]
+      }
+    }
+}

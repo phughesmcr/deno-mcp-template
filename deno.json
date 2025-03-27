@@ -1,0 +1,66 @@
+{
+    "name": "@phughesmcr/deno-mcp-template",
+    "version": "0.0.1",
+    "license": "MIT",
+    "exports": "./main.ts",
+    "description": "A demo package for MCP servers in Deno",
+    "keywords": ["demo", "deno", "mcp", "template", "ai", "agent", "llm"],
+    "homepage": "https://github.com/phughesmcr/deno-mcp-template",
+    "bugs": {
+        "url": "https://github.com/phughesmcr/deno-mcp-template/issues"
+    },
+    "author": "P. Hughes <github@phugh.es>",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/phughesmcr/deno-mcp-template.git"
+    },
+    "imports": {
+        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
+        "@std/dotenv/load": "jsr:@std/dotenv/load",
+        "@std/http/file-server": "jsr:@std/http/file-server",
+        "@std/http/unstable-route": "jsr:@std/http/unstable-route",
+        "@std/path": "jsr:@std/path@^1.0.8",
+        "zod": "npm:zod@^3.24.2"
+    },
+    "tasks": {
+        "prep": "deno fmt && deno lint --fix && deno check main.ts",
+        "start": "deno run -A main.ts",
+        "dev": "deno run -A --watch main.ts",
+        "ci": "deno task prep"
+    },
+    "compilerOptions": {
+        "strict": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "noImplicitAny": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "noUncheckedIndexedAccess": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "verbatimModuleSyntax": true
+    },
+    "bench": {
+        "include": ["bench/**/*.ts"]
+    },
+    "fmt": {
+        "include": ["main.ts", "src/**/*.ts", "routes/**/*.ts"],
+        "lineWidth": 100,
+        "indentWidth": 2
+    },
+    "lint": {
+        "include": ["main.ts", "src/**/*.ts", "routes/**/*.ts"],
+        "rules": {
+            "exclude": ["require-await"]
+        }
+    },
+    "test": {
+        "include": ["test/**/*.ts"]
+    },
+    "unstable": [
+        "cron",
+        "kv"
+    ]
+}

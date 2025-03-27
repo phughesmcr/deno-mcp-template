@@ -1,0 +1,108 @@
+# Knowledge Graph Memory Server
+
+> The Knowledge Graph Memory Server is a Model Context Protocol (MCP) server that provides persistent memory capabilities using a local knowledge graph. It enables LLMs to remember and retrieve information about users across interactions.
+
+## Installation
+
+The user will need Deno to use this server. Deno can be installed using `npm install -g deno` or `curl -fsSL <https://deno.land/install.sh> | sh`.
+
+The command to run the server, once Deno is installed, is `deno run -A jsr:@phughesmcr/deno-mcp-template`.
+
+## Overview
+
+- **Entities**: Represent primary nodes in the knowledge graph, each with:
+  - **Name**: Unique identifier.
+  - **Entity Type**: Classification (e.g., "person", "organization").
+  - **Observations**: List of factual statements about the entity.
+
+  *Example*:
+  ```json
+  {
+    "name": "John_Smith",
+    "entityType": "person",
+    "observations": ["Speaks fluent Spanish"]
+  }
+  ```
+
+- **Relations**: Define directed connections between entities, always stored in active voice to describe interactions or relationships.
+
+  *Example*:
+  ```json
+  {
+    "from": "John_Smith",
+    "to": "Anthropic",
+    "relationType": "works_at"
+  }
+  ```
+
+- **Observations**: Discrete pieces of information about an entity, stored as strings and attached to specific entities. They should be atomic, representing a single fact per observation.
+
+  *Example*:
+  ```json
+  {
+    "entity": "John_Smith",
+    "observation": "Speaks fluent Spanish"
+  }
+  ```
+
+## Tools Provided
+
+- **Add Entity**
+  - *Description*: Adds a new entity to the knowledge graph.
+  - *Input Parameters*:
+    - `name` (string): Unique identifier for the entity.
+    - `entityType` (string): Type of the entity (e.g., "person", "organization").
+  - *Returns*: Confirmation message upon successful addition.
+
+- **Add Relation**
+  - *Description*: Establishes a directed relation between two existing entities.
+  - *Input Parameters*:
+    - `from` (string): Name of the source entity.
+    - `to` (string): Name of the target entity.
+    - `relationType` (string): Type of relation (e.g., "works_at", "friend_of").
+  - *Returns*: Confirmation message upon successful creation.
+
+- **Add Observation**
+  - *Description*: Attaches a new observation to an existing entity.
+  - *Input Parameters*:
+    - `entity` (string): Name of the entity.
+    - `observation` (string): Factual statement about the entity.
+  - *Returns*: Confirmation message upon successful addition.
+
+- **Query Entity**
+  - *Description*: Retrieves information about a specific entity, including its type, observations, and relations.
+  - *Input Parameters*:
+    - `name` (string): Unique identifier of the entity.
+  - *Returns*: Detailed information about the entity.
+
+## Usage Guidelines
+
+- Ensure entity names are unique and descriptive.
+- Maintain atomicity in observations to facilitate precise information retrieval.
+- Use active voice for relation descriptions to ensure clarity.
+
+## Description
+
+The Knowledge Graph Memory Server is designed to provide persistent memory capabilities by constructing a local knowledge graph. This allows for the storage and retrieval of information about users or entities across different interactions.
+
+**Key Components:**
+
+1. **Entities**: These are the primary nodes representing individuals, organizations, events, etc. Each entity has a unique name, a type, and a collection of observations that provide factual information about the entity.
+
+2. **Relations**: These define the connections between entities, illustrating how one entity is associated with another. Relations are directional and described in active voice to maintain clarity.
+
+3. **Observations**: These are specific pieces of information linked to an entity, offering detailed insights or attributes related to that entity.
+
+**Tools Provided:**
+
+- **Add Entity**: Allows the creation of new entities within the knowledge graph.
+
+- **Add Relation**: Enables the establishment of directed relationships between existing entities, defining how they interact or are connected.
+
+- **Add Observation**: Facilitates the addition of new factual statements or attributes to an existing entity, enriching the information available about that entity.
+
+- **Query Entity**: Provides the capability to retrieve comprehensive information about a specific entity, including its type, associated observations, and its relationships with other entities.
+
+## Documentation
+
+- [README.md](https://github.com/modelcontextprotocol/servers/tree/main/src/memory/README.md): Comprehensive guide on the Memory Server's architecture, setup, and usage instructions.

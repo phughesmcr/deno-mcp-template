@@ -1,0 +1,10 @@
+.github/
+.vscode/
+.gitattributes
+AUTHORS.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+CONTRIBUTORS.md
+LICENSE
+SECURITY.md
+SUPPORT.md
