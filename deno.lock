@@ -6,13 +6,14 @@
     "jsr:@std/bytes@1": "1.0.5",
     "jsr:@std/cli@^1.0.12": "1.0.15",
     "jsr:@std/crypto@1": "1.0.4",
-    "jsr:@std/dotenv@*": "0.225.3",
+    "jsr:@std/dotenv@~0.225.3": "0.225.3",
     "jsr:@std/encoding@1": "1.0.7",
     "jsr:@std/encoding@^1.0.7": "1.0.7",
     "jsr:@std/fmt@^1.0.5": "1.0.6",
     "jsr:@std/html@^1.0.3": "1.0.3",
     "jsr:@std/http@*": "1.0.13",
     "jsr:@std/http@1": "1.0.13",
+    "jsr:@std/http@^1.0.13": "1.0.13",
     "jsr:@std/media-types@1": "1.1.0",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/net@^1.0.4": "1.0.4",
@@ -907,8 +908,8 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@std/dotenv@*",
-      "jsr:@std/http@*",
+      "jsr:@std/dotenv@~0.225.3",
+      "jsr:@std/http@^1.0.13",
       "jsr:@std/path@^1.0.8",
       "npm:@modelcontextprotocol/sdk@^1.8.0",
       "npm:zod@^3.24.2"
