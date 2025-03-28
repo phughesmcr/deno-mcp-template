@@ -10,7 +10,7 @@
  * {
  *   "mcpServers": {
  *     "my-published-mcp-server": {
- *       "command": "deno run -A jsr:@phughesmcr/deno-mcp-template"
+ *       "command": "deno run -A --unstable-kv jsr:@phughesmcr/deno-mcp-template"
  *     },
  *   }
  * }
@@ -45,7 +45,7 @@
  * {
  *   "mcpServers": {
  *     "my-local-mcp-server": {
- *       "command": "deno run -A absolute/path/to/main.ts"
+ *       "command": "deno run -A --unstable-kv absolute/path/to/main.ts"
  *     },
  *   }
  * }

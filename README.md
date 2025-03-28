@@ -22,7 +22,7 @@ You can set HOSTNAME and PORT in a `.env` if desired.
 {
     "mcpServers": {
         "my-mcp-server": {
-            "command": "deno run -A jsr:@phughesmcr/deno-mcp-template"
+            "command": "deno run -A --unstable-kv jsr:@phughesmcr/deno-mcp-template"
         },
     }
 }
@@ -62,7 +62,7 @@ Start the server using `deno task start`.
 {
     "mcpServers": {
         "my-mcp-server": {
-            "command": "deno run -A absolute/path/to/main.ts"
+            "command": "deno run -A --unstable-kv absolute/path/to/main.ts"
         },
     }
 }
