@@ -1,9 +1,7 @@
 import {
-  INTERNAL_ERROR,
   JSONRPC_VERSION,
   type JSONRPCError,
   type JSONRPCMessage,
-  METHOD_NOT_FOUND,
   type RequestId,
   type Result,
 } from "../vendor/schema.ts";
