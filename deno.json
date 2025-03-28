@@ -26,7 +26,8 @@
         "prep": "deno fmt && deno lint --fix && deno check main.ts",
         "start": "deno run -A main.ts",
         "dev": "deno run -A --watch main.ts",
-        "ci": "deno task prep"
+        "ci": "deno task prep",
+        "compile": "deno compile --include routes main.ts"
     },
     "compilerOptions": {
         "strict": true,
