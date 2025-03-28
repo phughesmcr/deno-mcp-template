@@ -57,9 +57,9 @@
 import { type Route, route } from "@std/http/unstable-route";
 import { serveFile } from "@std/http/file-server";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { MCP_SERVER_NAME, SESSION_ID_HEADER } from "./src/constants.ts";
-import { createErrorResponse } from "./src/utils.ts";
-import { INTERNAL_ERROR, METHOD_NOT_FOUND } from "./vendor/schema.ts";
+import { MCP_SERVER_NAME } from "./src/constants.ts";
+import { createErrorResponse, getSessionId } from "./src/utils.ts";
+import { METHOD_NOT_FOUND } from "./vendor/schema.ts";
 
 // Load environment variables
 import "@std/dotenv/load";
@@ -67,41 +67,61 @@ import "@std/dotenv/load";
 // Import the main MCP tools etc.
 import { server } from "./src/mcp/mod.ts";
 
-/**
- * A simple file-based router for Deno.serve
- *
- * Add your routes to the `routes/` directory.
- * Add static files to the `static/` directory.
- */
-export async function handler(req: Request): Promise<Response> {
-  const { pathname } = new URL(req.url);
-  const method = req.method;
-  const id = req.headers.get(SESSION_ID_HEADER) ?? -1;
-
-  const path = pathname === "/" ? "/index" : pathname;
-  let module;
-
-  try {
-    module = await import(`./routes${path}.ts`);
-  } catch (error) {
-    console.error("No route module found for", path, error);
-  }
-
-  if (module && module[method]) {
-    try {
-      return module[method](req);
-    } catch (error) {
-      console.error("Error in route:", path, method, error);
-
-      return createErrorResponse(id, INTERNAL_ERROR, "Internal server error");
-    }
-  }
-
-  return createErrorResponse(id, METHOD_NOT_FOUND, `${`./routes${path}.ts`} [${method}] Not found`);
-}
+const defaultHandler = async (req: Request) => {
+  const id = await getSessionId(req) ?? -1;
+  return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
+};
 
 // Serve static files
 const routes: Route[] = [
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/" }),
+    handler: async (req: Request) => {
+      if (req.method === "GET") {
+        const route = await import(`./routes/index.ts`);
+        return route.GET(req);
+      }
+      const id = await getSessionId(req) ?? -1;
+      return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
+    },
+  },
+  {
+    method: ["GET", "POST", "DELETE"],
+    pattern: new URLPattern({ pathname: "/mcp" }),
+    handler: async (req: Request) => {
+      const route = await import(`./routes/mcp.ts`);
+      if (req.method === "GET") {
+        return route.GET(req);
+      } else if (req.method === "POST") {
+        return route.POST(req);
+      } else if (req.method === "DELETE") {
+        return route.DELETE(req);
+      }
+      const id = await getSessionId(req) ?? -1;
+      return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
+    },
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/sse" }),
+    handler: async (req: Request) => {
+      if (req.method === "GET") {
+        const route = await import(`./routes/sse.ts`);
+        return route.GET(req);
+      }
+      const id = await getSessionId(req) ?? -1;
+      return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
+    },
+  },
+  {
+    method: "POST",
+    pattern: new URLPattern({ pathname: "/message" }),
+    handler: async (req: Request) => {
+      const route = await import(`./routes/message.ts`);
+      return route.POST(req);
+    },
+  },
   {
     pattern: new URLPattern({ pathname: "/llms.txt" }),
     handler: async (req: Request) => {
@@ -141,7 +161,7 @@ if (import.meta.main) {
           `${MCP_SERVER_NAME} MCP server is listening on ${hostname}:${port}`,
         );
       },
-    }, route(routes, handler));
+    }, route(routes, defaultHandler));
     // This handles STDIO requests
     const transport = new StdioServerTransport();
     await server.connect(transport);
