@@ -1,0 +1,253 @@
+openapi: 3.0.0
+info:
+  title: Deno MCP Template
+  description: A Model Context Protocol (MCP) server that provides persistent memory capabilities using a local knowledge graph, enabling LLMs to remember and retrieve information across interactions.
+  version: 0.0.1
+servers:
+  - url: http://localhost:3001
+    description: Local development server
+paths:
+  /mcp:
+    get:
+      summary: Get the MCP server status
+      tags:
+        - MCP
+      responses:
+        '200':
+          description: Successful response with MCP server status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    example: "2.0"
+                  id:
+                    type: integer
+                    example: -1
+                  result:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "deno-mcp-template running. See `/llms.txt` for machine-readable docs."
+    post:
+      summary: Send a JSON-RPC message to the MCP server
+      tags:
+        - MCP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JSONRPCRequest'
+      responses:
+        '200':
+          description: Successful response with JSON-RPC result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONRPCResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete a session from the MCP server
+      tags:
+        - MCP
+      responses:
+        '200':
+          description: Successful session deletion response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONRPCResponse'
+  /sse:
+    get:
+      summary: Connect to the server using Server-Sent Events (SSE)
+      tags:
+        - SSE
+      parameters:
+        - in: header
+          name: Accept
+          schema:
+            type: string
+          required: true
+          description: Must include text/event-stream
+          example: text/event-stream
+        - in: header
+          name: Last-Event-ID
+          schema:
+            type: string
+          required: false
+          description: ID of the last event received
+      responses:
+        '200':
+          description: SSE stream established successfully
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
+        '406':
+          description: Accept header must include text/event-stream
+          content:
+            text/plain:
+              schema:
+                type: string
+  /:
+    get:
+      summary: Root endpoint to check server status
+      tags:
+        - Status
+      responses:
+        '200':
+          description: Server status message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    example: "2.0"
+                  id:
+                    type: integer
+                    example: -1
+                  result:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+components:
+  schemas:
+    JSONRPCRequest:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: JSON-RPC version
+          example: "2.0"
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+            - type: "null"
+          description: Request identifier
+        method:
+          type: string
+          description: Method to call
+          example: "call_tool"
+        params:
+          type: object
+          description: Method parameters
+      required:
+        - jsonrpc
+        - method
+    JSONRPCResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: JSON-RPC version
+          example: "2.0"
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+            - type: "null"
+          description: Request identifier
+        result:
+          type: object
+          description: Result object
+      required:
+        - jsonrpc
+        - id
+    JSONRPCError:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: JSON-RPC version
+          example: "2.0"
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+            - type: "null"
+          description: Request identifier
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: Error code
+            message:
+              type: string
+              description: Error message
+            data:
+              type: object
+              description: Additional error data
+      required:
+        - jsonrpc
+        - id
+        - error
+    EntityObject:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the entity
+        entityType:
+          type: string
+          description: The type of the entity
+        observations:
+          type: array
+          items:
+            type: string
+          description: An array of observation contents associated with the entity
+      required:
+        - name
+        - entityType
+        - observations
+    RelationObject:
+      type: object
+      properties:
+        from:
+          type: string
+          description: The name of the entity where the relation starts
+        to:
+          type: string
+          description: The name of the entity where the relation ends
+        relationType:
+          type: string
+          description: The type of the relation
+      required:
+        - from
+        - to
+        - relationType
+    KnowledgeGraphObject:
+      type: object
+      properties:
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntityObject'
+        relations:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelationObject'
+      required:
+        - entities
+        - relations
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

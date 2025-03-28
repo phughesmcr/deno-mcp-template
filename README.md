@@ -88,6 +88,8 @@ See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) fo
 
 ⚠️ Remember to set any environment variables in both your Github repo settings and your Deno Deploy project settings (if applicable).
 
+⚠️ Remember to check all files in `routes/` and `static/` as some of these files (e.g. `openapi.yaml`) will need modifying to match your MCP server's capabilities / endpoints.
+
 ℹ️ The example server runs with `deno run -A` which enables all of Deno's permissions. You should [finetune the permissions](https://docs.deno.com/runtime/fundamentals/security/) before deploying to production.
 
 ℹ️ Run `deno task prep` to run the formatter, linter, and code checker.
