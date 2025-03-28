@@ -97,7 +97,7 @@ export async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
+  return createErrorResponse(id, METHOD_NOT_FOUND, `${`./routes${path}.ts`} [${method}] Not found`);
 }
 
 // Serve static files
