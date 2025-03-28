@@ -5,6 +5,7 @@ import {
   type RequestId,
   type Result,
 } from "../vendor/schema.ts";
+import { HTTP_SUCCESS_CODE, SESSION_ID_HEADER } from "./constants.ts";
 
 export const textEncoder = new TextEncoder();
 
@@ -28,11 +29,7 @@ export function createErrorResponse(id: RequestId, code: number, message: string
       message,
     },
   };
-
-  return new Response(
-    JSON.stringify(error),
-    { status: 200, headers: { "Content-Type": "application/json" } },
-  );
+  return createJsonResponse(error, HTTP_SUCCESS_CODE);
 }
 
 export function createSuccessResponse(id: RequestId, result: unknown): Response {
@@ -41,9 +38,27 @@ export function createSuccessResponse(id: RequestId, result: unknown): Response 
     id,
     result: result as Result,
   };
+  return createJsonResponse(response, HTTP_SUCCESS_CODE);
+}
 
-  return new Response(
-    JSON.stringify(response),
-    { status: 200, headers: { "Content-Type": "application/json" } },
-  );
+// Get session ID from query parameter first (2024-11-05 standard approach)
+// Fall back to header and body if not found in query
+export async function getSessionId(req: Request): Promise<string | null> {
+  const url = new URL(req.url);
+  const sessionIdFromQuery = url.searchParams.get("sessionId");
+  let sessionId = sessionIdFromQuery;
+
+  if (!sessionId) {
+    try {
+      const clone = req.clone();
+      const data = await clone.json();
+      sessionId = req.headers.get(SESSION_ID_HEADER) ??
+        (data.id || data.sessionId || data[SESSION_ID_HEADER]);
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }
+
+  return sessionId;
 }

@@ -1,20 +1,26 @@
-import { addTransport, SSEServerTransport } from "../src/transport.ts";
-import { server } from "../src/mcp.ts";
-import { THIRTY_SECONDS } from "../src/constants.ts";
+import { addTransport, SSEServerTransport } from "../src/transports/mod.ts";
+import { server } from "../src/mcp/mod.ts";
+import {
+  HTTP_NOT_ACCEPTABLE_CODE,
+  LAST_EVENT_ID_HEADER,
+  SSE_MESSAGE_ENDPOINT,
+  THIRTY_SECONDS,
+} from "../src/constants.ts";
 import { JSONRPC_VERSION } from "../vendor/schema.ts";
 
 export function GET(req: Request): Response {
   // Check if Accept header includes text/event-stream
   const acceptHeader = req.headers.get("Accept");
   if (!acceptHeader || !acceptHeader.includes("text/event-stream")) {
-    return new Response("Accept header must include text/event-stream", { status: 406 });
+    return new Response("Accept header must include text/event-stream", {
+      status: HTTP_NOT_ACCEPTABLE_CODE,
+    });
   }
 
-  const messageEndpoint = "/message";
-  const lastEventId = req.headers.get("Last-Event-ID");
+  const lastEventId = req.headers.get(LAST_EVENT_ID_HEADER);
 
   // Create a new transport
-  const transport = new SSEServerTransport(messageEndpoint);
+  const transport = new SSEServerTransport(SSE_MESSAGE_ENDPOINT);
   addTransport(transport.sessionId, transport);
 
   // Create a stream for SSE
@@ -40,11 +46,6 @@ export function GET(req: Request): Response {
       console.error(`Stream canceled by client, closing transport ${transport.sessionId}`);
       transport.close();
     },
-    // Add error handling for the stream
-    pull() {
-      // This is called when the consumer is ready to receive more data
-      // We don't need to do anything here as we push data asynchronously
-    },
   });
 
   // Set up a timer to detect if the client has disconnected
@@ -63,7 +64,6 @@ export function GET(req: Request): Response {
         console.error("Error in disconnect detector:", error);
       }
     } else {
-      // Transport is closed, clear the interval
       clearInterval(disconnectDetector);
     }
   }, THIRTY_SECONDS);

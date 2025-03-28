@@ -41,7 +41,7 @@ import { MCP_SERVER_NAME, SESSION_ID_HEADER } from "./src/constants.ts";
 import "@std/dotenv/load";
 
 // Import the main MCP tools etc.
-import { server } from "./src/mcp.ts";
+import { server } from "./src/mcp/mod.ts";
 
 /**
  * A simple file-based router for Deno.serve

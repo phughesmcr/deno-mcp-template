@@ -1,51 +1,27 @@
-import { getTransport } from "../src/transport.ts";
+import { getTransport } from "../src/transports/mod.ts";
+import { HTTP_BAD_REQUEST_CODE, HTTP_NOT_ACCEPTABLE_CODE } from "../src/constants.ts";
+import { getSessionId } from "../src/utils.ts";
 
-/**
- * Handle POST requests to send messages to the server
- */
 export async function POST(req: Request): Promise<Response> {
   const acceptHeader = req.headers.get("Accept");
   if (!acceptHeader) {
-    return new Response(
-      "Accept header is required",
-      { status: 406 },
-    );
+    return new Response("Accept header is required", { status: HTTP_NOT_ACCEPTABLE_CODE });
   }
 
-  // Get session ID from query parameter first (2024-11-05 standard approach)
-  // Fall back to header and body if not found in query
-  const url = new URL(req.url);
-  const sessionIdFromQuery = url.searchParams.get("sessionId");
-
-  let sessionId = sessionIdFromQuery;
-
-  // If not in query params, check other locations as fallbacks
+  const sessionId = await getSessionId(req);
   if (!sessionId) {
-    const clone = req.clone();
-    try {
-      const data = await clone.json();
-      sessionId = req.headers.get("Mcp-Session-Id") ??
-        (data.id || data.sessionId || data["Mcp-Session-Id"]);
-    } catch (error) {
-      console.error(error);
-      return new Response("Invalid request body", { status: 400 });
-    }
-  }
-
-  if (!sessionId) {
-    return new Response("Session ID not found", { status: 400 });
+    return new Response("Session ID not found", { status: HTTP_BAD_REQUEST_CODE });
   }
 
   const transport = getTransport(sessionId);
-
   if (!transport) {
-    return new Response("No transport found for session", { status: 400 });
+    return new Response("No transport found for session", { status: HTTP_BAD_REQUEST_CODE });
   }
 
   try {
     return await transport.handlePostMessage(req);
   } catch (error) {
     console.error(error);
-    return new Response("Invalid JSON", { status: 400 });
+    return new Response("Invalid JSON", { status: HTTP_BAD_REQUEST_CODE });
   }
 }
