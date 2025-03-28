@@ -1,6 +1,6 @@
 import { addTransport, SSEServerTransport } from "../src/transport.ts";
 import { server } from "../src/mcp.ts";
-import { DISCONNECT_CHECK_INTERVAL_MS } from "../src/constants.ts";
+import { THIRTY_SECONDS } from "../src/constants.ts";
 import { JSONRPC_VERSION } from "../vendor/schema.ts";
 
 export function GET(req: Request): Response {
@@ -66,7 +66,7 @@ export function GET(req: Request): Response {
       // Transport is closed, clear the interval
       clearInterval(disconnectDetector);
     }
-  }, DISCONNECT_CHECK_INTERVAL_MS);
+  }, THIRTY_SECONDS);
 
   return new Response(stream, {
     headers: {

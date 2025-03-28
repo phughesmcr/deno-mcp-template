@@ -1,4 +1,5 @@
 import type { JSONRPCMessage } from "../vendor/schema.ts";
+import { MAXIMUM_MESSAGE_SIZE } from "./constants.ts";
 import { textEncoder } from "./utils.ts";
 
 /**
