@@ -1,10 +1,27 @@
-import type { JSONRPCError, JSONRPCMessage, RequestId, Result } from "../vendor/schema.ts";
+import {
+  JSONRPC_VERSION,
+  type JSONRPCError,
+  type JSONRPCMessage,
+  type RequestId,
+  type Result,
+} from "../vendor/schema.ts";
 
 export const textEncoder = new TextEncoder();
 
+export function createJsonResponse(
+  body: unknown,
+  status: number,
+  headers?: Record<string, string>,
+): Response {
+  return new Response(
+    JSON.stringify(body),
+    { status, headers: { ...headers, "Content-Type": "application/json" } },
+  );
+}
+
 export function createErrorResponse(id: RequestId, code: number, message: string): Response {
   const error: JSONRPCError = {
-    jsonrpc: "2.0",
+    jsonrpc: JSONRPC_VERSION,
     id,
     error: {
       code,
@@ -20,7 +37,7 @@ export function createErrorResponse(id: RequestId, code: number, message: string
 
 export function createSuccessResponse(id: RequestId, result: unknown): Response {
   const response: JSONRPCMessage = {
-    jsonrpc: "2.0",
+    jsonrpc: JSONRPC_VERSION,
     id,
     result: result as Result,
   };

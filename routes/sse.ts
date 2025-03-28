@@ -1,5 +1,7 @@
 import { addTransport, SSEServerTransport } from "../src/transport.ts";
 import { server } from "../src/mcp.ts";
+import { DISCONNECT_CHECK_INTERVAL_MS } from "../src/constants.ts";
+import { JSONRPC_VERSION } from "../vendor/schema.ts";
 
 export function GET(req: Request): Response {
   // Check if Accept header includes text/event-stream
@@ -35,7 +37,7 @@ export function GET(req: Request): Response {
       });
     },
     cancel() {
-      console.log(`Stream canceled by client, closing transport ${transport.sessionId}`);
+      console.error(`Stream canceled by client, closing transport ${transport.sessionId}`);
       transport.close();
     },
     // Add error handling for the stream
@@ -51,10 +53,10 @@ export function GET(req: Request): Response {
     if (!transport.isClosed) {
       // Try sending a ping to see if the client is still there
       try {
-        transport.send({ jsonrpc: "2.0", method: "ping", id: crypto.randomUUID() })
+        transport.send({ jsonrpc: JSONRPC_VERSION, method: "ping", id: crypto.randomUUID() })
           .catch(() => {
             // If the send fails, close the transport
-            console.log("Ping failed, client appears to be disconnected");
+            console.error("Ping failed, client appears to be disconnected");
             transport.close();
           });
       } catch (error) {
@@ -64,7 +66,7 @@ export function GET(req: Request): Response {
       // Transport is closed, clear the interval
       clearInterval(disconnectDetector);
     }
-  }, 30000);
+  }, DISCONNECT_CHECK_INTERVAL_MS);
 
   return new Response(stream, {
     headers: {

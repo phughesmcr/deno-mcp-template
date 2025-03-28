@@ -8,21 +8,20 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { type Entity, KnowledgeGraphManager, type Relation } from "./memoryGraph.ts";
+import KnowledgeGraphManager, { type Entity, type Relation } from "./KnowledgeGraphManager.ts";
+import { KV, MCP_SERVER_NAME, VERSION } from "./constants.ts";
 
-const kv = await Deno.openKv();
-const knowledgeGraphManager = new KnowledgeGraphManager(kv);
+const knowledgeGraphManager = new KnowledgeGraphManager(KV);
 
 export const server = new Server({
-  name: "memory-server",
-  version: "1.0.0",
+  name: MCP_SERVER_NAME,
+  version: VERSION,
 }, {
   capabilities: {
     tools: {},
   },
 });
 
-// deno-lint-ignore require-await
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [

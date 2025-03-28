@@ -19,7 +19,7 @@ export interface KnowledgeGraph {
 }
 
 // The KnowledgeGraphManager class contains all operations to interact with the knowledge graph
-export class KnowledgeGraphManager {
+export default class KnowledgeGraphManager {
   private MEMORY_FILE_PATH: string;
   private kv: Deno.Kv;
 
@@ -221,7 +221,6 @@ export class KnowledgeGraphManager {
     await transaction.commit();
   }
 
-  // deno-lint-ignore require-await
   async readGraph(): Promise<KnowledgeGraph> {
     return this.getGraphFromKV();
   }

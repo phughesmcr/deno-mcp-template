@@ -31,10 +31,11 @@
  */
 
 import { type Route, route } from "@std/http/unstable-route";
-import { serveDir, serveFile } from "@std/http/file-server";
+import { serveFile } from "@std/http/file-server";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { INTERNAL_ERROR, METHOD_NOT_FOUND } from "./vendor/schema.ts";
 import { createErrorResponse } from "./src/utils.ts";
+import { MCP_SERVER_NAME, SESSION_ID_HEADER } from "./src/constants.ts";
 
 // Load environment variables
 import "@std/dotenv/load";
@@ -51,6 +52,7 @@ import { server } from "./src/mcp.ts";
 async function handler(req: Request): Promise<Response> {
   const { pathname } = new URL(req.url);
   const method = req.method;
+  const id = req.headers.get(SESSION_ID_HEADER) ?? -1;
 
   const path = pathname === "/" ? "/index" : pathname;
   let module;
@@ -67,28 +69,33 @@ async function handler(req: Request): Promise<Response> {
       return module[method](req);
     } catch (error) {
       console.error("Error in route:", path, method, error);
-      return createErrorResponse(0, INTERNAL_ERROR, "Internal server error");
+
+      return createErrorResponse(id, INTERNAL_ERROR, "Internal server error");
     }
   }
 
-  return createErrorResponse(0, METHOD_NOT_FOUND, "Not found");
+  return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
 }
 
+// Serve static files
 const routes: Route[] = [
   {
     pattern: new URLPattern({ pathname: "/llms.txt" }),
-    handler: (req: Request) => serveFile(req, "./static/.well-known/llms.txt"),
+    handler: async (req: Request) => {
+      const response = await serveFile(req, "./static/.well-known/llms.txt");
+      response.headers.set("Content-Type", "text/plain");
+      return response;
+    },
   },
   {
-    pattern: new URLPattern({ pathname: "/static/*" }),
-    handler: (req: Request) =>
-      serveDir(req, {
-        fsRoot: "static",
-        urlRoot: "static",
-        showDirListing: true,
-        showDotfiles: true, // DANGER: This will expose all files in the static directory
-        quiet: true, // Required as console output can interfere with the STDIO connection
-      }),
+    // match routes ending in a file extension
+    pattern: new URLPattern({ pathname: "/*.*" }),
+    handler: (req: Request) => {
+      const url = new URL(req.url);
+      const pathname = url.pathname;
+      const filePath = `./static${pathname}`;
+      return serveFile(req, filePath);
+    },
   },
 ];
 
@@ -97,8 +104,11 @@ if (import.meta.main) {
     // This handles both SSE requests and web routes
     Deno.serve({
       port: parseInt(Deno.env.get("PORT") || "3001"),
-      onListen({ port }) {
-        console.error("Server is listening on port", port);
+      hostname: Deno.env.get("HOSTNAME"),
+      onListen({ port, hostname }) {
+        console.error(
+          `${MCP_SERVER_NAME} MCP server is listening on ${hostname}:${port}`,
+        );
       },
     }, route(routes, handler));
     // This handles STDIO requests

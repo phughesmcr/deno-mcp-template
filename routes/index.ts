@@ -1,11 +1,13 @@
-import type { JSONRPCResponse } from "../vendor/schema.ts";
+import { JSONRPC_VERSION, type JSONRPCResponse } from "../vendor/schema.ts";
+import { MCP_SERVER_NAME } from "../src/constants.ts";
 
 export function GET(_req: Request): Response {
   const success: JSONRPCResponse = {
-    jsonrpc: "2.0",
-    id: 0,
+    jsonrpc: JSONRPC_VERSION,
+    id: -1,
     result: {
-      message: "MCP SSE Server is running",
+      message:
+        `${MCP_SERVER_NAME} is running. See \`/llms.txt\` for machine-readable documentation.`,
     },
   };
   return new Response(JSON.stringify(success), {

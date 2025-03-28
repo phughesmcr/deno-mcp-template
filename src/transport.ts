@@ -21,6 +21,8 @@ export interface ServerSentEventMessage {
 
 /**
  * Describes the minimal contract for a MCP transport that a client or server can communicate over.
+ *
+ * @see {@link https://github.com/modelcontextprotocol/servers/blob/main/src/transport.ts}
  */
 export interface Transport {
   /**
@@ -79,46 +81,47 @@ export const addTransport = (sessionId: string, transport: SSEServerTransport): 
 
 // SSE server transport implementation
 export class SSEServerTransport implements Transport {
-  readonly sessionId: string;
-  private controller: ReadableStreamDefaultController<Uint8Array> | null = null;
-  private closed = false;
-  private eventId = 0;
-  private isStarted = false;
-  private messageEndpoint: string;
+  #sessionId: string;
+  #controller: ReadableStreamDefaultController<Uint8Array> | null = null;
+  #closed = false;
+  #eventId = 0;
+  #isStarted = false;
+  #messageEndpoint: string;
 
   onmessage?: (message: JSONRPCMessage) => void;
   onclose?: () => void;
   onerror?: (error: Error) => void;
 
   constructor(messageEndpoint: string = "/message") {
-    this.sessionId = crypto.randomUUID();
-    this.messageEndpoint = messageEndpoint;
+    this.#sessionId = crypto.randomUUID();
+    this.#messageEndpoint = messageEndpoint;
   }
 
-  /**
-   * Check if the transport is closed
-   */
+  get sessionId(): string {
+    return this.#sessionId;
+  }
+
   get isClosed(): boolean {
-    return this.closed;
+    return this.#closed;
   }
 
   async start(): Promise<void> {
-    if (this.isStarted) return;
-    this.isStarted = true;
+    if (this.#isStarted) return;
+    this.#isStarted = true;
     // Ensure we have a controller before trying to send anything
-    if (this.controller) {
-      this.sendEndpointEvent();
+    if (this.#controller) {
+      this.#sendEndpointEvent();
     }
   }
 
   async send(message: JSONRPCMessage): Promise<void> {
     // Early return if transport is marked as closed or no controller
-    if (this.closed || !this.controller) return;
+    if (this.#closed || !this.#controller) return;
 
     try {
-      this.eventId++;
+      this.#eventId++;
       const data = `event: message\ndata: ${JSON.stringify(message)}\n\n`;
-      this.controller.enqueue(textEncoder.encode(data));
+      this.#controller.enqueue(textEncoder.encode(data));
     } catch (error) {
       // If we encounter a "stream already closed" type error,
       // mark the transport as closed to prevent further attempts
@@ -128,8 +131,8 @@ export class SSEServerTransport implements Transport {
       ) {
         console.error("Stream appears to be closed, marking transport as closed");
         // Mark as closed but don't try to close the controller again
-        this.closed = true;
-        this.controller = null;
+        this.#closed = true;
+        this.#controller = null;
 
         // Notify about closure if callback is set
         if (this.onclose) {
@@ -137,23 +140,23 @@ export class SSEServerTransport implements Transport {
         }
       }
 
-      this.handleError(error instanceof Error ? error : new Error(String(error)));
+      this.#handleError(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   async close(): Promise<void> {
-    if (this.closed) return;
+    if (this.#closed) return;
 
-    this.closed = true;
-    delete transports[this.sessionId];
+    this.#closed = true;
+    delete transports[this.#sessionId];
 
-    if (this.controller) {
+    if (this.#controller) {
       try {
-        this.controller.close();
+        this.#controller.close();
       } catch (error) {
         console.error("Note: Stream already closed", error);
       }
-      this.controller = null;
+      this.#controller = null;
     }
 
     if (this.onclose) {
@@ -162,30 +165,27 @@ export class SSEServerTransport implements Transport {
   }
 
   setupStream(controller: ReadableStreamDefaultController<Uint8Array>, lastEventId?: string): void {
-    this.controller = controller;
+    this.#controller = controller;
 
     // If we have a last event ID, we might want to resend missed messages
     if (lastEventId) {
       const lastId = parseInt(lastEventId, 10);
       if (!isNaN(lastId)) {
-        this.eventId = lastId;
+        this.#eventId = lastId;
         // Here you could implement logic to resend missed messages
       }
     }
   }
 
-  /**
-   * Sends the required endpoint event as per MCP 2024-11-05 spec
-   */
-  private sendEndpointEvent(): void {
-    if (!this.controller) return;
-    const endpoint = `${this.messageEndpoint}?sessionId=${this.sessionId}`;
+  #sendEndpointEvent(): void {
+    if (!this.#controller) return;
+    const endpoint = `${this.#messageEndpoint}?sessionId=${this.#sessionId}`;
     const endpointEvent = `event: endpoint\ndata: ${endpoint}\n\n`;
-    this.controller.enqueue(textEncoder.encode(endpointEvent));
+    this.#controller.enqueue(textEncoder.encode(endpointEvent));
   }
 
   async handlePostMessage(req: Request): Promise<Response> {
-    if (this.closed) {
+    if (this.#closed) {
       return new Response("Transport closed", { status: 410 });
     }
 
@@ -206,12 +206,12 @@ export class SSEServerTransport implements Transport {
         },
       });
     } catch (error) {
-      this.handleError(error instanceof Error ? error : new Error(String(error)));
+      this.#handleError(error instanceof Error ? error : new Error(String(error)));
       return new Response("Invalid JSON", { status: 400 });
     }
   }
 
-  private handleError(error: Error): void {
+  #handleError(error: Error): void {
     if (this.onerror) {
       this.onerror(error);
     }
