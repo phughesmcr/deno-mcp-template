@@ -57,14 +57,49 @@
 import { type Route, route } from "@std/http/unstable-route";
 import { serveFile } from "@std/http/file-server";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { routeHandler } from "./src/utils.ts";
-import { MCP_SERVER_NAME } from "./src/constants.ts";
+import { MCP_SERVER_NAME, SESSION_ID_HEADER } from "./src/constants.ts";
+import { createErrorResponse } from "./src/utils.ts";
+import { INTERNAL_ERROR, METHOD_NOT_FOUND } from "./vendor/schema.ts";
 
 // Load environment variables
 import "@std/dotenv/load";
 
 // Import the main MCP tools etc.
 import { server } from "./src/mcp/mod.ts";
+
+/**
+ * A simple file-based router for Deno.serve
+ *
+ * Add your routes to the `routes/` directory.
+ * Add static files to the `static/` directory.
+ */
+export async function handler(req: Request): Promise<Response> {
+  const { pathname } = new URL(req.url);
+  const method = req.method;
+  const id = req.headers.get(SESSION_ID_HEADER) ?? -1;
+
+  const path = pathname === "/" ? "/index" : pathname;
+  let module;
+
+  try {
+    const resolved = import.meta.resolve(`./routes${path}.ts`);
+    module = await import(resolved);
+  } catch (error) {
+    console.error("No route module found for", path, error);
+  }
+
+  if (module && module[method]) {
+    try {
+      return module[method](req);
+    } catch (error) {
+      console.error("Error in route:", path, method, error);
+
+      return createErrorResponse(id, INTERNAL_ERROR, "Internal server error");
+    }
+  }
+
+  return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
+}
 
 // Serve static files
 const routes: Route[] = [
@@ -73,6 +108,14 @@ const routes: Route[] = [
     handler: async (req: Request) => {
       const response = await serveFile(req, "./static/.well-known/llms.txt");
       response.headers.set("Content-Type", "text/plain");
+      return response;
+    },
+  },
+  {
+    pattern: new URLPattern({ pathname: "/openapi.yaml" }),
+    handler: async (req: Request) => {
+      const response = await serveFile(req, "./static/.well-known/openapi.yaml");
+      response.headers.set("Content-Type", "text/yaml");
       return response;
     },
   },
@@ -99,7 +142,7 @@ if (import.meta.main) {
           `${MCP_SERVER_NAME} MCP server is listening on ${hostname}:${port}`,
         );
       },
-    }, route(routes, routeHandler));
+    }, route(routes, handler));
     // This handles STDIO requests
     const transport = new StdioServerTransport();
     await server.connect(transport);
