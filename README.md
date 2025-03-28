@@ -8,7 +8,7 @@ A simple template for writing MCP servers using [Deno](https://deno.com/), publi
 
 The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool, and allow for session resumability.
 
-‼️ By default this template serve calls `await Deno.openKv()` - all KV functionality will be shared across users who access your server through `"command": "deno run -A --unstable-kv jsr:@your-scope/your-package`. You probably don't want this in production. Make sure user's can only read what they should have access to!
+‼️ By default this template server calls `await Deno.openKv()` - all KV functionality will be shared across users who access your server through `"command": "deno run -A --unstable-kv jsr:@your-scope/your-package`. You probably don't want this in production. Make sure user's can only read what they should have access to!
 
 ℹ️ **Deno is required**. Use `npm install -g deno` or `curl -fsSL <https://deno.land/install.sh> | sh`
 
