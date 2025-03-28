@@ -1,6 +1,14 @@
 # Deno MCP Template Repo
 
-![Build Status](https://github.com/phughesmcr/deno-mcp-template/workflows/CI/badge.svg)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/ci.yml?label=CI)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/release.yml?label=release)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/deploy.yml?label=deploy)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/publish.yml?label=publish)
+
+![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
+![License](https://img.shields.io/github/license/phughesmcr/deno-mcp-template)
+![Repo Size](https://img.shields.io/github/languages/code-size/phughesmcr/deno-mcp-template)
+![Sponsor](https://img.shields.io/github/sponsors/phughesmcr)
 
 ![Repo Logo](static/logo_124.png)
 
