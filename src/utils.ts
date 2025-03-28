@@ -1,7 +1,9 @@
 import {
+  INTERNAL_ERROR,
   JSONRPC_VERSION,
   type JSONRPCError,
   type JSONRPCMessage,
+  METHOD_NOT_FOUND,
   type RequestId,
   type Result,
 } from "../vendor/schema.ts";
@@ -61,4 +63,38 @@ export async function getSessionId(req: Request): Promise<string | null> {
   }
 
   return sessionId;
+}
+
+/**
+ * A simple file-based router for Deno.serve
+ *
+ * Add your routes to the `routes/` directory.
+ * Add static files to the `static/` directory.
+ */
+export async function routeHandler(req: Request): Promise<Response> {
+  const { pathname } = new URL(req.url);
+  const method = req.method;
+  const id = req.headers.get(SESSION_ID_HEADER) ?? -1;
+
+  const path = pathname === "/" ? "/index" : pathname;
+  let module;
+
+  try {
+    const resolved = import.meta.resolve(`../routes${path}.ts`);
+    module = await import(resolved);
+  } catch (error) {
+    console.error("No route module found for", path, error);
+  }
+
+  if (module && module[method]) {
+    try {
+      return module[method](req);
+    } catch (error) {
+      console.error("Error in route:", path, method, error);
+
+      return createErrorResponse(id, INTERNAL_ERROR, "Internal server error");
+    }
+  }
+
+  return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
 }
