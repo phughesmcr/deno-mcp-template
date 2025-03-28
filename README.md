@@ -10,6 +10,8 @@ The example server also uses [Deno KV](https://deno.com/kv) to implement a simpl
 
 Replace the server name, and the package location in the following examples to correspond to your own MCP server.
 
+You can set HOSTNAME and PORT in a `.env` if desired.
+
 ### `claude-desktop-config.json` using the MCP server published on JSR
 
 ```json
@@ -22,9 +24,37 @@ Replace the server name, and the package location in the following examples to c
 }
 ```
 
-### `claude-desktop-config.json` using a local MCP server
+### `claude-desktop-config.json` manually using the SSE endpoint
 
- ```json
+Start the server using `deno task start`.
+
+```json
+{
+    "mcpServers": {
+        "my-mcp-server": {
+            "url": "http://localhost:3001/sse"
+        },
+    }
+}
+```
+
+### `claude-desktop-config.json` manually using the HTTP endpoint
+
+Start the server using `deno task start`.
+
+```json
+{
+    "mcpServers": {
+        "my-mcp-server": {
+            "url": "http://localhost:3001/mcp"
+        },
+    }
+}
+```
+
+### `claude-desktop-config.json` using the STDIO server
+
+```json
 {
     "mcpServers": {
         "my-local-mcp-server": {
@@ -33,6 +63,24 @@ Replace the server name, and the package location in the following examples to c
     }
 }
 ```
+
+### Compiling to a binary
+
+Run `deno task compile`.
+
+You can then use your binary like any other MCP server, for example:
+
+```json
+{
+    "mcpServers": {
+        "my-local-mcp-server": {
+            "command": "absolute/path/to/binary"
+        },
+    }
+}
+```
+
+See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) for more information.
 
 ## Development
 
@@ -50,7 +98,7 @@ In order for users to be able to run your server from the internet this example 
 
 JSR is "the open-source package registry for modern JavaScript and TypeScript", and works similarly to NPM.
 
-Publishing your server in this way allows the user to run it using `deno run jsr:@your_id/your_server_name` instead of having to clone the repo and set an absolute path.
+Publishing your server in this way allows the user to run it using `deno run jsr:@your_scope/your_server_name` instead of having to clone the repo and set an absolute path.
 
 For this to work, you will need to setup you [JSR.io](https://jsr.io) account and replace the relevant values in the codebase to match your package name and scope.
 
@@ -60,7 +108,7 @@ Using Deno Deploy is not necessary if you only want your server to be published 
 
 For this to work, you will need to setup your [Deno Deploy](https://deno.com/deploy) and replace the relevant values in the codebase to match your package name.
 
-If you do not plan on using Deploy, remove `.github/workflows/deploy.yml`, along with `routes/` and `static/` and the related code.
+If you do not plan on using Deploy, remove `.github/workflows/deploy.yml`.
 
 ### DB with Deno KV
 
