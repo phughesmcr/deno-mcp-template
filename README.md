@@ -1,5 +1,9 @@
 # Deno MCP Template Repo
 
+![Build Status](https://github.com/phughesmcr/deno-mcp-template/workflows/CI/badge.svg)
+
+![Repo Logo](static/logo_124.png)
+
 A simple template for writing MCP servers using [Deno](https://deno.com/), publishing them using [JSR.io](https://jsr.io), and optionally using hosting on [Deno Deploy](https://deno.com/deploy).
 
 The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool, and allow for session resumability.
