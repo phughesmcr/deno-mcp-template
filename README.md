@@ -2,7 +2,7 @@
 
 A simple template for writing MCP servers using [Deno](https://deno.com/), publishing them using [JSR.io](https://jsr.io), and optionally using hosting on [Deno Deploy](https://deno.com/deploy).
 
-The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool.
+The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool, and allow for session resumability.
 
 ℹ️ **Deno is required**. Use `npm install -g deno` or `curl -fsSL <https://deno.land/install.sh> | sh`
 
@@ -17,7 +17,7 @@ You can set HOSTNAME and PORT in a `.env` if desired.
 ```json
 {
     "mcpServers": {
-        "my-published-mcp-server": {
+        "my-mcp-server": {
             "command": "deno run -A jsr:@phughesmcr/deno-mcp-template"
         },
     }
@@ -57,7 +57,7 @@ Start the server using `deno task start`.
 ```json
 {
     "mcpServers": {
-        "my-local-mcp-server": {
+        "my-mcp-server": {
             "command": "deno run -A absolute/path/to/main.ts"
         },
     }
@@ -104,6 +104,8 @@ Publishing your server in this way allows the user to run it using `deno run jsr
 
 For this to work, you will need to setup you [JSR.io](https://jsr.io) account and replace the relevant values in the codebase to match your package name and scope.
 
+If you do not want to publish on JSR, remove `.github/workflows/publish.yml`.
+
 ### Hosting on Deno Deploy
 
 Using Deno Deploy is not necessary if you only want your server to be published through JSR. However, implementing a simple server using Deno Deploy can be useful in several ways. For example, hosting an [`llms.txt`](./static/.well-known/llms.txt) file which describes your server to LLMs; adding an auth route; etc.
@@ -125,7 +127,7 @@ This template server implements the [Knowledge Graph Memory Server](https://gith
 The repo includes the following quality-of-life files which aren't necessary for the server to run but which will enhance your vibecoding:
 
 - `.cursor/mcp.json` adds the MCP server to Cursor.
-- `.github/` adds Github sponsors info to your repo, and other Github features.
+- `.github/` adds Github sponsors info to your repo, and other Github features such as workflows.
 - `.vscode/` has some recommended extensions and makes Deno the default formatter.
 - `vendor/schema.ts` is the [2025-03-26 MCP schema from Anthropic](https://github.com/modelcontextprotocol/specification/blob/main/schema/2025-03-26/schema.ts).
 - `CLAUDE.md` is a starter file for Claude Code. Run `claude init` after your first changes to keep it up-to-date.
