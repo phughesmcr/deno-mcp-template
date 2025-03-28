@@ -10,7 +10,7 @@
  * {
  *   "mcpServers": {
  *     "my-published-mcp-server": {
- *       "command": "deno run -A --unstable-kv jsr:@phughesmcr/deno-mcp-template"
+ *       "command": "deno run -A --unstable-kv jsr:@your-scope/your-package"
  *     },
  *   }
  * }
