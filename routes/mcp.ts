@@ -1,6 +1,7 @@
 import { KV, MCP_SERVER_NAME, SESSION_ID_HEADER, THIRTY_MINUTES } from "../src/constants.ts";
 import { createJsonResponse } from "../src/utils.ts";
 import {
+  INTERNAL_ERROR,
   INVALID_REQUEST,
   JSONRPC_VERSION,
   type JSONRPCError,
@@ -317,6 +318,15 @@ interface SessionData {
   lastActivity: number;
   messageHistory: MessageEntry[];
   messageCount: number;
+  connections: Map<string, Connection>;
+}
+
+interface Connection {
+  id: string;
+  type: "sse" | "response";
+  controller?: ReadableStreamDefaultController<Uint8Array>;
+  lastActivity: number;
+  closed: boolean;
 }
 
 interface MessageEntry {
@@ -345,6 +355,7 @@ async function createSession(): Promise<string> {
     lastActivity: Date.now(),
     messageHistory: [],
     messageCount: 0,
+    connections: new Map(),
   };
   await KV.set(getLastActivityKey(sessionId), sessionData);
   return sessionId;
@@ -361,7 +372,7 @@ async function validateSession(sessionId: string): Promise<boolean> {
   }
 
   const lastActivity = sessionData.value.lastActivity;
-  if (Date.now() - lastActivity > SESSION_TIMEOUT) {
+  if (Date.now() - lastActivity > THIRTY_MINUTES) {
     // Session expired, clean up
     await KV.delete(getLastActivityKey(sessionId));
 
@@ -387,6 +398,20 @@ async function updateSession(sessionId: string): Promise<void> {
   const sessionData = await KV.get<SessionData>(getLastActivityKey(sessionId));
   if (sessionData.value) {
     const data = sessionData.value;
+
+    // Clean up any closed or inactive connections
+    if (data.connections) {
+      const now = Date.now();
+      const inactiveThreshold = 5 * 60 * 1000; // 5 minutes
+
+      for (const [connectionId, connection] of data.connections.entries()) {
+        // Remove closed or inactive connections
+        if (connection.closed || (now - connection.lastActivity > inactiveThreshold)) {
+          data.connections.delete(connectionId);
+        }
+      }
+    }
+
     await KV.set(getLastActivityKey(sessionId), {
       ...data,
       lastActivity: Date.now(),
@@ -458,6 +483,226 @@ async function getMissedMessages(
   }
 
   return missedMessages;
+}
+
+/**
+ * Registers a new SSE connection for a session
+ */
+async function registerConnection(
+  sessionId: string,
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  type: "sse" | "response" = "sse",
+): Promise<string> {
+  const sessionData = await KV.get<SessionData>(getLastActivityKey(sessionId));
+
+  if (!sessionData.value) {
+    throw new Error("Session not found");
+  }
+
+  // Create a new connection
+  const connectionId = crypto.randomUUID();
+  const connection: Connection = {
+    id: connectionId,
+    type,
+    controller,
+    lastActivity: Date.now(),
+    closed: false,
+  };
+
+  // Update session with the new connection
+  const updatedData = {
+    ...sessionData.value,
+    lastActivity: Date.now(),
+    connections: sessionData.value.connections || new Map(),
+  };
+
+  // Update in memory
+  updatedData.connections.set(connectionId, connection);
+
+  // Persist to KV
+  await KV.set(getLastActivityKey(sessionId), updatedData);
+
+  return connectionId;
+}
+
+/**
+ * Removes a connection from a session
+ */
+async function removeConnection(sessionId: string, connectionId: string): Promise<void> {
+  const sessionData = await KV.get<SessionData>(getLastActivityKey(sessionId));
+
+  if (!sessionData.value || !sessionData.value.connections) {
+    return;
+  }
+
+  // Remove the connection from the session
+  const updatedData = {
+    ...sessionData.value,
+    lastActivity: Date.now(),
+  };
+
+  updatedData.connections.delete(connectionId);
+
+  // Persist to KV
+  await KV.set(getLastActivityKey(sessionId), updatedData);
+}
+
+/**
+ * Gets an active connection for sending messages
+ */
+async function getActiveConnection(sessionId: string): Promise<Connection | null> {
+  const sessionData = await KV.get<SessionData>(getLastActivityKey(sessionId));
+
+  if (!sessionData.value || !sessionData.value.connections) {
+    return null;
+  }
+
+  // Find the most recently active connection that isn't closed
+  let bestConnection: Connection | null = null;
+  let mostRecentActivity = 0;
+
+  for (const connection of sessionData.value.connections.values()) {
+    if (!connection.closed && connection.lastActivity > mostRecentActivity) {
+      bestConnection = connection;
+      mostRecentActivity = connection.lastActivity;
+    }
+  }
+
+  return bestConnection;
+}
+
+/**
+ * Updates the connection's last activity time
+ */
+async function updateConnectionActivity(sessionId: string, connectionId: string): Promise<void> {
+  const sessionData = await KV.get<SessionData>(getLastActivityKey(sessionId));
+
+  if (!sessionData.value || !sessionData.value.connections) {
+    return;
+  }
+
+  const connection = sessionData.value.connections.get(connectionId);
+
+  if (connection) {
+    connection.lastActivity = Date.now();
+    await KV.set(getLastActivityKey(sessionId), sessionData.value);
+  }
+}
+
+/**
+ * Determines if a set of messages should be batched together
+ * @param messages Messages to potentially batch
+ * @returns Whether the messages should be batched
+ */
+function shouldBatchMessages(messages: JSONRPCMessage[]): boolean {
+  // Don't batch if there's only one message
+  if (messages.length <= 1) return false;
+
+  // Don't batch if the combined size would be too large
+  // A reasonable limit is ~32KB for SSE messages
+  const MAX_BATCH_SIZE = 32 * 1024;
+  const totalSize = JSON.stringify(messages).length;
+  if (totalSize > MAX_BATCH_SIZE) return false;
+
+  // Check if all messages are of the same type (all responses or all notifications)
+  const allResponses = messages.every((msg) => "id" in msg && ("result" in msg || "error" in msg));
+  const allNotifications = messages.every((msg) =>
+    "method" in msg && (!("id" in msg) || msg.id === null)
+  );
+
+  // Only batch messages of the same type
+  return allResponses || allNotifications;
+}
+
+/**
+ * Batch messages together for more efficient transmission
+ * @param messages Messages to batch
+ * @returns Batched messages (array of arrays)
+ */
+function batchMessages(messages: JSONRPCMessage[]): JSONRPCMessage[][] {
+  if (messages.length <= 1) return messages.map((msg) => [msg]);
+
+  const batches: JSONRPCMessage[][] = [];
+  let currentBatch: JSONRPCMessage[] = [];
+
+  for (const message of messages) {
+    // Start a new batch if current one would be too large
+    const withMessage = [...currentBatch, message];
+    if (currentBatch.length > 0 && !shouldBatchMessages(withMessage)) {
+      batches.push([...currentBatch]);
+      currentBatch = [message];
+    } else {
+      currentBatch.push(message);
+    }
+
+    // If we have a large enough batch, finalize it
+    if (currentBatch.length >= 5) { // Arbitrary threshold, can be tuned
+      batches.push([...currentBatch]);
+      currentBatch = [];
+    }
+  }
+
+  // Add any remaining messages
+  if (currentBatch.length > 0) {
+    batches.push(currentBatch);
+  }
+
+  return batches;
+}
+
+/**
+ * Sends batched messages through an SSE stream with proper sequence IDs
+ */
+async function sendBatchedMessages(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  messages: JSONRPCMessage[],
+  sessionId?: string,
+  connectionId?: string,
+): Promise<void> {
+  if (!messages.length) return;
+
+  // If we don't have a session, just send unbatched
+  if (!sessionId) {
+    for (const message of messages) {
+      const data = `data: ${JSON.stringify(message)}\n\n`;
+      controller.enqueue(new TextEncoder().encode(data));
+    }
+    return;
+  }
+
+  // Determine if we should batch these messages
+  if (shouldBatchMessages(messages)) {
+    // Store the batch as a single message
+    const batchedMessage = messages.length === 1 ? messages[0] : messages;
+    const sequenceId = await storeMessage(
+      sessionId,
+      batchedMessage as JSONRPCMessage,
+    );
+
+    // Send as a single SSE event
+    const data = `id: ${sequenceId}\ndata: ${JSON.stringify(batchedMessage)}\n\n`;
+    controller.enqueue(new TextEncoder().encode(data));
+
+    // Update connection activity once per batch
+    if (connectionId) {
+      await updateConnectionActivity(sessionId, connectionId);
+    }
+  } else {
+    // Send messages individually
+    for (const message of messages) {
+      const sequenceId = await storeMessage(
+        sessionId,
+        message,
+      );
+      const data = `id: ${sequenceId}\ndata: ${JSON.stringify(message)}\n\n`;
+      controller.enqueue(new TextEncoder().encode(data));
+
+      // Update connection activity
+      if (connectionId) {
+        await updateConnectionActivity(sessionId, connectionId);
+      }
+    }
+  }
 }
 
 /**
@@ -604,16 +849,35 @@ export async function POST(req: Request, server: Server) {
                   : undefined
               );
 
+              // Register this connection for this response stream
+              let connectionId: string | undefined;
+              const currentSessionId = newSessionId || sessionId;
+
+              if (currentSessionId) {
+                connectionId = await registerConnection(
+                  currentSessionId,
+                  controller,
+                  "response", // This is a response stream, not a long-lived SSE
+                );
+              }
+
               // Send responses as SSE events with sequence IDs
-              for (const response of responses) {
-                if (newSessionId) {
-                  const sequenceId = await storeMessage(newSessionId, response as JSONRPCMessage);
-                  const data = `id: ${sequenceId}\ndata: ${JSON.stringify(response)}\n\n`;
-                  controller.enqueue(new TextEncoder().encode(data));
-                } else {
-                  const data = `data: ${JSON.stringify(response)}\n\n`;
-                  controller.enqueue(new TextEncoder().encode(data));
-                }
+              const batches = batchMessages(responses);
+              for (const batch of batches) {
+                // Convert null to undefined to satisfy type requirements
+                const sessionIdParam = currentSessionId !== null ? currentSessionId : undefined;
+
+                await sendBatchedMessages(
+                  controller,
+                  batch,
+                  sessionIdParam,
+                  connectionId,
+                );
+              }
+
+              // Clean up the connection
+              if (currentSessionId && connectionId) {
+                await removeConnection(currentSessionId, connectionId);
               }
 
               controller.close();
@@ -888,25 +1152,86 @@ export async function GET(req: Request) {
   // Create SSE stream for long-polling
   const stream = new ReadableStream({
     start: async (controller) => {
-      // Send initial keepalive comment
-      controller.enqueue(new TextEncoder().encode(": keepalive\n\n"));
+      let connectionId: string | undefined;
 
-      // If we have a session ID and last event ID, send missed messages
-      if (sessionId && lastEventId) {
-        const missedMessages = await getMissedMessages(sessionId, lastEventId);
-
-        // Send all missed messages
-        for (const { sequenceId, message } of missedMessages) {
-          const data = `id: ${sequenceId}\ndata: ${JSON.stringify(message)}\n\n`;
-          controller.enqueue(new TextEncoder().encode(data));
+      try {
+        // If we have a session, register this as a new connection
+        if (sessionId) {
+          connectionId = await registerConnection(sessionId, controller);
+          console.log(`New SSE connection ${connectionId} registered for session ${sessionId}`);
         }
-      }
 
-      // In a real implementation, you would wait for events to send
-      // This implementation just sends a keepalive and closes after a short delay
-      setTimeout(() => {
+        // Send initial keepalive comment
+        controller.enqueue(new TextEncoder().encode(": keepalive\n\n"));
+
+        // If we have a session ID and last event ID, send missed messages
+        if (sessionId && lastEventId !== null) {
+          const missedMessages = await getMissedMessages(
+            sessionId,
+            lastEventId,
+          );
+
+          // Send all missed messages
+          for (const { sequenceId, message } of missedMessages) {
+            const data = `id: ${sequenceId}\ndata: ${JSON.stringify(message)}\n\n`;
+            controller.enqueue(new TextEncoder().encode(data));
+
+            // Update connection activity since we're sending data
+            if (connectionId) {
+              await updateConnectionActivity(sessionId, connectionId);
+            }
+          }
+        }
+
+        // In a real implementation, you would keep the connection open
+        // This implementation just sends a keepalive and keeps the connection open
+
+        // Set up a heartbeat to keep the connection alive
+        const heartbeatInterval = setInterval(() => {
+          try {
+            controller.enqueue(new TextEncoder().encode(": keepalive\n\n"));
+
+            // Update connection activity on heartbeat
+            if (sessionId && connectionId) {
+              updateConnectionActivity(sessionId, connectionId)
+                .catch((err) => console.error(`Failed to update connection activity: ${err}`));
+            }
+          } catch (_e) {
+            // If we can't send the heartbeat, the connection is probably closed
+            clearInterval(heartbeatInterval);
+
+            // Remove the connection from the session
+            if (sessionId && connectionId) {
+              removeConnection(sessionId, connectionId)
+                .catch((err) => console.error(`Failed to remove connection: ${err}`));
+            }
+          }
+        }, 30000); // Every 30 seconds
+
+        // When the client disconnects, this will be called
+        return () => {
+          clearInterval(heartbeatInterval);
+
+          // Remove the connection from the session
+          if (sessionId && connectionId) {
+            removeConnection(sessionId, connectionId)
+              .catch((err) => console.error(`Failed to remove connection: ${err}`));
+          }
+        };
+      } catch (error) {
+        console.error("Error in SSE stream:", error);
+
+        // Clean up on error
+        if (sessionId && connectionId) {
+          removeConnection(sessionId, connectionId)
+            .catch((err) => console.error(`Failed to remove connection: ${err}`));
+        }
+
         controller.close();
-      }, 5000);
+
+        // Return undefined to satisfy TypeScript
+        return undefined;
+      }
     },
   });
 
@@ -932,29 +1257,195 @@ export async function DELETE(req: Request) {
     return createJsonResponse(
       {
         jsonrpc: JSONRPC_VERSION,
-        error: { code: INVALID_REQUEST, message: "No session ID provided" },
+        error: { code: INVALID_REQUEST, message: "Session ID required for termination" },
         id: null,
       },
       400,
     );
   }
 
-  // Delete the session and all its messages
-  if (await validateSession(sessionId)) {
-    // Delete session data
-    await KV.delete(["sessions", sessionId]);
+  // Validate the session exists before attempting to terminate it
+  const sessionExists = await validateSession(sessionId);
+  if (!sessionExists) {
+    return createJsonResponse(
+      {
+        jsonrpc: JSONRPC_VERSION,
+        error: { code: INVALID_REQUEST, message: "Session not found or already expired" },
+        id: null,
+      },
+      404,
+      { [SESSION_ID_HEADER]: sessionId },
+    );
+  }
 
-    // Delete all messages in the session
-    const messagesToDelete = await KV.list({ prefix: ["sessions", sessionId, "messages"] });
-    for await (const entry of messagesToDelete) {
-      await KV.delete(entry.key);
+  try {
+    // Terminate the session
+    const terminated = await terminateSession(sessionId);
+
+    if (!terminated) {
+      // Session couldn't be terminated
+      return createJsonResponse(
+        {
+          jsonrpc: JSONRPC_VERSION,
+          error: {
+            code: INTERNAL_ERROR,
+            message: "Session termination failed",
+          },
+          id: null,
+        },
+        500,
+        { [SESSION_ID_HEADER]: sessionId },
+      );
+    }
+
+    // Return success response
+    return new Response(null, {
+      status: 200,
+      headers: {
+        [SESSION_ID_HEADER]: sessionId,
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error) {
+    console.error(`Error terminating session ${sessionId}:`, error);
+
+    return createJsonResponse(
+      {
+        jsonrpc: JSONRPC_VERSION,
+        error: {
+          code: INTERNAL_ERROR,
+          message: "Internal error during session termination",
+        },
+        id: null,
+      },
+      500,
+      { [SESSION_ID_HEADER]: sessionId },
+    );
+  }
+}
+
+/**
+ * Sends a message through a connection
+ */
+async function sendMessageToSession(
+  sessionId: string,
+  message: JSONRPCMessage,
+): Promise<boolean> {
+  try {
+    // Get an active connection
+    const connection = await getActiveConnection(sessionId);
+
+    if (!connection || !connection.controller || connection.closed) {
+      console.warn(`No active connection available for session ${sessionId}`);
+      return false;
+    }
+
+    // Store the message in the session history
+    const sequenceId = await storeMessage(sessionId, message);
+
+    // Send the message with a sequence ID
+    const data = `id: ${sequenceId}\ndata: ${JSON.stringify(message)}\n\n`;
+    connection.controller.enqueue(new TextEncoder().encode(data));
+
+    // Update connection activity
+    await updateConnectionActivity(sessionId, connection.id);
+
+    return true;
+  } catch (error) {
+    console.error(`Failed to send message to session ${sessionId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Updates the session to mark all connections as closed
+ */
+async function closeAllSessionConnections(sessionId: string): Promise<void> {
+  const sessionData = await KV.get<SessionData>(getLastActivityKey(sessionId));
+
+  if (!sessionData.value || !sessionData.value.connections) {
+    return;
+  }
+
+  // Close all connections in the session
+  for (const connection of sessionData.value.connections.values()) {
+    if (!connection.closed && connection.controller) {
+      try {
+        connection.controller.close();
+        connection.closed = true;
+      } catch (err) {
+        console.error(`Failed to close connection ${connection.id}:`, err);
+      }
     }
   }
 
-  return new Response(null, {
-    status: 200,
-    headers: {
-      [SESSION_ID_HEADER]: sessionId,
-    },
-  });
+  // Update session data
+  const updatedData = {
+    ...sessionData.value,
+    lastActivity: Date.now(),
+    connections: new Map(), // Clear all connections
+  };
+
+  await KV.set(getLastActivityKey(sessionId), updatedData);
+}
+
+/**
+ * Send a notification from the server to the client
+ */
+async function sendServerNotification(
+  sessionId: string,
+  method: string,
+  params?: Record<string, unknown>,
+): Promise<boolean> {
+  // Create the notification
+  const notification: JSONRPCNotification = {
+    jsonrpc: JSONRPC_VERSION,
+    method,
+    ...(params && { params }),
+  };
+
+  // Send it through an active connection
+  return await sendMessageToSession(sessionId, notification);
+}
+
+/**
+ * Terminates a session and cleans up all associated resources
+ */
+async function terminateSession(sessionId: string): Promise<boolean> {
+  try {
+    // Notify the client that the session is being terminated
+    await sendServerNotification(
+      sessionId,
+      "notifications/session_terminated",
+      { reason: "Session terminated by client request" },
+    );
+
+    // Close all connections
+    await closeAllSessionConnections(sessionId);
+
+    // Cancel any active requests for this session
+    const sessionRequests = activeRequests.get(sessionId);
+    if (sessionRequests) {
+      for (const requestId of sessionRequests.keys()) {
+        cancelRequest(sessionId, requestId);
+      }
+      // Clear the requests map for this session
+      activeRequests.delete(sessionId);
+    }
+
+    // Delete session data
+    const sessionKey = getLastActivityKey(sessionId);
+    await KV.delete(sessionKey);
+
+    // Delete all messages individually
+    const messageIterator = KV.list({ prefix: ["sessions", sessionId, "messages"] });
+    for await (const entry of messageIterator) {
+      await KV.delete(entry.key);
+    }
+
+    return true;
+  } catch (error) {
+    console.error(`Error in terminateSession for ${sessionId}:`, error);
+    return false;
+  }
 }
