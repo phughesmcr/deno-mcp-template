@@ -1,16 +1,7 @@
 import type { JSONRPCMessage } from "../../vendor/schema.ts";
 import { MAXIMUM_MESSAGE_SIZE } from "../constants.ts";
+import type { StreamConnection, Transport } from "../types.ts";
 import { textEncoder } from "../utils.ts";
-import type { Transport } from "./mod.ts";
-
-interface StreamConnection {
-  response: Response;
-  controller: ReadableStreamDefaultController<Uint8Array>;
-  lastEventId?: string;
-  messages: Array<{ id: string; message: JSONRPCMessage }>;
-  // mark this connection as a response to a specific request
-  requestId?: string | null;
-}
 
 /**
  * Server transport for Streamable HTTP: this implements the MCP Streamable HTTP transport specification.

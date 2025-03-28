@@ -8,8 +8,9 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import KnowledgeGraphManager, { type Entity, type Relation } from "./KnowledgeGraphManager.ts";
+import KnowledgeGraphManager from "./KnowledgeGraphManager.ts";
 import { KV, MCP_SERVER_NAME, VERSION } from "../constants.ts";
+import type { Entity, Relation } from "../types.ts";
 
 const knowledgeGraphManager = new KnowledgeGraphManager(KV);
 

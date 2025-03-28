@@ -1,6 +1,6 @@
 import type { JSONRPCMessage } from "../../vendor/schema.ts";
 import { textEncoder } from "../utils.ts";
-import type { Transport } from "./mod.ts";
+import type { Transport } from "../types.ts";
 
 const transports: Record<string, SSEServerTransport> = {};
 

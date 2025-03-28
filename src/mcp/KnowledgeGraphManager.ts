@@ -1,22 +1,5 @@
 import { isAbsolute, join } from "@std/path";
-
-// We are storing our memory using entities, relations, and observations in a graph structure
-export interface Entity {
-  name: string;
-  entityType: string;
-  observations: string[];
-}
-
-export interface Relation {
-  from: string;
-  to: string;
-  relationType: string;
-}
-
-export interface KnowledgeGraph {
-  entities: Entity[];
-  relations: Relation[];
-}
+import type { Entity, KnowledgeGraph, Relation } from "../types.ts";
 
 // The KnowledgeGraphManager class contains all operations to interact with the knowledge graph
 export default class KnowledgeGraphManager {
