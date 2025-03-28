@@ -82,8 +82,7 @@ export async function handler(req: Request): Promise<Response> {
   let module;
 
   try {
-    const resolved = import.meta.resolve(`./routes${path}.ts`);
-    module = await import(resolved);
+    module = await import(`./routes${path}.ts`);
   } catch (error) {
     console.error("No route module found for", path, error);
   }
