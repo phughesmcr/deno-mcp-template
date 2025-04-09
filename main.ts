@@ -155,7 +155,7 @@ if (import.meta.main) {
     // This handles both SSE / Streaming HTTP requests and web routes
     Deno.serve({
       port: parseInt(Deno.env.get("PORT") || "3001"),
-      hostname: Deno.env.get("HOSTNAME"),
+      hostname: Deno.env.get("HOSTNAME") || "127.0.0.1",
       onListen({ port, hostname }) {
         console.error(
           `${MCP_SERVER_NAME} MCP server is listening on ${hostname}:${port}`,
