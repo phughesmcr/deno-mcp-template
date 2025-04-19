@@ -47,6 +47,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { join } from "@std/path";
 import express from "express";
+import serveStatic from "serve-static";
 import { APP, JSONRPC } from "./src/constants.ts";
 import { InMemoryEventStore } from "./src/inMemoryEventStore.ts";
 
@@ -92,20 +93,15 @@ if (import.meta.main) {
 
     const app = express();
     app.use(express.json());
-    app.use(express.static("static"));
+
+    app.use("/.well-known", serveStatic(join(import.meta.dirname ?? "", "static", ".well-known")));
 
     app.get("/llms.txt", (_req, res) => {
-      const filePath = join(import.meta.dirname ?? "", "static", ".well-known", "llms.txt");
-      console.error(`Sending file ${filePath}`);
-      res.setHeader("Content-Type", "text/plain");
-      res.sendFile(filePath);
+      res.redirect("/.well-known/llms.txt");
     });
 
     app.get("/openapi.yaml", (_req, res) => {
-      const filePath = join(import.meta.dirname ?? "", "static", ".well-known", "openapi.yaml");
-      console.error(`Sending file ${filePath}`);
-      res.setHeader("Content-Type", "text/yaml");
-      res.sendFile(filePath);
+      res.redirect("/.well-known/openapi.yaml");
     });
 
     // Handle POST requests for client-to-server communication
@@ -134,7 +130,7 @@ if (import.meta.main) {
         } else {
           // Invalid request - no session ID or not initialization request
           res.status(400).json({
-            jsonrpc: "2.0",
+            jsonrpc: JSONRPC.VERSION,
             error: {
               code: -32000,
               message: "Bad Request: No valid session ID provided",
@@ -150,7 +146,7 @@ if (import.meta.main) {
         console.error("Error handling MCP request:", error);
         if (!res.headersSent) {
           res.status(500).json({
-            jsonrpc: "2.0",
+            jsonrpc: JSONRPC.VERSION,
             error: {
               code: -32603,
               message: "Internal server error",
@@ -179,9 +175,10 @@ if (import.meta.main) {
     // Handle DELETE requests for session termination
     app.delete("/mcp", handleSessionRequest);
 
+    // Serve index.html
     app.get("/", (_req, res) => {
       const message = `${APP.NAME} running. See \`/llms.txt\` for machine-readable docs.`;
-      res.status(200).send({
+      res.status(200).json({
         jsonrpc: JSONRPC.VERSION,
         id: null,
         result: { message },
@@ -189,6 +186,8 @@ if (import.meta.main) {
     });
 
     app.listen(
+      port,
+      hostname,
       () => {
         console.error(`${APP.NAME} MCP server is listening on ${hostname}:${port}`);
       },

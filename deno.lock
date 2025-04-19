@@ -5,19 +5,16 @@
     "jsr:@std/assert@1": "1.0.11",
     "jsr:@std/bytes@1": "1.0.5",
     "jsr:@std/cli@^1.0.12": "1.0.15",
-    "jsr:@std/cli@^1.0.16": "1.0.16",
     "jsr:@std/crypto@1": "1.0.4",
     "jsr:@std/dotenv@~0.225.3": "0.225.3",
     "jsr:@std/encoding@1": "1.0.7",
     "jsr:@std/encoding@^1.0.7": "1.0.7",
-    "jsr:@std/encoding@^1.0.9": "1.0.9",
     "jsr:@std/fmt@^1.0.5": "1.0.6",
     "jsr:@std/fmt@^1.0.6": "1.0.6",
     "jsr:@std/html@^1.0.3": "1.0.3",
     "jsr:@std/http@*": "1.0.13",
     "jsr:@std/http@1": "1.0.13",
     "jsr:@std/http@^1.0.13": "1.0.13",
-    "jsr:@std/http@^1.0.14": "1.0.14",
     "jsr:@std/media-types@1": "1.1.0",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/net@^1.0.4": "1.0.4",
@@ -25,10 +22,10 @@
     "jsr:@std/path@^1.0.8": "1.0.8",
     "jsr:@std/streams@^1.0.9": "1.0.9",
     "npm:@modelcontextprotocol/sdk@^1.10.1": "1.10.1_express@5.1.0_zod@3.24.3",
-    "npm:@types/express@4.17.15": "4.17.15",
-    "npm:@types/node@*": "22.12.0",
+    "npm:@types/express@5.0.1": "5.0.1",
     "npm:express@^5.1.0": "5.1.0",
     "npm:path-to-regexp@^6.3.0": "6.3.0",
+    "npm:serve-static@^2.2.0": "2.2.0",
     "npm:zod@^3.24.3": "3.24.3"
   },
   "jsr": {
@@ -52,9 +49,6 @@
     "@std/cli@1.0.15": {
       "integrity": "e79ba3272ec710ca44d8342a7688e6288b0b88802703f3264184b52893d5e93f"
     },
-    "@std/cli@1.0.16": {
-      "integrity": "02df293099c35b9e97d8ca05f57f54bd1ee08134f25d19a4756b3924695f4b00"
-    },
     "@std/crypto@1.0.4": {
       "integrity": "cee245c453bd5366207f4d8aa25ea3e9c86cecad2be3fefcaa6cb17203d79340"
     },
@@ -63,9 +57,6 @@
     },
     "@std/encoding@1.0.7": {
       "integrity": "f631247c1698fef289f2de9e2a33d571e46133b38d042905e3eac3715030a82d"
-    },
-    "@std/encoding@1.0.9": {
-      "integrity": "025b8f18eb1749bc30d1353bf48b77d1eb5e35610220fa226f5a046b9240c5d7"
     },
     "@std/fmt@1.0.6": {
       "integrity": "a2c56a69a2369876ddb3ad6a500bb6501b5bad47bb3ea16bfb0c18974d2661fc"
@@ -76,22 +67,9 @@
     "@std/http@1.0.13": {
       "integrity": "d29618b982f7ae44380111f7e5b43da59b15db64101198bb5f77100d44eb1e1e",
       "dependencies": [
-        "jsr:@std/cli@^1.0.12",
+        "jsr:@std/cli",
         "jsr:@std/encoding@^1.0.7",
         "jsr:@std/fmt@^1.0.5",
-        "jsr:@std/html",
-        "jsr:@std/media-types@^1.1.0",
-        "jsr:@std/net",
-        "jsr:@std/path@^1.0.8",
-        "jsr:@std/streams"
-      ]
-    },
-    "@std/http@1.0.14": {
-      "integrity": "bfc4329d975dff2abd8170e83e37deb454fbc678fec3fdd2ef5b03d92768a4ef",
-      "dependencies": [
-        "jsr:@std/cli@^1.0.16",
-        "jsr:@std/encoding@^1.0.9",
-        "jsr:@std/fmt@^1.0.6",
         "jsr:@std/html",
         "jsr:@std/media-types@^1.1.0",
         "jsr:@std/net",
@@ -141,8 +119,8 @@
         "@types/node"
       ]
     },
-    "@types/express-serve-static-core@4.19.6": {
-      "integrity": "sha512-N4LZ2xG7DatVqhCZzOGb1Yi5lMbXSZcmdLDe9EzSndPV2HpWYWzRbaerl2n27irrm94EPpprqa8KpskPT085+A==",
+    "@types/express-serve-static-core@5.0.6": {
+      "integrity": "sha512-3xhRnjJPkULekpSzgtoNYYcTWgEZkp4myc+Saevii5JPnHNvHMRlBSHDbs7Bh1iPPoVTERHEZXyhyLbMEsExsA==",
       "dependencies": [
         "@types/node",
         "@types/qs",
@@ -150,12 +128,11 @@
         "@types/send"
       ]
     },
-    "@types/express@4.17.15": {
-      "integrity": "sha512-Yv0k4bXGOH+8a+7bELd2PqHQsuiANB+A8a4gnQrkRWzrkKlb6KHaVvyXhqs04sVW/OWlbPyYxRgYlIXLfrufMQ==",
+    "@types/express@5.0.1": {
+      "integrity": "sha512-UZUw8vjpWFXuDnjFTh7/5c2TWDlQqeXHi6hcN7F2XSVT5P+WmUnnbFS3KA6Jnc6IsEqI2qCVu2bK0R0J4A8ZQQ==",
       "dependencies": [
         "@types/body-parser",
         "@types/express-serve-static-core",
-        "@types/qs",
         "@types/serve-static"
       ]
     },
@@ -945,11 +922,11 @@
   "workspace": {
     "dependencies": [
       "jsr:@std/dotenv@~0.225.3",
-      "jsr:@std/http@^1.0.14",
       "jsr:@std/path@^1.0.8",
       "npm:@modelcontextprotocol/sdk@^1.10.1",
-      "npm:@types/express@4.17.15",
+      "npm:@types/express@5.0.1",
       "npm:express@^5.1.0",
+      "npm:serve-static@^2.2.0",
       "npm:zod@^3.24.3"
     ]
   }

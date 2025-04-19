@@ -17,10 +17,9 @@
     "imports": {
         "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.10.1",
         "@std/dotenv/load": "jsr:@std/dotenv@^0.225.3/load",
-        "@std/http/file-server": "jsr:@std/http@^1.0.14/file-server",
-        "@std/http/unstable-route": "jsr:@std/http@^1.0.14/unstable-route",
         "@std/path": "jsr:@std/path@^1.0.8",
         "express": "npm:express@^5.1.0",
+        "serve-static": "npm:serve-static@^2.2.0",
         "zod": "npm:zod@^3.24.3"
     },
     "tasks": {
@@ -43,7 +42,7 @@
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "verbatimModuleSyntax": true,
-        "types": ["npm:@types/express@4.17.15"]
+        "types": ["npm:@types/express@5.0.1"]
     },
     "bench": {
         "include": ["bench/**/*.ts"]

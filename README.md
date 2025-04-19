@@ -126,7 +126,7 @@ This template server implements the [Knowledge Graph Memory Server](https://gith
 
 The repo includes the following quality-of-life files which aren't necessary for the server to run but which will enhance your vibecoding:
 
-- `.cursor/mcp.json` adds the MCP server to Cursor.
+- `.cursor/rules/` agent rules for Cursor.
 - `.github/` adds Github sponsors info to your repo, and other Github features such as workflows.
 - `.vscode/` has some recommended extensions and makes Deno the default formatter.
 - `vendor/schema.ts` is the [2025-03-26 MCP schema from Anthropic](https://github.com/modelcontextprotocol/specification/blob/main/schema/2025-03-26/schema.ts).
