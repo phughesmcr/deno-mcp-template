@@ -1,11 +1,11 @@
-import { addTransport, SSEServerTransport } from "../src/transports/mod.ts";
-import { server } from "../src/mcp/mod.ts";
 import {
   HTTP_NOT_ACCEPTABLE_CODE,
   LAST_EVENT_ID_HEADER,
   SSE_MESSAGE_ENDPOINT,
   THIRTY_SECONDS,
 } from "../src/constants.ts";
+import { server } from "../src/mcp/mod.ts";
+import { addTransport, SSEServerTransport } from "../src/transports/mod.ts";
 import { JSONRPC_VERSION } from "../vendor/schema.ts";
 
 export function GET(req: Request): Response {

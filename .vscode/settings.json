@@ -2,6 +2,10 @@
     "deno.enable": true,
     "editor.defaultFormatter": "denoland.vscode-deno",
     "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.ts": "always",
+        "source.organizeImports": "always"
+    },
     "editor.rulers": [
         100
     ],

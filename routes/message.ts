@@ -1,5 +1,5 @@
-import { getTransport } from "../src/transports/mod.ts";
 import { HTTP_BAD_REQUEST_CODE, HTTP_NOT_ACCEPTABLE_CODE } from "../src/constants.ts";
+import { getTransport } from "../src/transports/mod.ts";
 import { getSessionId } from "../src/utils.ts";
 
 export async function POST(req: Request): Promise<Response> {

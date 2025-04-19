@@ -54,9 +54,9 @@
  * @module
  */
 
-import { type Route, route } from "@std/http/unstable-route";
-import { serveFile } from "@std/http/file-server";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { serveFile } from "@std/http/file-server";
+import { type Route, route } from "@std/http/unstable-route";
 import { MCP_SERVER_NAME } from "./src/constants.ts";
 import { createErrorResponse, getSessionId } from "./src/utils.ts";
 import { METHOD_NOT_FOUND } from "./vendor/schema.ts";
