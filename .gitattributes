@@ -3,6 +3,8 @@
 docs/*            linguist-documentation=true
 vendor/*          linguist-generated=true
 
+deno.lock         linguist-generated=true
+
 *.css             text
 *.htm             text diff=html
 *.html            text diff=html

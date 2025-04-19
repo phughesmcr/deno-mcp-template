@@ -16,25 +16,13 @@
  * }
  * ```
  *
- * @example claude-desktop-config.json manually using the SSE endpoint
- * Start the server using `deno task start` first.
- * ```json
- * {
- *   "mcpServers": {
- *     "my-mcp-server": {
- *       "url": "http://localhost:3001/sse"
- *     },
- *   }
- * }
- * ```
- *
  * @example claude-desktop-config.json manually using the HTTP endpoint
  * Start the server using `deno task start` first.
  * ```json
  * {
  *   "mcpServers": {
  *     "my-mcp-server": {
- *       "url": "http://localhost:3001/mcp"
+ *       "url": "http://127.0.0.1:3001/mcp"
  *     },
  *   }
  * }
@@ -55,119 +43,164 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { serveFile } from "@std/http/file-server";
-import { type Route, route } from "@std/http/unstable-route";
-import { MCP_SERVER_NAME } from "./src/constants.ts";
-import { createErrorResponse, getSessionId } from "./src/utils.ts";
-import { METHOD_NOT_FOUND } from "./vendor/schema.ts";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { join } from "@std/path";
+import express from "express";
+import { APP, JSONRPC } from "./src/constants.ts";
+import { InMemoryEventStore } from "./src/inMemoryEventStore.ts";
 
 // Load environment variables
 import "@std/dotenv/load";
 
 // Import the main MCP tools etc.
-import { server } from "./src/mcp/mod.ts";
+import { server } from "./src/mod.ts";
 
-const defaultHandler = async (req: Request) => {
-  const id = await getSessionId(req) ?? -1;
-  return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
+// Map to store transports by session ID
+const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
+
+const closeTransports = async () => {
+  for (const sessionId in transports) {
+    const transport = transports[sessionId];
+    try {
+      await transport?.close();
+    } catch (error) {
+      console.error(`Error closing transport for session ${sessionId}:`, error);
+    }
+  }
+  try {
+    await server.close();
+  } catch (error) {
+    console.error("Error closing server:", error);
+  }
 };
 
-// Serve static files
-const routes: Route[] = [
-  {
-    method: "GET",
-    pattern: new URLPattern({ pathname: "/" }),
-    handler: async (req: Request) => {
-      if (req.method === "GET") {
-        const route = await import(`./routes/index.ts`);
-        return route.GET(req);
-      }
-      const id = await getSessionId(req) ?? -1;
-      return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
-    },
-  },
-  {
-    method: ["GET", "POST", "DELETE"],
-    pattern: new URLPattern({ pathname: "/mcp" }),
-    handler: async (req: Request) => {
-      const route = await import(`./routes/mcp.ts`);
-      if (req.method === "GET") {
-        return route.GET(req);
-      } else if (req.method === "POST") {
-        return route.POST(req);
-      } else if (req.method === "DELETE") {
-        return route.DELETE(req);
-      }
-      const id = await getSessionId(req) ?? -1;
-      return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
-    },
-  },
-  {
-    method: "GET",
-    pattern: new URLPattern({ pathname: "/sse" }),
-    handler: async (req: Request) => {
-      if (req.method === "GET") {
-        const route = await import(`./routes/sse.ts`);
-        return route.GET(req);
-      }
-      const id = await getSessionId(req) ?? -1;
-      return createErrorResponse(id, METHOD_NOT_FOUND, "Not found");
-    },
-  },
-  {
-    method: "POST",
-    pattern: new URLPattern({ pathname: "/message" }),
-    handler: async (req: Request) => {
-      const route = await import(`./routes/message.ts`);
-      return route.POST(req);
-    },
-  },
-  {
-    pattern: new URLPattern({ pathname: "/llms.txt" }),
-    handler: async (req: Request) => {
-      const response = await serveFile(req, "./static/.well-known/llms.txt");
-      response.headers.set("Content-Type", "text/plain");
-      return response;
-    },
-  },
-  {
-    pattern: new URLPattern({ pathname: "/openapi.yaml" }),
-    handler: async (req: Request) => {
-      const response = await serveFile(req, "./static/.well-known/openapi.yaml");
-      response.headers.set("Content-Type", "text/yaml");
-      return response;
-    },
-  },
-  {
-    // match routes ending in a file extension
-    pattern: new URLPattern({ pathname: "/*.*" }),
-    handler: (req: Request) => {
-      const url = new URL(req.url);
-      const pathname = url.pathname;
-      const filePath = `./static${pathname}`;
-      return serveFile(req, filePath);
-    },
-  },
-];
+globalThis.addEventListener("beforeunload", async () => {
+  await closeTransports();
+});
+
+Deno.addSignalListener("SIGINT", async () => {
+  await closeTransports();
+  Deno.exit(0);
+});
 
 if (import.meta.main) {
   try {
-    // This handles both SSE / Streaming HTTP requests and web routes
-    Deno.serve({
-      port: parseInt(Deno.env.get("PORT") || "3001"),
-      hostname: Deno.env.get("HOSTNAME") || "127.0.0.1",
-      onListen({ port, hostname }) {
-        console.error(
-          `${MCP_SERVER_NAME} MCP server is listening on ${hostname}:${port}`,
-        );
+    // This handles both Streaming HTTP requests and web routes
+    const port = parseInt(Deno.env.get("PORT") || "3001", 10);
+    const hostname = Deno.env.get("HOSTNAME") || "127.0.0.1";
+
+    const app = express();
+    app.use(express.json());
+    app.use(express.static("static"));
+
+    app.get("/llms.txt", (_req, res) => {
+      const filePath = join(import.meta.dirname ?? "", "static", ".well-known", "llms.txt");
+      console.error(`Sending file ${filePath}`);
+      res.setHeader("Content-Type", "text/plain");
+      res.sendFile(filePath);
+    });
+
+    app.get("/openapi.yaml", (_req, res) => {
+      const filePath = join(import.meta.dirname ?? "", "static", ".well-known", "openapi.yaml");
+      console.error(`Sending file ${filePath}`);
+      res.setHeader("Content-Type", "text/yaml");
+      res.sendFile(filePath);
+    });
+
+    // Handle POST requests for client-to-server communication
+    app.post("/mcp", async (req, res) => {
+      try {
+        // Check for existing session ID
+        const sessionId = req.headers["mcp-session-id"] as string | undefined;
+        let transport: StreamableHTTPServerTransport;
+
+        if (sessionId && transports[sessionId]) {
+          // Reuse existing transport
+          transport = transports[sessionId];
+        } else if (!sessionId && isInitializeRequest(req.body)) {
+          // New initialization request - use JSON response mode
+          transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: () => crypto.randomUUID(),
+            enableJsonResponse: true,
+            eventStore: new InMemoryEventStore(),
+            onsessioninitialized: (sessionId) => {
+              transports[sessionId] = transport;
+            },
+          });
+
+          // Connect the transport to the MCP server BEFORE handling the request
+          await server.connect(transport);
+        } else {
+          // Invalid request - no session ID or not initialization request
+          res.status(400).json({
+            jsonrpc: "2.0",
+            error: {
+              code: -32000,
+              message: "Bad Request: No valid session ID provided",
+            },
+            id: null,
+          });
+          return;
+        }
+
+        // Handle the request with existing transport - no need to reconnect
+        await transport.handleRequest(req, res, req.body);
+      } catch (error) {
+        console.error("Error handling MCP request:", error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            jsonrpc: "2.0",
+            error: {
+              code: -32603,
+              message: "Internal server error",
+            },
+            id: null,
+          });
+        }
+      }
+    });
+
+    // Reusable handler for GET and DELETE requests
+    const handleSessionRequest = async (req: express.Request, res: express.Response) => {
+      const sessionId = req.headers["mcp-session-id"] as string | undefined;
+      if (!sessionId || !transports[sessionId]) {
+        res.status(400).send("Invalid or missing session ID");
+        return;
+      }
+
+      const transport = transports[sessionId];
+      await transport.handleRequest(req, res);
+    };
+
+    // Handle GET requests for server-to-client notifications
+    app.get("/mcp", handleSessionRequest);
+
+    // Handle DELETE requests for session termination
+    app.delete("/mcp", handleSessionRequest);
+
+    app.get("/", (_req, res) => {
+      const message = `${APP.NAME} running. See \`/llms.txt\` for machine-readable docs.`;
+      res.status(200).send({
+        jsonrpc: JSONRPC.VERSION,
+        id: null,
+        result: { message },
+      });
+    });
+
+    app.listen(
+      () => {
+        console.error(`${APP.NAME} MCP server is listening on ${hostname}:${port}`);
       },
-    }, route(routes, defaultHandler));
+    );
+
     // This handles STDIO requests
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error(`${MCP_SERVER_NAME} MCP server is listening on STDIO`);
+    console.error(`${APP.NAME} MCP server is listening on STDIO`);
   } catch (error) {
     console.error("Fatal error:", error);
+    await closeTransports();
     Deno.exit(1);
   }
 }

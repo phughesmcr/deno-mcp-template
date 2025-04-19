@@ -66,39 +66,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JSONRPCResponse'
-  /sse:
-    get:
-      summary: Connect to the server using Server-Sent Events (SSE)
-      tags:
-        - SSE
-      parameters:
-        - in: header
-          name: Accept
-          schema:
-            type: string
-          required: true
-          description: Must include text/event-stream
-          example: text/event-stream
-        - in: header
-          name: Last-Event-ID
-          schema:
-            type: string
-          required: false
-          description: ID of the last event received
-      responses:
-        '200':
-          description: SSE stream established successfully
-          content:
-            text/event-stream:
-              schema:
-                type: string
-                format: binary
-        '406':
-          description: Accept header must include text/event-stream
-          content:
-            text/plain:
-              schema:
-                type: string
   /:
     get:
       summary: Root endpoint to check server status

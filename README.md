@@ -38,20 +38,6 @@ You can set HOSTNAME and PORT in a `.env` if desired.
 }
 ```
 
-### `claude-desktop-config.json` manually using the SSE endpoint
-
-Start the server using `deno task start`.
-
-```json
-{
-    "mcpServers": {
-        "my-mcp-server": {
-            "url": "http://localhost:3001/sse"
-        },
-    }
-}
-```
-
 ### `claude-desktop-config.json` manually using the HTTP endpoint
 
 Start the server using `deno task start`.

@@ -8,18 +8,19 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { KV, MCP_SERVER_NAME, VERSION } from "../constants.ts";
-import type { Entity, Relation } from "../types.ts";
-import KnowledgeGraphManager from "./KnowledgeGraphManager.ts";
+import { APP, KV } from "./constants.ts";
+import { KnowledgeGraphManager } from "./knowledgeGraphManager.ts";
+import type { Entity, Relation } from "./types.ts";
 
 const knowledgeGraphManager = new KnowledgeGraphManager(KV);
 
-export const server = new Server({
-  name: MCP_SERVER_NAME,
-  version: VERSION,
+const server = new Server({
+  name: APP.NAME,
+  version: APP.VERSION,
 }, {
   capabilities: {
     tools: {},
+    logging: {},
   },
 });
 
@@ -311,3 +312,5 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       throw new Error(`Unknown tool: ${name}`);
   }
 });
+
+export { server };

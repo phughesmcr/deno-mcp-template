@@ -20,6 +20,7 @@
         "@std/http/file-server": "jsr:@std/http@^1.0.14/file-server",
         "@std/http/unstable-route": "jsr:@std/http@^1.0.14/unstable-route",
         "@std/path": "jsr:@std/path@^1.0.8",
+        "express": "npm:express@^5.1.0",
         "zod": "npm:zod@^3.24.3"
     },
     "tasks": {
@@ -27,7 +28,7 @@
         "start": "deno run -A main.ts",
         "dev": "deno run -A --watch main.ts",
         "ci": "deno task prep",
-        "compile": "deno compile --include routes main.ts"
+        "compile": "deno compile -A main.ts"
     },
     "compilerOptions": {
         "strict": true,
@@ -41,18 +42,19 @@
         "noPropertyAccessFromIndexSignature": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
-        "verbatimModuleSyntax": true
+        "verbatimModuleSyntax": true,
+        "types": ["npm:@types/express@4.17.15"]
     },
     "bench": {
         "include": ["bench/**/*.ts"]
     },
     "fmt": {
-        "include": ["main.ts", "src/**/*.ts", "routes/**/*.ts"],
+        "include": ["main.ts", "src/**/*.ts"],
         "lineWidth": 100,
         "indentWidth": 2
     },
     "lint": {
-        "include": ["main.ts", "src/**/*.ts", "routes/**/*.ts"],
+        "include": ["main.ts", "src/**/*.ts"],
         "rules": {
             "exclude": ["require-await"]
         }

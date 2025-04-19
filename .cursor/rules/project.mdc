@@ -1,5 +1,8 @@
-# CLAUDE.md - Deno MCP Template Development Guide
-
+---
+description: 
+globs: 
+alwaysApply: true
+---
 ## Build/Development Commands
 
 - **Start the application**: `deno task start`

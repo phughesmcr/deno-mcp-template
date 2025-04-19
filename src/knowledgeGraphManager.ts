@@ -1,8 +1,8 @@
 import { isAbsolute, join } from "@std/path";
-import type { Entity, KnowledgeGraph, Relation } from "../types.ts";
+import type { Entity, KnowledgeGraph, Relation } from "./types.ts";
 
 // The KnowledgeGraphManager class contains all operations to interact with the knowledge graph
-export default class KnowledgeGraphManager {
+export class KnowledgeGraphManager {
   private MEMORY_FILE_PATH: string;
   private kv: Deno.Kv;
 
