@@ -3,28 +3,28 @@ import type { Entity, KnowledgeGraph, Relation } from "./types.ts";
 
 // The KnowledgeGraphManager class contains all operations to interact with the knowledge graph
 export class KnowledgeGraphManager {
-  private MEMORY_FILE_PATH: string;
-  private kv: Deno.Kv;
+  #MEMORY_FILE_PATH: string;
+  #kv: Deno.Kv;
 
   constructor(kv: Deno.Kv) {
-    this.kv = kv;
+    this.#kv = kv;
     // Define memory file path using environment variable with fallback
     const defaultMemoryPath = join(import.meta.dirname ?? "", "memory.json");
     const pathEnvValue = Deno.env.get("MEMORY_FILE_PATH");
     // If MEMORY_FILE_PATH is just a filename, put it in the same directory as the script
-    this.MEMORY_FILE_PATH = pathEnvValue
-      ? isAbsolute(pathEnvValue) ? pathEnvValue : join(import.meta.dirname ?? "", pathEnvValue)
-      : defaultMemoryPath;
+    this.#MEMORY_FILE_PATH = pathEnvValue ?
+      isAbsolute(pathEnvValue) ? pathEnvValue : join(import.meta.dirname ?? "", pathEnvValue) :
+      defaultMemoryPath;
   }
 
-  private async loadGraphFromFile(): Promise<KnowledgeGraph> {
+  async #loadGraphFromFile(): Promise<KnowledgeGraph> {
     try {
-      const data = await Deno.readTextFile(this.MEMORY_FILE_PATH);
+      const data = await Deno.readTextFile(this.#MEMORY_FILE_PATH);
       const lines = data.split("\n").filter((line) => line.trim() !== "");
       return lines.reduce((graph: KnowledgeGraph, line) => {
         const item = JSON.parse(line);
-        if (item.type === "entity") graph.entities.push(item as Entity);
-        if (item.type === "relation") graph.relations.push(item as Relation);
+        if (item.type === "entity") { graph.entities.push(item as Entity); }
+        if (item.type === "relation") { graph.relations.push(item as Relation); }
         return graph;
       }, { entities: [], relations: [] });
     } catch (error) {
@@ -38,17 +38,17 @@ export class KnowledgeGraphManager {
     }
   }
 
-  private async saveGraphToFile(graph: KnowledgeGraph): Promise<void> {
+  async #saveGraphToFile(graph: KnowledgeGraph): Promise<void> {
     const lines = [
       ...graph.entities.map((e) => JSON.stringify({ type: "entity", ...e })),
       ...graph.relations.map((r) => JSON.stringify({ type: "relation", ...r })),
     ];
-    await Deno.writeTextFile(this.MEMORY_FILE_PATH, lines.join("\n"));
+    await Deno.writeTextFile(this.#MEMORY_FILE_PATH, lines.join("\n"));
   }
 
-  private async getGraphFromKV(): Promise<KnowledgeGraph> {
-    const entitiesIter = this.kv.list<Entity>({ prefix: ["entities"] });
-    const relationsIter = this.kv.list<Relation>({ prefix: ["relations"] });
+  async #getGraphFromKV(): Promise<KnowledgeGraph> {
+    const entitiesIter = this.#kv.list<Entity>({ prefix: ["entities"] });
+    const relationsIter = this.#kv.list<Relation>({ prefix: ["relations"] });
 
     const entities: Entity[] = [];
     const relations: Relation[] = [];
@@ -65,13 +65,13 @@ export class KnowledgeGraphManager {
   }
 
   async createEntities(entities: Entity[]): Promise<Entity[]> {
-    const graph = await this.getGraphFromKV();
+    const graph = await this.#getGraphFromKV();
     const newEntities = entities.filter((e) =>
       !graph.entities.some((existingEntity) => existingEntity.name === e.name)
     );
 
     if (newEntities.length > 0) {
-      const transaction = this.kv.atomic();
+      const transaction = this.#kv.atomic();
 
       for (const entity of newEntities) {
         transaction.set(["entities", entity.name], entity);
@@ -84,7 +84,7 @@ export class KnowledgeGraphManager {
   }
 
   async createRelations(relations: Relation[]): Promise<Relation[]> {
-    const graph = await this.getGraphFromKV();
+    const graph = await this.#getGraphFromKV();
     const newRelations = relations.filter((r) =>
       !graph.relations.some((existingRelation) =>
         existingRelation.from === r.from &&
@@ -94,7 +94,7 @@ export class KnowledgeGraphManager {
     );
 
     if (newRelations.length > 0) {
-      const transaction = this.kv.atomic();
+      const transaction = this.#kv.atomic();
 
       for (const relation of newRelations) {
         transaction.set(["relations", relation.from, relation.to, relation.relationType], relation);
@@ -110,10 +110,10 @@ export class KnowledgeGraphManager {
     observations: { entityName: string; contents: string[] }[],
   ): Promise<{ entityName: string; addedObservations: string[] }[]> {
     const results: { entityName: string; addedObservations: string[] }[] = [];
-    const transaction = this.kv.atomic();
+    const transaction = this.#kv.atomic();
 
     for (const o of observations) {
-      const entityResult = await this.kv.get<Entity>(["entities", o.entityName]);
+      const entityResult = await this.#kv.get<Entity>(["entities", o.entityName]);
 
       if (!entityResult.value) {
         throw new Error(`Entity with name ${o.entityName} not found`);
@@ -136,9 +136,9 @@ export class KnowledgeGraphManager {
   }
 
   async deleteEntities(entityNames: string[]): Promise<void> {
-    if (entityNames.length === 0) return;
+    if (entityNames.length === 0) { return; }
 
-    const transaction = this.kv.atomic();
+    const transaction = this.#kv.atomic();
 
     // Delete the entities
     for (const name of entityNames) {
@@ -146,7 +146,7 @@ export class KnowledgeGraphManager {
     }
 
     // Get all relations first
-    const relationsEntries = await this.getRelationsToDelete(entityNames);
+    const relationsEntries = await this.#getRelationsToDelete(entityNames);
 
     // Delete relations involving these entities
     for (const key of relationsEntries) {
@@ -156,9 +156,9 @@ export class KnowledgeGraphManager {
     await transaction.commit();
   }
 
-  private async getRelationsToDelete(entityNames: string[]): Promise<Deno.KvKey[]> {
+  async #getRelationsToDelete(entityNames: string[]): Promise<Deno.KvKey[]> {
     const keysToDelete: Deno.KvKey[] = [];
-    const relationsIter = this.kv.list({ prefix: ["relations"] });
+    const relationsIter = this.#kv.list({ prefix: ["relations"] });
 
     for await (const entry of relationsIter) {
       const key = entry.key;
@@ -179,10 +179,10 @@ export class KnowledgeGraphManager {
   async deleteObservations(
     deletions: { entityName: string; observations: string[] }[],
   ): Promise<void> {
-    const transaction = this.kv.atomic();
+    const transaction = this.#kv.atomic();
 
     for (const d of deletions) {
-      const entityResult = await this.kv.get<Entity>(["entities", d.entityName]);
+      const entityResult = await this.#kv.get<Entity>(["entities", d.entityName]);
 
       if (entityResult.value) {
         const entity = entityResult.value;
@@ -195,7 +195,7 @@ export class KnowledgeGraphManager {
   }
 
   async deleteRelations(relations: Relation[]): Promise<void> {
-    const transaction = this.kv.atomic();
+    const transaction = this.#kv.atomic();
 
     for (const relation of relations) {
       transaction.delete(["relations", relation.from, relation.to, relation.relationType]);
@@ -205,11 +205,11 @@ export class KnowledgeGraphManager {
   }
 
   async readGraph(): Promise<KnowledgeGraph> {
-    return this.getGraphFromKV();
+    return this.#getGraphFromKV();
   }
 
   async searchNodes(query: string): Promise<KnowledgeGraph> {
-    const graph = await this.getGraphFromKV();
+    const graph = await this.#getGraphFromKV();
     const lowercaseQuery = query.toLowerCase();
 
     // Filter entities
@@ -234,7 +234,7 @@ export class KnowledgeGraphManager {
   }
 
   async openNodes(names: string[]): Promise<KnowledgeGraph> {
-    const graph = await this.getGraphFromKV();
+    const graph = await this.#getGraphFromKV();
 
     // Filter entities
     const filteredEntities = graph.entities.filter((e) => names.includes(e.name));
@@ -255,19 +255,19 @@ export class KnowledgeGraphManager {
 
   // Export current KV data to file
   async exportToFile(): Promise<void> {
-    const graph = await this.getGraphFromKV();
-    await this.saveGraphToFile(graph);
+    const graph = await this.#getGraphFromKV();
+    await this.#saveGraphToFile(graph);
   }
 
   // Import data from file to KV
   async importFromFile(): Promise<void> {
-    const graph = await this.loadGraphFromFile();
+    const graph = await this.#loadGraphFromFile();
 
     // Clear existing data first
-    const entityEntries = this.kv.list({ prefix: ["entities"] });
-    const relationEntries = this.kv.list({ prefix: ["relations"] });
+    const entityEntries = this.#kv.list({ prefix: ["entities"] });
+    const relationEntries = this.#kv.list({ prefix: ["relations"] });
 
-    const transaction = this.kv.atomic();
+    const transaction = this.#kv.atomic();
 
     for await (const entry of entityEntries) {
       transaction.delete(entry.key);

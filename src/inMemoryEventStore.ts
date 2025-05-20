@@ -5,6 +5,7 @@
 
 import type { EventStore } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { JSONRPCMessage } from "../vendor/schema.ts";
+import type { McpEvent, McpEventSender } from "./types.ts";
 
 /**
  * Simple in-memory implementation of the EventStore interface for resumability
@@ -12,19 +13,15 @@ import type { JSONRPCMessage } from "../vendor/schema.ts";
  * where a persistent storage solution would be more appropriate.
  */
 export class InMemoryEventStore implements EventStore {
-  private events: Map<string, { streamId: string; message: JSONRPCMessage }> = new Map();
+  #events: Map<string, McpEvent> = new Map();
 
-  /**
-   * Generates a unique event ID for a given stream ID
-   */
-  private generateEventId(streamId: string): string {
+  /** Generates a unique event ID for a given stream ID */
+  #generateEventId(streamId: string): string {
     return `${streamId}_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
   }
 
-  /**
-   * Extracts the stream ID from an event ID
-   */
-  private getStreamIdFromEventId(eventId: string): string {
+  /** Extracts the stream ID from an event ID */
+  #getStreamIdFromEventId(eventId: string): string {
     const parts = eventId.split("_");
     return parts[0] ?? "";
   }
@@ -34,8 +31,8 @@ export class InMemoryEventStore implements EventStore {
    * Implements EventStore.storeEvent
    */
   async storeEvent(streamId: string, message: JSONRPCMessage): Promise<string> {
-    const eventId = this.generateEventId(streamId);
-    this.events.set(eventId, { streamId, message });
+    const eventId = this.#generateEventId(streamId);
+    this.#events.set(eventId, { streamId, message });
     return eventId;
   }
 
@@ -45,14 +42,14 @@ export class InMemoryEventStore implements EventStore {
    */
   async replayEventsAfter(
     lastEventId: string,
-    { send }: { send: (eventId: string, message: JSONRPCMessage) => Promise<void> },
+    { send }: { send: McpEventSender },
   ): Promise<string> {
-    if (!lastEventId || !this.events.has(lastEventId)) {
+    if (!lastEventId || !this.#events.has(lastEventId)) {
       return "";
     }
 
     // Extract the stream ID from the event ID
-    const streamId = this.getStreamIdFromEventId(lastEventId);
+    const streamId = this.#getStreamIdFromEventId(lastEventId);
     if (!streamId) {
       return "";
     }
@@ -60,7 +57,7 @@ export class InMemoryEventStore implements EventStore {
     let foundLastEvent = false;
 
     // Sort events by eventId for chronological ordering
-    const sortedEvents = [...this.events.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    const sortedEvents = [...this.#events.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 
     for (const [eventId, { streamId: eventStreamId, message }] of sortedEvents) {
       // Only include events from the same stream

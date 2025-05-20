@@ -50,6 +50,7 @@ import express from "express";
 import serveStatic from "serve-static";
 import { APP, JSONRPC } from "./src/constants.ts";
 import { InMemoryEventStore } from "./src/inMemoryEventStore.ts";
+import type { SessionRecord } from "./src/types.ts";
 
 // Load environment variables
 import "@std/dotenv/load";
@@ -58,9 +59,9 @@ import "@std/dotenv/load";
 import { server } from "./src/mod.ts";
 
 // Map to store transports by session ID
-const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
+const transports: SessionRecord = {};
 
-const closeTransports = async () => {
+const closeTransports = async (): Promise<void> => {
   for (const sessionId in transports) {
     const transport = transports[sessionId];
     try {
@@ -76,11 +77,11 @@ const closeTransports = async () => {
   }
 };
 
-globalThis.addEventListener("beforeunload", async () => {
+globalThis.addEventListener("beforeunload", async (): Promise<void> => {
   await closeTransports();
 });
 
-Deno.addSignalListener("SIGINT", async () => {
+Deno.addSignalListener("SIGINT", async (): Promise<void> => {
   await closeTransports();
   Deno.exit(0);
 });
@@ -96,16 +97,16 @@ if (import.meta.main) {
 
     app.use("/.well-known", serveStatic(join(import.meta.dirname ?? "", "static", ".well-known")));
 
-    app.get("/llms.txt", (_req, res) => {
+    app.get("/llms.txt", (_req: express.Request, res: express.Response): void => {
       res.redirect("/.well-known/llms.txt");
     });
 
-    app.get("/openapi.yaml", (_req, res) => {
+    app.get("/openapi.yaml", (_req: express.Request, res: express.Response): void => {
       res.redirect("/.well-known/openapi.yaml");
     });
 
     // Handle POST requests for client-to-server communication
-    app.post("/mcp", async (req, res) => {
+    app.post("/mcp", async (req: express.Request, res: express.Response): Promise<void> => {
       try {
         // Check for existing session ID
         const sessionId = req.headers["mcp-session-id"] as string | undefined;
@@ -158,7 +159,10 @@ if (import.meta.main) {
     });
 
     // Reusable handler for GET and DELETE requests
-    const handleSessionRequest = async (req: express.Request, res: express.Response) => {
+    const handleSessionRequest = async (
+      req: express.Request,
+      res: express.Response,
+    ): Promise<void> => {
       const sessionId = req.headers["mcp-session-id"] as string | undefined;
       if (!sessionId || !transports[sessionId]) {
         res.status(400).send("Invalid or missing session ID");
@@ -176,7 +180,7 @@ if (import.meta.main) {
     app.delete("/mcp", handleSessionRequest);
 
     // Serve index.html
-    app.get("/", (_req, res) => {
+    app.get("/", (_req: express.Request, res: express.Response): void => {
       const message = `${APP.NAME} running. See \`/llms.txt\` for machine-readable docs.`;
       res.status(200).json({
         jsonrpc: JSONRPC.VERSION,
@@ -188,7 +192,7 @@ if (import.meta.main) {
     app.listen(
       port,
       hostname,
-      () => {
+      (): void => {
         console.error(`${APP.NAME} MCP server is listening on ${hostname}:${port}`);
       },
     );
