@@ -15,12 +15,12 @@
         "url": "git+https://github.com/phughesmcr/deno-mcp-template.git"
     },
     "imports": {
-        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.10.1",
-        "@std/dotenv/load": "jsr:@std/dotenv@^0.225.3/load",
-        "@std/path": "jsr:@std/path@^1.0.8",
+        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.11.4",
+        "@std/dotenv/load": "jsr:@std/dotenv@^0.225.4/load",
+        "@std/path": "jsr:@std/path@^1.0.9",
         "express": "npm:express@^5.1.0",
         "serve-static": "npm:serve-static@^2.2.0",
-        "zod": "npm:zod@^3.24.3"
+        "zod": "npm:zod@^3.25.7"
     },
     "tasks": {
         "prep": "deno fmt && deno lint --fix && deno check main.ts",
@@ -42,7 +42,7 @@
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "verbatimModuleSyntax": true,
-        "types": ["npm:@types/express@5.0.1"]
+        "types": ["npm:@types/express@5.0.2"]
     },
     "bench": {
         "include": ["bench/**/*.ts"]
