@@ -30,6 +30,7 @@
         "compile": "deno compile -A main.ts"
     },
     "compilerOptions": {
+        "erasableSyntaxOnly": true,
         "strict": true,
         "allowUnreachableCode": false,
         "allowUnusedLabels": false,
@@ -49,12 +50,22 @@
     },
     "fmt": {
         "include": ["main.ts", "src/**/*.ts"],
+        "proseWrap": "always",
+        "semiColons": true,
+        "singleQuote": false,
+        "useTabs": false,
+        "bracePosition": "sameLine",
+        "indentWidth": 2,
         "lineWidth": 100,
-        "indentWidth": 2
+        "newLineKind": "lf",
+        "nextControlFlowPosition": "sameLine",
+        "operatorPosition": "sameLine",
+        "useBraces": "always"
     },
     "lint": {
         "include": ["main.ts", "src/**/*.ts"],
         "rules": {
+            "tags": ["recommended"],
             "exclude": ["require-await"]
         }
     },
