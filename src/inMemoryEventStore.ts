@@ -1,12 +1,14 @@
 /**
- * @see https://github.com/modelcontextprotocol/sdk/
+ * @see https://github.com/modelcontextprotocol/typescript-sdk/blob/2cf4f0ca86ff841aca53ac8ef5f3227ba3789386/src/examples/shared/inMemoryEventStore.ts#L9
  * @module
  */
 
 import type { EventStore } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import type { JSONRPCMessage } from "../vendor/schema.ts";
-import type { McpEvent, McpEventSender } from "./types.ts";
+
+type McpEvent = { streamId: string; message: JSONRPCMessage };
+type McpEventSender = (eventId: string, message: JSONRPCMessage) => Promise<void>;
 
 /**
  * Simple in-memory implementation of the EventStore interface for resumability
@@ -23,8 +25,7 @@ export class InMemoryEventStore implements EventStore {
 
   /** Extracts the stream ID from an event ID */
   #getStreamIdFromEventId(eventId: string): string {
-    const parts = eventId.split("_");
-    return parts[0] ?? "";
+    return eventId.split("_")[0] ?? "";
   }
 
   /**

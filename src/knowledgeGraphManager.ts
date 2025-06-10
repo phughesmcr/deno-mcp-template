@@ -1,83 +1,68 @@
 import { isAbsolute, join } from "@std/path";
 
+import { MEMORY_FILE_PATH, MEMORY_PATH_KEY } from "./constants.ts";
 import type { Entity, KnowledgeGraph, Relation } from "./types.ts";
+
+function getLocalPath(): string {
+  const pathEnvValue = Deno.env.get(MEMORY_PATH_KEY);
+  return pathEnvValue ?
+    // If MEMORY_FILE_PATH is just a filename, put it in the same directory as the script
+    isAbsolute(pathEnvValue) ? pathEnvValue : join(import.meta.dirname ?? "", pathEnvValue) :
+    MEMORY_FILE_PATH;
+}
+
+async function readGraphFromFile(path: string): Promise<KnowledgeGraph> {
+  const data = await Deno.readTextFile(path);
+  const lines = data.split("\n").filter((line) => line.trim() !== "");
+  return lines.reduce((graph: KnowledgeGraph, line) => {
+    const item = JSON.parse(line);
+    if (item.type === "entity") { graph.entities.push(item as Entity); }
+    if (item.type === "relation") { graph.relations.push(item as Relation); }
+    return graph;
+  }, { entities: [], relations: [] });
+}
+
+async function unrollKvIterators(
+  entities: Deno.KvListIterator<Entity>,
+  relations: Deno.KvListIterator<Relation>,
+): Promise<KnowledgeGraph> {
+  const _entities: Entity[] = [];
+  const _relations: Relation[] = [];
+  for await (const entry of entities) {
+    _entities.push(entry.value);
+  }
+  for await (const entry of relations) {
+    _relations.push(entry.value);
+  }
+  return { entities: _entities, relations: _relations };
+}
 
 // The KnowledgeGraphManager class contains all operations to interact with the knowledge graph
 export class KnowledgeGraphManager {
-  #MEMORY_FILE_PATH: string;
   #kv: Deno.Kv;
+  #localPath: string;
 
   constructor(kv: Deno.Kv) {
     this.#kv = kv;
-    // Define memory file path using environment variable with fallback
-    const defaultMemoryPath = join(import.meta.dirname ?? "", "memory.json");
-    const pathEnvValue = Deno.env.get("MEMORY_FILE_PATH");
-    // If MEMORY_FILE_PATH is just a filename, put it in the same directory as the script
-    this.#MEMORY_FILE_PATH = pathEnvValue ?
-      isAbsolute(pathEnvValue) ? pathEnvValue : join(import.meta.dirname ?? "", pathEnvValue) :
-      defaultMemoryPath;
-  }
-
-  async #loadGraphFromFile(): Promise<KnowledgeGraph> {
-    try {
-      const data = await Deno.readTextFile(this.#MEMORY_FILE_PATH);
-      const lines = data.split("\n").filter((line) => line.trim() !== "");
-      return lines.reduce((graph: KnowledgeGraph, line) => {
-        const item = JSON.parse(line);
-        if (item.type === "entity") { graph.entities.push(item as Entity); }
-        if (item.type === "relation") { graph.relations.push(item as Relation); }
-        return graph;
-      }, { entities: [], relations: [] });
-    } catch (error) {
-      if (
-        error instanceof Error && "code" in error &&
-        error.code === "ENOENT"
-      ) {
-        return { entities: [], relations: [] };
-      }
-      throw error;
-    }
-  }
-
-  async #saveGraphToFile(graph: KnowledgeGraph): Promise<void> {
-    const lines = [
-      ...graph.entities.map((e) => JSON.stringify({ type: "entity", ...e })),
-      ...graph.relations.map((r) => JSON.stringify({ type: "relation", ...r })),
-    ];
-    await Deno.writeTextFile(this.#MEMORY_FILE_PATH, lines.join("\n"));
+    this.#localPath = getLocalPath();
   }
 
   async #getGraphFromKV(): Promise<KnowledgeGraph> {
     const entitiesIter = this.#kv.list<Entity>({ prefix: ["entities"] });
     const relationsIter = this.#kv.list<Relation>({ prefix: ["relations"] });
-
-    const entities: Entity[] = [];
-    const relations: Relation[] = [];
-
-    for await (const entry of entitiesIter) {
-      entities.push(entry.value);
-    }
-
-    for await (const entry of relationsIter) {
-      relations.push(entry.value);
-    }
-
-    return { entities, relations };
+    return unrollKvIterators(entitiesIter, relationsIter);
   }
 
   async createEntities(entities: Entity[]): Promise<Entity[]> {
     const graph = await this.#getGraphFromKV();
-    const newEntities = entities.filter((e) =>
-      !graph.entities.some((existingEntity) => existingEntity.name === e.name)
-    );
+    const exists = (entity: Entity) => !graph.entities.some((e) => e.name === entity.name);
+    const newEntities = entities.filter(exists);
 
     if (newEntities.length > 0) {
       const transaction = this.#kv.atomic();
-
       for (const entity of newEntities) {
         transaction.set(["entities", entity.name], entity);
       }
-
       await transaction.commit();
     }
 
@@ -96,11 +81,9 @@ export class KnowledgeGraphManager {
 
     if (newRelations.length > 0) {
       const transaction = this.#kv.atomic();
-
       for (const relation of newRelations) {
         transaction.set(["relations", relation.from, relation.to, relation.relationType], relation);
       }
-
       await transaction.commit();
     }
 
@@ -113,22 +96,22 @@ export class KnowledgeGraphManager {
     const results: { entityName: string; addedObservations: string[] }[] = [];
     const transaction = this.#kv.atomic();
 
-    for (const o of observations) {
-      const entityResult = await this.#kv.get<Entity>(["entities", o.entityName]);
+    for (const obs of observations) {
+      const entityResult = await this.#kv.get<Entity>(["entities", obs.entityName]);
 
       if (!entityResult.value) {
-        throw new Error(`Entity with name ${o.entityName} not found`);
+        throw new Error(`Entity with name ${obs.entityName} not found`);
       }
 
       const entity = entityResult.value;
-      const newObservations = o.contents.filter((content) =>
+      const newObservations = obs.contents.filter((content) =>
         !entity.observations.includes(content)
       );
 
       if (newObservations.length > 0) {
         entity.observations.push(...newObservations);
-        transaction.set(["entities", o.entityName], entity);
-        results.push({ entityName: o.entityName, addedObservations: newObservations });
+        transaction.set(["entities", obs.entityName], entity);
+        results.push({ entityName: obs.entityName, addedObservations: newObservations });
       }
     }
 
@@ -256,13 +239,33 @@ export class KnowledgeGraphManager {
 
   // Export current KV data to file
   async exportToFile(): Promise<void> {
-    const graph = await this.#getGraphFromKV();
-    await this.#saveGraphToFile(graph);
+    try {
+      const graph = await this.#getGraphFromKV();
+      const lines = [
+        ...graph.entities.map((e) => JSON.stringify({ type: "entity", ...e })),
+        ...graph.relations.map((r) => JSON.stringify({ type: "relation", ...r })),
+      ];
+      await Deno.writeTextFile(this.#localPath, lines.join("\n"));
+    } catch (error) {
+      console.error("Error exporting graph to file:", error);
+    }
   }
 
   // Import data from file to KV
   async importFromFile(): Promise<void> {
-    const graph = await this.#loadGraphFromFile();
+    let graph: KnowledgeGraph;
+
+    try {
+      graph = await readGraphFromFile(this.#localPath);
+    } catch (error) {
+      if (
+        error instanceof Error && "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        graph = { entities: [], relations: [] };
+      }
+      throw error;
+    }
 
     // Clear existing data first
     const entityEntries = this.#kv.list({ prefix: ["entities"] });

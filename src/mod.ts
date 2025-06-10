@@ -9,15 +9,17 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
-import { APP, KV } from "./constants.ts";
+import { APP_NAME, APP_VERSION, KV } from "./constants.ts";
 import { KnowledgeGraphManager } from "./knowledgeGraphManager.ts";
 import type { Entity, Relation } from "./types.ts";
 
+// The knowledge graph MCP tool
 const knowledgeGraphManager = new KnowledgeGraphManager(KV);
 
+// The MCP server
 const server = new Server({
-  name: APP.NAME,
-  version: APP.VERSION,
+  name: APP_NAME,
+  version: APP_VERSION,
 }, {
   capabilities: {
     tools: {},
