@@ -43,7 +43,7 @@
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "verbatimModuleSyntax": true,
-        "types": ["npm:@types/express@5.1.0"]
+        "types": ["npm:@types/express@5.0.3"]
     },
     "bench": {
         "include": ["bench/**/*.ts"]
