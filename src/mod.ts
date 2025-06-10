@@ -8,6 +8,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
 import { APP, KV } from "./constants.ts";
 import { KnowledgeGraphManager } from "./knowledgeGraphManager.ts";
 import type { Entity, Relation } from "./types.ts";

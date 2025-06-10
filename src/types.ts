@@ -1,5 +1,7 @@
 import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+
 import type { JSONRPCMessage } from "../vendor/schema.ts";
+
 export interface Entity {
   name: string;
   entityType: string;
