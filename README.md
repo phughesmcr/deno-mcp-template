@@ -129,7 +129,7 @@ The repo includes the following quality-of-life files which aren't necessary for
 - `.cursor/rules/` agent rules for Cursor.
 - `.github/` adds Github sponsors info to your repo, and other Github features such as workflows.
 - `.vscode/` has some recommended extensions and makes Deno the default formatter.
-- `vendor/schema.ts` is the [2025-03-26 MCP schema from Anthropic](https://github.com/modelcontextprotocol/specification/blob/main/schema/2025-03-26/schema.ts).
+- `vendor/schema.ts` is the [2025-06-18 MCP schema from Anthropic](https://github.com/modelcontextprotocol/specification/blob/main/schema/2025-06-18/schema.ts).
 - `CLAUDE.md` is a starter file for Claude Code. Run `claude init` after your first changes to keep it up-to-date.
 - `.cursorignore` tells Cursor to exclude files in addition to `.gitignore`.
 - `*.md`. These markdown files, e.g. "CODE_OF_CONDUCT.md", add various tabs and tags to you Github repo and help with community management.
@@ -142,7 +142,7 @@ The repo includes the following quality-of-life files which aren't necessary for
 
 ## Acknowledgements
 
-`vendor/schema.ts` is the [2025-03-26 MCP schema from Anthropic](https://github.com/modelcontextprotocol/specification/blob/main/schema/2025-03-26/schema.ts) (MIT License).
+`vendor/schema.ts` is the [2025-06-18 MCP schema from Anthropic](https://github.com/modelcontextprotocol/specification/blob/main/schema/2025-06-18/schema.ts) (MIT License).
 
 ## License
 
