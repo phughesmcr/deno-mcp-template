@@ -1,22 +1,22 @@
-# Deno MCP Template Repo
+# Deno MCP Template
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/ci.yml?label=CI)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/release.yml?label=release)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/deploy.yml?label=deploy)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/publish.yml?label=publish)
 
-![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
 ![License](https://img.shields.io/github/license/phughesmcr/deno-mcp-template)
+![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
 ![Repo Size](https://img.shields.io/github/languages/code-size/phughesmcr/deno-mcp-template)
 ![Sponsor](https://img.shields.io/github/sponsors/phughesmcr)
 
 ![Repo Logo](static/logo_124.png)
 
-A simple template for writing MCP servers using [Deno](https://deno.com/), publishing them using [JSR.io](https://jsr.io), and optionally using hosting on [Deno Deploy](https://deno.com/deploy).
+A simple template for writing MCP servers using [Deno](https://deno.com/), publishing them using [JSR.io](https://jsr.io), compiling them to a standalone binary, and using hosting on [Deno Deploy](https://deno.com/deploy).
 
-The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool, and allow for session resumability.
+The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool, and allow for session resumability (see `src/tools` for the implementation).
 
-‼️ By default this template server calls `await Deno.openKv()` - all KV functionality will be shared across users who access your server through `"command": "deno run -A --unstable-kv jsr:@your-scope/your-package`. You probably don't want this in production. Make sure user's can only read what they should have access to!
+🥳 Just clone the repo and run `deno task setup` to setup the project for your own use.
 
 ℹ️ **Deno is required**. Use `npm install -g deno` or `curl -fsSL <https://deno.land/install.sh> | sh`
 
@@ -24,7 +24,7 @@ The example server also uses [Deno KV](https://deno.com/kv) to implement a simpl
 
 Replace the server name, and the package location in the following examples to correspond to your own MCP server.
 
-You can set HOSTNAME and PORT in a `.env` if desired.
+You can set HOSTNAME and PORT in a `.env` if desired, or by passing `--hostname` and `--port` to the server.
 
 ### `claude-desktop-config.json` using the MCP server published on JSR
 
@@ -38,7 +38,7 @@ You can set HOSTNAME and PORT in a `.env` if desired.
 }
 ```
 
-### `claude-desktop-config.json` manually using the HTTP endpoint
+### `claude-desktop-config.json` manually using the SSE/HTTP endpoint
 
 Start the server using `deno task start`.
 
@@ -66,23 +66,71 @@ Start the server using `deno task start`.
 
 ### Compiling to a binary
 
-Run `deno task compile`.
+Run `deno task compile`. See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) for more information.
 
 You can then use your binary like any other MCP server, for example:
 
 ```json
 {
     "mcpServers": {
-        "my-local-mcp-server": {
+        "my-mcp-server": {
             "command": "absolute/path/to/binary"
         },
     }
 }
 ```
 
-See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) for more information.
+### Claude Code
+
+```bash
+# Compiled binary:
+claude mcp add my-mcp-server "absolute/path/to/binary"
+
+# or with SSE (use `deno task start` first)
+claude mcp add --transport sse my-mcp-server http://127.0.0.1:3001/mcp
+```
+
+## Project Structure
+
+The main project files are:
+
+```markdown
+deno.json         # Project configuration
+main.ts           # The main entry point
+src/              
+├── app/                        
+│   ├── App.ts                  # The main application class
+│   ├── config.ts               # Configuration for the server
+│   ├── express.ts              # Express server code
+│   ├── inMemoryEventStore.ts   # In-memory event store for for session resumability
+│   └── utils.ts                # Utility functions for the application
+├── tools/                             
+│   ├── knowledgeGraph/                 # The knowledge graph MCP tool
+│   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
+│   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls
+│   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
+│   │   ├── schema.ts                   # The input schema for the knowledge graph tool
+│   │   └── types.ts                    # Shared types for the knowledge graph tool
+│   └── mod.ts      # Provides a single point of export for all the MCP tools
+├── constants.ts    # Shared constants for the server and application
+├── server.ts       # The MCP server
+├── types.ts        # Shared types for the MCP server
+└── utils.ts        # Shared utility functions for the MCP server
+static/             
+├── .well-known/    
+│   ├── llms.txt        # An example llms.txt giving LLMs information about the server    
+│   └── openapi.yaml    # An example OpenAPI specification for the server 
+vendor/
+└── schema.ts   # The 2025-06-18 MCP schema from Anthropic
+```
+
+`App/` is a simple wrapper around the MCP server (`server.ts`), providing STDIO and SSE transport support, and HTTP routes for static files.
 
 ## Development
+
+Run `deno task setup` to setup the project for your own use.
+
+‼️ By default this template server calls `await Deno.openKv()` - all KV functionality will be shared across users who access your server through `"command": "deno run -A --unstable-kv jsr:@your-scope/your-package`. You probably don't want this in production. Make sure user's can only read what they should have access to!
 
 ⚠️ You must grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information.
 
@@ -90,7 +138,9 @@ See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) fo
 
 ⚠️ Remember to check all files in `routes/` and `static/` as some of these files (e.g. `openapi.yaml`) will need modifying to match your MCP server's capabilities / endpoints.
 
-ℹ️ The example server runs with `deno run -A` which enables all of Deno's permissions. You should [finetune the permissions](https://docs.deno.com/runtime/fundamentals/security/) before deploying to production.
+⚠️ `src/app/inMemoryEventStore.ts` is a simple implementation of session resumability. It is not suitable for production use.
+
+⚠️ The example server runs with `deno run -A` which enables all of Deno's permissions. You should [finetune the permissions](https://docs.deno.com/runtime/fundamentals/security/) before deploying to production.
 
 ℹ️ Run `deno task prep` to run the formatter, linter, and code checker.
 

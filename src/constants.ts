@@ -1,4 +1,7 @@
-import { join } from "@std/path";
+/**
+ * @description Shared constants for the MCP server
+ * @module
+ */
 
 import DenoJson from "../deno.json" with { type: "json" };
 
@@ -10,11 +13,8 @@ export const APP_VERSION = DenoJson.version;
 export const DEFAULT_PORT = 3001;
 export const DEFAULT_HOSTNAME = "127.0.0.1";
 
-export const SESSION_ID_KEY = "Mcp-Session-Id";
-export const LAST_EVENT_ID_KEY = "Last-Event-Id";
-
-export const MEMORY_PATH_KEY = "MEMORY_FILE_PATH";
-export const MEMORY_FILE_PATH = join(import.meta.dirname ?? "", "memory.json");
+export const SESSION_ID_KEY = "mcp-session-id";
+export const LAST_EVENT_ID_KEY = "last-event-id";
 
 export const HTTP_STATUS = {
   SUCCESS: 200,
