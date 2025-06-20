@@ -65,3 +65,11 @@ vendor/
 - **Transactions**: Use `kv.atomic()` for Deno KV transactions when updating multiple records
 - **Error Handling**: Provide detailed error messages but avoid exposing sensitive information
 - **Tool Implementation**: Follow the MCP schema for defining tool schemas and handlers
+
+## Docs
+
+[MCP Typescript SDK]: https://github.com/modelcontextprotocol/typescript-sdk
+
+[MCP llms.txt]: https://modelcontextprotocol.io/llms-full.txt
+
+[Deno KV]: https://docs.deno.com/api/deno/~/Deno.Kv

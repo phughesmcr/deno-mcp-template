@@ -5,23 +5,38 @@
 - **Start the application**: `deno task start`
 - **Development mode**: `deno task dev`
 - **Format, lint, and check code**: `deno task prep`
-- **Format code**: `deno fmt`
-- **Lint code**: `deno lint --fix`
-- **Type-check code**: `deno check main.ts`
-
-## Testing
-
-- **Run all tests**: `deno test`
-- **Run specific test file**: `deno test path/to/test_file.ts`
-- **Run test with filter**: `deno test --filter "test name"`
 
 ## Project Structure
 
-- **`main.ts`**: Entry point that handles HTTP requests and MCP protocol
-- **`src/`**: Core MCP server implementation
-- **`static/`**: Static files served by the web server
-- **`vendor/`**: Third-party schema definitions (`vendor/schema.ts` is the official MCP schema)
-- **`test/`**: Test files (create with pattern `*_test.ts`)
+```markdown
+deno.json         # Project configuration
+main.ts           # The main entry point
+src/              
+├── app/                        
+│   ├── App.ts                  # The main application class
+│   ├── config.ts               # Configuration for the server
+│   ├── express.ts              # Express server code
+│   ├── inMemoryEventStore.ts   # In-memory event store for for session resumability
+│   └── utils.ts                # Utility functions for the application
+├── tools/                             
+│   ├── knowledgeGraph/                 # The knowledge graph MCP tool
+│   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
+│   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls
+│   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
+│   │   ├── schema.ts                   # The input schema for the knowledge graph tool
+│   │   └── types.ts                    # Shared types for the knowledge graph tool
+│   └── mod.ts      # Provides a single point of export for all the MCP tools
+├── constants.ts    # Shared constants for the server and application
+├── server.ts       # The MCP server
+├── types.ts        # Shared types for the MCP server
+└── utils.ts        # Shared utility functions for the MCP server
+static/             
+├── .well-known/    
+│   ├── llms.txt        # An example llms.txt giving LLMs information about the server    
+│   └── openapi.yaml    # An example OpenAPI specification for the server 
+vendor/
+└── schema.ts   # The 2025-06-18 MCP schema from Anthropic
+```
 
 ## Code Style Guidelines
 
@@ -44,3 +59,11 @@
 - **Transactions**: Use `kv.atomic()` for Deno KV transactions when updating multiple records
 - **Error Handling**: Provide detailed error messages but avoid exposing sensitive information
 - **Tool Implementation**: Follow the MCP schema for defining tool schemas and handlers
+
+## Docs
+
+[MCP Typescript SDK]: https://github.com/modelcontextprotocol/typescript-sdk
+
+[MCP llms.txt]: https://modelcontextprotocol.io/llms-full.txt
+
+[Deno KV]: https://docs.deno.com/api/deno/~/Deno.Kv
