@@ -13,8 +13,10 @@ export const APP_VERSION = DenoJson.version;
 export const DEFAULT_PORT = 3001;
 export const DEFAULT_HOSTNAME = "127.0.0.1";
 
-export const SESSION_ID_KEY = "mcp-session-id";
-export const LAST_EVENT_ID_KEY = "last-event-id";
+export const ALLOWED_ORIGINS = [
+  "https://your-remote-domain.com",
+  "https://your-other-remote-domain.com",
+];
 
 export const HTTP_STATUS = {
   SUCCESS: 200,

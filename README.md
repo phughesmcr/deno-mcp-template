@@ -138,6 +138,8 @@ Run `deno task setup` to setup the project for your own use.
 
 ⚠️ Remember to check all files in `routes/` and `static/` as some of these files (e.g. `openapi.yaml`) will need modifying to match your MCP server's capabilities / endpoints.
 
+⚠️ If using the server remotely, remember to set `ALLOWED_ORIGINS` in `constants.ts`.
+
 ⚠️ `src/app/inMemoryEventStore.ts` is a simple implementation of session resumability. It is not suitable for production use.
 
 ⚠️ The example server runs with `deno run -A` which enables all of Deno's permissions. You should [finetune the permissions](https://docs.deno.com/runtime/fundamentals/security/) before deploying to production.

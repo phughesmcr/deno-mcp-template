@@ -28,6 +28,7 @@
         "@std/dotenv/load": "jsr:@std/dotenv@^0.225.5/load",
         "@std/path": "jsr:@std/path@^1.1.0",
         "@vendor/schema": "./vendor/schema.ts",
+        "cors": "npm:cors@^2.8.5",
         "express": "npm:express@^5.1.0",
         "serve-static": "npm:serve-static@^2.2.0",
         "zod": "npm:zod@^3.25.57"

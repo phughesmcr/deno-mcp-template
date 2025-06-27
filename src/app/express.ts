@@ -7,7 +7,7 @@ import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { join } from "@std/path";
-import express from "express";
+import cors from "cors";
 import serveStatic from "serve-static";
 
 import { APP_NAME, HTTP_STATUS, RPC_ERROR_CODES, SESSION_ID_KEY } from "../constants.ts";
@@ -30,6 +30,15 @@ export function createHttpServer(config: ExpressAppConfig, server: Server): Expr
   const transports: SessionRecord = {};
   const app = express();
   app.use(express.json());
+
+  // Make sure to set your allowed origins in `constants.ts`
+  app.use(
+    cors({
+      origin: ALLOWED_ORIGINS,
+      exposedHeaders: Object.values(HEADER_KEYS),
+      allowedHeaders: ["Content-Type", ...Object.values(HEADER_KEYS)],
+    }),
+  );
 
   // Static Routes
   app.use("/.well-known", serveStatic(join(config.staticDir, ".well-known")));
