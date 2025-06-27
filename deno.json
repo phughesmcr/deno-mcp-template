@@ -51,7 +51,6 @@
         "noImplicitReturns": true,
         "noImplicitThis": true,
         "noUncheckedIndexedAccess": true,
-        "noPropertyAccessFromIndexSignature": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "verbatimModuleSyntax": true,
