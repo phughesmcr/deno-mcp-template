@@ -46,7 +46,8 @@ Start the server using `deno task start`.
 {
     "mcpServers": {
         "my-mcp-server": {
-            "url": "http://localhost:3001/mcp"
+            "command": "npx",
+            "args": ["mcp-remote", "http://localhost:3001/mcp"]
         },
     }
 }
