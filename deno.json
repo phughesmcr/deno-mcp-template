@@ -23,7 +23,7 @@
         "url": "git+https://github.com/phughesmcr/deno-mcp-template.git"
     },
     "imports": {
-        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.12.1",
+        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.13.2",
         "@std/cli": "jsr:@std/cli@^1.0.20",
         "@std/dotenv/load": "jsr:@std/dotenv@^0.225.5/load",
         "@std/path": "jsr:@std/path@^1.1.0",
