@@ -36,7 +36,7 @@
     "tasks": {
         "prep": "deno fmt && deno lint --fix && deno check main.ts",
         "start": "deno run -A main.ts",
-        "dev": "deno run -A --watch main.ts",
+        "dev": "npx @modelcontextprotocol/inspector deno run -A --watch main.ts",
         "ci": "deno task prep",
         "compile": "deno compile -A main.ts",
         "setup": "deno run -A scripts/setup-template.ts"
