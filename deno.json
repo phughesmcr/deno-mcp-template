@@ -73,7 +73,7 @@
         "newLineKind": "lf",
         "nextControlFlowPosition": "sameLine",
         "operatorPosition": "sameLine",
-        "useBraces": "always"
+        "useBraces": "whenNotSingleLine"
     },
     "lint": {
         "include": [
