@@ -4,11 +4,18 @@
  * @module
  */
 
-import type { Tool } from "@vendor/schema";
-import { KV } from "../../../constants.ts";
+import type { CallToolResult, Tool } from "@vendor/schema";
 import type { ToolModule } from "../../../types.ts";
-import { KnowledgeGraphManager } from "./knowledgeGraphManager.ts";
+import {
+  type Deletion,
+  type Entity,
+  KnowledgeGraphManager,
+  type Observation,
+  type Relation,
+} from "./knowledgeGraphManager.ts";
 import { knowledgeGraphMethodsFactory } from "./methods.ts";
+
+const name = "knowledge_graph";
 
 // The knowledge graph MCP tool methods
 const methods = await (async (): Promise<ReturnType<typeof knowledgeGraphMethodsFactory>> => {
@@ -20,6 +27,33 @@ const methods = await (async (): Promise<ReturnType<typeof knowledgeGraphMethods
     return {} as unknown as typeof methods;
   }
 })();
+
+// The knowledge graph MCP tool request router
+const request = (name: string, args: Record<string, unknown>): Promise<CallToolResult> => {
+  switch (name) {
+    case "create_entities":
+      return methods.createEntities(args["entities"] as Entity[]);
+    case "create_relations":
+      return methods.createRelations(args["relations"] as Relation[]);
+    case "add_observations":
+      return methods.addObservations(args["observations"] as Observation[]);
+    case "delete_entities":
+      return methods.deleteEntities(args["entityNames"] as string[]);
+    case "delete_observations":
+      return methods.deleteObservations(args["deletions"] as Deletion[]);
+    case "delete_relations":
+      return methods.deleteRelations(args["relations"] as Relation[]);
+    case "read_graph":
+      return methods.readGraph();
+    case "search_nodes":
+      return methods.searchNodes(args["query"] as string);
+    case "open_nodes":
+      return methods.openNodes(args["names"] as string[]);
+    // ... more tools ...
+    default:
+      throw new Error(`Unknown tool: ${name}`);
+  }
+};
 
 // The list of tools that can be used by the LLM
 const tools: Tool[] = [
@@ -218,5 +252,5 @@ const tools: Tool[] = [
   },
 ];
 
-export const knowledgeGraph = { methods, tools } as ToolModule<typeof methods>;
+export const knowledgeGraph: ToolModule<typeof methods> = { name, methods, tools, request };
 export type { KnowledgeGraphManager };

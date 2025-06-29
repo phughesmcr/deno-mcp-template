@@ -109,8 +109,11 @@ export interface ResourceTemplateModule<T> {
 
 /** A wrapper for all the required properties for a handling a tool */
 export interface ToolModule<T extends Record<string, unknown>> {
+  readonly name: string;
   readonly tools: Tool[];
   readonly methods: {
-    [key in keyof T]: (...args: unknown[]) => Promise<CallToolResult>;
+    // deno-lint-ignore no-explicit-any
+    [key in keyof T]: (...args: any[]) => Promise<CallToolResult>;
   };
+  readonly request: (name: string, args: Record<string, unknown>) => Promise<CallToolResult>;
 }
