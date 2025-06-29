@@ -61,6 +61,6 @@ if (import.meta.main) {
   // server is the MCP server
   const server = createMcpServer();
   // app is a wrapper for Express and STDIO etc.
-  const app = await createApp(server);
+  const app = createApp(server);
   await app.start();
 }

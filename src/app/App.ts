@@ -170,7 +170,7 @@ class App {
  * @param config - The configuration for the app, defaults to the config from the CLI / env
  * @returns The App instance
  */
-export async function createApp(server: Server, config: Partial<AppConfig> = {}): Promise<App> {
+export function createApp(server: Server, config: Partial<AppConfig> = {}): App {
   // Construct the config
   const internalConfig: InternalAppConfig = {
     ...getConfig(),
