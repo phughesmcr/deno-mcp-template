@@ -119,7 +119,7 @@ class App {
 
   /** Sends a message to stderr only if debug logging is enabled */
   log(message: string, ...args: unknown[]): void {
-    if (this.#config.enableDebugLogging) {
+    if (this.#config.debug) {
       console.error(message, ...args);
     }
   }
@@ -228,7 +228,7 @@ export async function createApp(server: Server, config: Partial<AppConfig> = {})
     port: internalConfig.port,
     hostname: internalConfig.hostname,
     hasMemoryFilePath: !!internalConfig.memoryFilePath,
-    enableDebugLogging: internalConfig.enableDebugLogging,
+    debug: internalConfig.debug,
   });
 
   return app;

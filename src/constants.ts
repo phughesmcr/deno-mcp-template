@@ -44,27 +44,26 @@ export const RPC_ERROR_CODES = {
   INTERNAL_ERROR: -32603,
 } as const;
 
-export const CLI_STRING_ARGS = [
-  "port",
-  "hostname",
-  "memory-file-path",
-] as const;
-
-export const CLI_BOOLEAN_ARGS = ["debug", "help", "version"] as const;
-
-export const CLI_ALIAS_ARGS: Partial<
-  Record<
-    (typeof CLI_STRING_ARGS)[number] | (typeof CLI_BOOLEAN_ARGS)[number],
-    string
-  >
-> = {
-  "port": "p",
-  "hostname": "h",
-  "memory-file-path": "m",
-  "debug": "d",
-  "help": "H",
-  "version": "V",
-};
+export const CLI_ARGS = {
+  string: ["port", "hostname", "memory-file-path"],
+  boolean: ["debug", "help", "version"],
+  alias: {
+    "port": "p",
+    "hostname": "h",
+    "memory-file-path": "m",
+    "debug": "d",
+    "help": "H",
+    "version": "V",
+  },
+  default: {
+    "port": DEFAULT_PORT,
+    "hostname": DEFAULT_HOSTNAME,
+    "memory-file-path": null,
+    "debug": false,
+    "help": false,
+    "version": false,
+  },
+} as const;
 
 export const ENV_VARS = {
   PORT: "PORT",

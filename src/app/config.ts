@@ -7,9 +7,7 @@ import { parseArgs } from "@std/cli";
 import {
   APP_NAME,
   APP_VERSION,
-  CLI_ALIAS_ARGS,
-  CLI_BOOLEAN_ARGS,
-  CLI_STRING_ARGS,
+  CLI_ARGS,
   DEFAULT_HOSTNAME,
   DEFAULT_PORT,
   ENV_VARS,
@@ -24,14 +22,7 @@ import { isValidHostname } from "../utils.ts";
  */
 export function getConfig(): AppConfig {
   // Parse CLI arguments
-  const args = parseArgs(Deno.args, {
-    string: CLI_STRING_ARGS,
-    boolean: CLI_BOOLEAN_ARGS,
-    alias: CLI_ALIAS_ARGS,
-    default: {
-      debug: false,
-    },
-  });
+  const args = parseArgs(Deno.args, CLI_ARGS);
 
   // Show help if requested
   if (args.help) {
@@ -46,13 +37,10 @@ export function getConfig(): AppConfig {
   }
 
   return {
-    port: getValidatedPort(args.port),
+    port: getValidatedPort(args.port.toString()),
     hostname: getValidatedHostname(args.hostname),
-    memoryFilePath: getValidatedMemoryFilePath(
-      args.memoryFilePath as string | undefined,
-    ),
-    enableDebugLogging: !!args.debug ||
-      Deno.env.get(ENV_VARS.DEBUG)?.toLowerCase() === "true",
+    memoryFilePath: getValidatedMemoryFilePath(args.memoryFilePath as string | undefined),
+    debug: !!args.debug || Deno.env.get(ENV_VARS.DEBUG)?.toLowerCase() === "true",
   };
 }
 

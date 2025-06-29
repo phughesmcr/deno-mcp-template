@@ -29,7 +29,7 @@ export interface AppConfig {
   memoryFilePath: string | null;
 
   /** Whether to enable debug logging */
-  enableDebugLogging?: boolean;
+  debug?: boolean;
 }
 
 /** Private app config */
