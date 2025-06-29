@@ -34,9 +34,6 @@ export interface AppConfig {
 
 /** Private app config */
 export interface InternalAppConfig extends AppConfig {
-  /** The KV store */
-  kv: Deno.Kv;
-
   /** The static directory for the app */
   staticDir: string;
 }

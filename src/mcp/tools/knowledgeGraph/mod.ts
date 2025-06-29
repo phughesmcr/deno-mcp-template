@@ -17,11 +17,12 @@ import { knowledgeGraphMethodsFactory } from "./methods.ts";
 
 const name = "knowledge_graph";
 
-// The knowledge graph MCP tool methods
+// The knowledge graph MCP tool methods (depends on Deno KV)
 const methods = await (async (): Promise<ReturnType<typeof knowledgeGraphMethodsFactory>> => {
   try {
     const kv = await Deno.openKv();
-    return knowledgeGraphMethodsFactory(new KnowledgeGraphManager(kv));
+    const graph = new KnowledgeGraphManager(kv);
+    return knowledgeGraphMethodsFactory(graph);
   } catch (error) {
     console.error("Error opening KV store:", error);
     return {} as unknown as typeof methods;

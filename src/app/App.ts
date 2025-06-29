@@ -21,41 +21,22 @@ import { createExpressServer } from "./express.ts";
 
 /** Sets up signal handlers for graceful shutdown */
 function setupSignalHandlers(app: App): void {
-  const closeKvStore = () => {
-    try {
-      app.kv.close();
-      app.log("Closed KV store");
-    } catch (error) {
-      if (error instanceof Deno.errors.BadResource) {
-        // Ignore error if the KV store is already closed
-        app.log("KV store already closed");
-        return;
-      }
-      app.alert("Error closing KV store:", error);
-    }
-  };
-
-  const closeEverything = async () => {
-    await app.stop();
-    closeKvStore();
-  };
-
   // Handle beforeunload event (for web environments)
   globalThis.addEventListener("beforeunload", async (): Promise<void> => {
-    await closeEverything();
+    await app.stop();
   });
 
   // Handle uncaught exceptions
   globalThis.addEventListener("unhandledrejection", async (): Promise<void> => {
     app.alert("Received unhandled rejection, attempting to shut down gracefully...");
-    await closeEverything();
+    await app.stop();
     Deno.exit(1);
   });
 
   // Handle SIGINT signal (Ctrl+C)
   Deno.addSignalListener("SIGINT", async (): Promise<void> => {
     app.alert("Received SIGINT, shutting down gracefully...");
-    await closeEverything();
+    await app.stop();
     Deno.exit(0);
   });
 
@@ -63,7 +44,7 @@ function setupSignalHandlers(app: App): void {
   if (Deno.build.os !== "windows") {
     Deno.addSignalListener("SIGTERM", async (): Promise<void> => {
       app.alert("Received SIGTERM, shutting down gracefully...");
-      await closeEverything();
+      await app.stop();
       Deno.exit(0);
     });
   }
@@ -105,11 +86,6 @@ class App {
   /** Returns the Express app */
   get express(): NodeHttpServer | null {
     return this.#expressServer;
-  }
-
-  /** Returns the KV store */
-  get kv(): Deno.Kv {
-    return this.#config.kv;
   }
 
   /** Sends a message to stderr regardless of debug logging */
@@ -176,7 +152,7 @@ class App {
     // Close Express server
     if (this.#expressServer) {
       try {
-        await this.#expressServer.close();
+        this.#expressServer.close();
         this.#expressServer = null;
         this.log("Closed Express server");
       } catch (error) {
@@ -195,14 +171,11 @@ class App {
  * @returns The App instance
  */
 export async function createApp(server: Server, config: Partial<AppConfig> = {}): Promise<App> {
-  const kv = await Deno.openKv();
-
   // Construct the config
   const internalConfig: InternalAppConfig = {
     ...getConfig(),
     ...config,
     staticDir: import.meta.dirname ?? "",
-    kv,
   };
 
   // Create HTTP server and get transports
