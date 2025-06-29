@@ -38,10 +38,9 @@ export function createExpressServer(
   app.use(express.json());
 
   // Setup allowed hosts and origins for DNS rebinding protection
-  // remember to set your allowed hosts and origins in `constants.ts`
+  // remember to set your allowed hosts and origins in `../constants.ts`
   const url = new URL(import.meta.url);
   const metaUrl = url.protocol.match(/^https?/) ? url : null;
-
   const allowedHosts = [
     ...new Set([
       ...ALLOWED_HOSTS,
@@ -49,7 +48,6 @@ export function createExpressServer(
       ...(metaUrl?.hostname ? [metaUrl.hostname] : []),
     ]),
   ];
-
   const allowedOrigins = [
     ...new Set([
       ...ALLOWED_ORIGINS,
@@ -73,19 +71,17 @@ export function createExpressServer(
   app.get("/openapi.yaml", (_, res) => res.redirect("/.well-known/openapi.yaml"));
 
   // MCP POST Route
-  app.post(
-    "/mcp",
-    createMcpPostHandler(server, transports, { allowedHosts, allowedOrigins }),
-  );
+  const handlePost = createMcpPostHandler(server, transports, { allowedHosts, allowedOrigins });
+  app.post("/mcp", handlePost);
 
   // MCP Session GET and DELETE Routes for session management
-  const mcpSessionHandler = createMcpSessionHandler(transports);
-  app.get("/mcp", mcpSessionHandler);
-  app.delete("/mcp", mcpSessionHandler);
+  const handleSession = createMcpSessionHandler(transports);
+  app.get("/mcp", handleSession);
+  app.delete("/mcp", handleSession);
 
   // Root route
+  const message = `${APP_NAME} running. See \`/llms.txt\` for machine-readable docs.`;
   app.get("/", (_req, res) => {
-    const message = `${APP_NAME} running. See \`/llms.txt\` for machine-readable docs.`;
     res.status(HTTP_STATUS.SUCCESS).json(createRPCSuccess(0, { message }));
   });
 
@@ -106,9 +102,7 @@ function createMcpPostHandler(
   return async (req: Request, res: Response): Promise<void> => {
     try {
       // Check for existing session ID
-      const sessionId = req.headers[HEADER_KEYS.SESSION_ID] as
-        | string
-        | undefined;
+      const sessionId = req.headers[HEADER_KEYS.SESSION_ID] as string | undefined;
       let transport: StreamableHTTPServerTransport;
 
       if (sessionId && transports[sessionId]) {
@@ -137,6 +131,7 @@ function createMcpPostHandler(
 
         await server.connect(transport);
       } else {
+        // Bad Request: No valid session ID provided
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           createRPCError(
             req.body.id,
@@ -170,12 +165,28 @@ function createMcpPostHandler(
  */
 function createMcpSessionHandler(transports: TransportRecord): RequestHandler {
   return async (req: Request, res: Response): Promise<void> => {
-    const sessionId = req.headers[HEADER_KEYS.SESSION_ID] as string | undefined;
-    if (!sessionId || !transports[sessionId]) {
-      res.status(HTTP_STATUS.BAD_REQUEST).send("Invalid or missing session ID");
+    const sessionId = req.headers[HEADER_KEYS.SESSION_ID];
+    if (!sessionId || Array.isArray(sessionId)) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        createRPCError(
+          req.body.id,
+          RPC_ERROR_CODES.INVALID_REQUEST,
+          "Invalid session ID",
+        ),
+      );
       return;
     }
     const transport = transports[sessionId];
+    if (!transport) {
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        createRPCError(
+          req.body.id,
+          RPC_ERROR_CODES.INTERNAL_ERROR,
+          "No session transport found",
+        ),
+      );
+      return;
+    }
     await transport.handleRequest(req, res);
   };
 }
