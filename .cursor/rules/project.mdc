@@ -3,14 +3,13 @@ description:
 globs: 
 alwaysApply: true
 ---
+# Deno MCP Template Development Guide
+
 ## Build/Development Commands
 
-- **Start the application**: `deno task start`
-- **Development mode**: `deno task dev`
-- **Format, lint, and check code**: `deno task prep`
-- **Format code**: `deno fmt`
-- **Lint code**: `deno lint --fix`
-- **Type-check code**: `deno check main.ts`
+Start: `deno task start`
+Dev mode: `deno task dev`
+Format, lint, and check code: `deno task prep`
 
 ## Project Structure
 
@@ -52,30 +51,31 @@ vendor/
 
 ## Code Style Guidelines
 
-- **Formatting**: 100 character line width, 2-space indentation, semicolons required, single quotes preferred
-- **Imports**: Use JSR imports (`jsr:`) or npm imports (`npm:`) with explicit paths. ES module style, include `.ts` extension, group imports logically
-- **Types**: Define interfaces for data structures, use explicit return types
-- **Naming**: camelCase for variables/functions, PascalCase for classes/types
-- **Documentation**: JSDoc comments for functions/interfaces with @author, @description tags. JSDoc for public APIs, inline comments for complex logic
-- **Error Handling**: Use try/catch blocks with descriptive error messages. Use TypeScript's strict mode, explicit error checking in tests
-- **TypeScript**: Enable strict mode, noImplicitAny, verbatimModuleSyntax, Strict type checking, ES modules, explicit return types
-- **Structure**: Place core functionality in src/, route handlers in routes/
-- **Deno Standards**: Use Deno KV for storage, follow Deno's security practices
+Deno: This project uses Deno exclusively. Follow Deno standards and best practice.
+Imports: Use JSR imports (`jsr:`) or npm imports (`npm:`) with explicit paths. ES module style, include `.ts` extension. Group imports logically.
+Structure: The entrypoint is `main.ts`. Core functionality is in `src/`. `src/app` wraps the MCP server from `src/mcp` in some convenience functions for Express, logging, etc.
+TypeScript: Strict type checking, ES modules, explicit return types
+Naming: PascalCase for classes/types, camelCase for functions/variables
+Files: Lowercase with hyphens, test files with .test.ts suffix
+Error Handling: Use TypeScript's strict mode, explicit error checking in tests
+Formatting: 2-space indentation, semicolons required, single quotes preferred
+Testing: Locate tests in `test/`, use descriptive test names. We use `deno test` for testing.
+Comments: JSDoc for public APIs, inline comments for complex logic
 
 ## Best Practices
 
-- **Environment Variables**: Load using `@std/dotenv/load` in the top-level and access with `Deno.env.get()`
-- **File Paths**: Use `@std/path` for cross-platform file path handling
-- **Data Validation**: Use zod schemas for data validation
-- **HTTP Responses**: Return proper status codes and structured JSON responses
-- **Transactions**: Use `kv.atomic()` for Deno KV transactions when updating multiple records
-- **Error Handling**: Provide detailed error messages but avoid exposing sensitive information
-- **Tool Implementation**: Follow the MCP schema for defining tool schemas and handlers
+Environment Variables: env vars are loading in `main.ts` using `@std/dotenv/load` in the top-level
+File Paths: Use `@std/path` for cross-platform file path handling
+Data Validation: Use `zod` schemas for data validation
+HTTP Responses: Return proper status codes and structured JSON responses, including JSONRPC when necessary.
+Transactions: Use `kv.atomic()` for Deno KV transactions when updating multiple records
+Error Handling: Provide detailed error messages but avoid exposing sensitive information
+Tool Implementation: Follow the MCP schema for defining tool schemas and handlers
 
 ## Docs
 
-[MCP Typescript SDK]: https://github.com/modelcontextprotocol/typescript-sdk
-
 [MCP llms.txt]: https://modelcontextprotocol.io/llms-full.txt
 
-[Deno KV]: https://docs.deno.com/api/deno/~/Deno.Kv
+[MCP Typescript SDK]: https://github.com/modelcontextprotocol/typescript-sdk
+
+[Deno]: https://docs.deno.com/
