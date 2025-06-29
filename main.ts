@@ -50,11 +50,11 @@
  * @module
  */
 
-// Load environment variables
-import "@std/dotenv/load";
-
 import { createApp } from "./src/app/App.ts";
 import { createMcpServer } from "./src/server.ts";
+
+// Load environment variables
+import "@std/dotenv/load";
 
 // If the script is run directly, start the MCP server
 if (import.meta.main) {
