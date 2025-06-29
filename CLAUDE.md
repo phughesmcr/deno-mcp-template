@@ -1,5 +1,7 @@
 # CLAUDE.md - Deno MCP Template Development Guide
 
+Deno version: 2.3.7
+
 ## Build/Development Commands
 
 Start: `deno task start`
