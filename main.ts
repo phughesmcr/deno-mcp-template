@@ -20,7 +20,8 @@
  * {
  *   "mcpServers": {
  *     "my-mcp-server": {
- *       "url": "http://127.0.0.1:3001/mcp"
+ *       "command": "npx",
+ *       "args": ["mcp-remote", "http://localhost:3001/mcp"]
  *     },
  *   }
  * }
