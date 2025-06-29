@@ -45,7 +45,7 @@ function setupSignalHandlers(app: App): void {
 }
 
 class App {
-  /** The Express app for SSE and HTTP */
+  /** The Express app for HTTP */
   #expressApp: ExpressApp;
 
   /** The Express server or null if not running */
@@ -116,7 +116,7 @@ class App {
   async stop(): Promise<void> {
     if (!this.#running) return;
 
-    // Close all SSE transports
+    // Close all session transports
     let errorCount = 0;
     let successCount = 0;
     await Promise.allSettled(

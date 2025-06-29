@@ -49,7 +49,7 @@ export interface AppSpec {
   /** The MCP server */
   server: Server;
 
-  /** The SSE transports */
+  /** The session transports */
   transports: TransportRecord;
 }
 
@@ -70,7 +70,7 @@ export interface ExpressResult {
   /** The Express app */
   app: Application;
 
-  /** The SSE transports */
+  /** The session transports */
   transports: TransportRecord;
 }
 

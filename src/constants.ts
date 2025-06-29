@@ -3,17 +3,19 @@
  * @module
  */
 
-import DenoJson from "../deno.json" with { type: "json" };
-
+/** The MCP server's machine-facing name. */
 export const APP_NAME = "deno-mcp-template";
+
+/** The MCP server's human-facing title. */
 export const APP_TITLE = "Deno MCP Template";
 
-export const DEFAULT_PORT = 3001;
-export const DEFAULT_HOSTNAME = "127.0.0.1";
-
+/** The allowed hosts for the MCP server's DNS rebinding protection. */
 export const ALLOWED_HOSTS = [];
+
+/** The allowed origins for the MCP server's DNS rebinding protection. */
 export const ALLOWED_ORIGINS = [];
 
+/** The MCP server's capabilities. */
 export const SERVER_CAPABILITIES = {
   completions: {},
   logging: {},
@@ -30,9 +32,17 @@ export const SERVER_CAPABILITIES = {
   // experimental: {},
 };
 
+/** The default port for the HTTP server. */
+export const DEFAULT_PORT = 3001;
+
+/** The default hostname for the HTTP server. */
+export const DEFAULT_HOSTNAME = "127.0.0.1";
+
 // *****************************************************
 // * You should not need to change the constants below *
 // *****************************************************
+
+import DenoJson from "../deno.json" with { type: "json" };
 
 export const APP_VERSION = DenoJson.version;
 
