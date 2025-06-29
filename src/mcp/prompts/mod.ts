@@ -14,12 +14,12 @@ const prompts: PromptModule<any>[] = [
 ] as const;
 
 /** List all available prompts */
-export const handleListPromptsRequest = async (): Promise<ListPromptsResult> => ({
+export const listPrompts = async (): Promise<ListPromptsResult> => ({
   prompts: prompts.map((prompt) => prompt.prompt),
 });
 
 /** Handle a prompt request */
-export const handleGetPromptsRequest = async (
+export const getPrompt = async (
   request: GetPromptRequest,
 ): Promise<GetPromptResult> => {
   const { name, arguments: args } = request.params;

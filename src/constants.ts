@@ -15,21 +15,19 @@ export const ALLOWED_HOSTS = [];
 export const ALLOWED_ORIGINS = [];
 
 export const SERVER_CAPABILITIES = {
-  capabilities: {
-    completions: {},
-    logging: {},
-    prompts: {
-      listChanged: true,
-    },
-    resources: {
-      listChanged: true,
-      subscribe: true,
-    },
-    tools: {
-      listChanged: true,
-    },
-    // experimental: {},
+  completions: {},
+  logging: {},
+  prompts: {
+    listChanged: true,
   },
+  resources: {
+    listChanged: true,
+    subscribe: true,
+  },
+  tools: {
+    listChanged: true,
+  },
+  // experimental: {},
 };
 
 // *****************************************************

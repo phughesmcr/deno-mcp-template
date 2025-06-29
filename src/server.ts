@@ -1,6 +1,5 @@
 /**
- * @description An implementation of the example Memory Server using Deno KV
- * @see {@link https://github.com/modelcontextprotocol/servers/tree/main/src/memory}
+ * @description Factory function for creating an MCP server
  * @module
  */
 
@@ -17,32 +16,38 @@ import {
 
 import { SERVER_CAPABILITIES, SERVER_INFO } from "./constants.ts";
 import {
-  handleCallToolRequest,
-  handleGetPromptsRequest,
-  handleListPromptsRequest,
-  handleListResourcesRequest,
-  handleListResourceTemplatesRequest,
-  handleListToolsRequest,
-  handleReadResourceRequest,
+  callTool,
+  getPrompt,
+  listPrompts,
+  listResources,
+  listResourceTemplates,
+  listTools,
+  readResource,
 } from "./mcp/mod.ts";
 
 /** Creates a new MCP server and initializes the request handlers */
 export function createMcpServer(): Server {
   // You can edit the server capabilities in `src/constants.ts`
-  const server = new Server(SERVER_INFO, SERVER_CAPABILITIES);
-
-  // Resource handlers
-  server.setRequestHandler(ListResourceTemplatesRequestSchema, handleListResourceTemplatesRequest);
-  server.setRequestHandler(ListResourcesRequestSchema, handleListResourcesRequest);
-  server.setRequestHandler(ReadResourceRequestSchema, handleReadResourceRequest);
-
-  // Tool handlers
-  server.setRequestHandler(ListToolsRequestSchema, handleListToolsRequest);
-  server.setRequestHandler(CallToolRequestSchema, handleCallToolRequest);
+  const server = new Server(SERVER_INFO, { capabilities: SERVER_CAPABILITIES });
 
   // Prompt handlers
-  server.setRequestHandler(ListPromptsRequestSchema, handleListPromptsRequest);
-  server.setRequestHandler(GetPromptRequestSchema, handleGetPromptsRequest);
+  if (SERVER_CAPABILITIES.prompts) {
+    server.setRequestHandler(ListPromptsRequestSchema, listPrompts);
+    server.setRequestHandler(GetPromptRequestSchema, getPrompt);
+  }
+
+  // Resource handlers
+  if (SERVER_CAPABILITIES.resources) {
+    server.setRequestHandler(ListResourceTemplatesRequestSchema, listResourceTemplates);
+    server.setRequestHandler(ListResourcesRequestSchema, listResources);
+    server.setRequestHandler(ReadResourceRequestSchema, readResource);
+  }
+
+  // Tool handlers
+  if (SERVER_CAPABILITIES.tools) {
+    server.setRequestHandler(ListToolsRequestSchema, listTools);
+    server.setRequestHandler(CallToolRequestSchema, callTool);
+  }
 
   return server;
 }

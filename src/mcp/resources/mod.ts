@@ -18,19 +18,19 @@ const resourceTemplates: ResourceTemplateModule<any>[] = [
 ] as const;
 
 /** List all resources */
-export const handleListResourcesRequest = async () => {
+export const listResources = async () => {
   return {
     resources: resources.map((r) => r.resource),
   };
 };
 
 /** List all resource templates */
-export const handleListResourceTemplatesRequest = async () => ({
+export const listResourceTemplates = async () => ({
   resourceTemplates: resourceTemplates.map((r) => r.resourceTemplate),
 });
 
 /** Read a resource */
-export const handleReadResourceRequest = async (request: {
+export const readResource = async (request: {
   params: { uri: string };
 }) => {
   // Direct resources

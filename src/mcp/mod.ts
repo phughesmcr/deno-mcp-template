@@ -1,17 +1,13 @@
-import { handleGetPromptsRequest, handleListPromptsRequest } from "./prompts/mod.ts";
-import {
-  handleListResourcesRequest,
-  handleListResourceTemplatesRequest,
-  handleReadResourceRequest,
-} from "./resources/mod.ts";
-import { handleCallToolRequest, handleListToolsRequest } from "./tools/mod.ts";
+import { getPrompt, listPrompts } from "./prompts/mod.ts";
+import { listResources, listResourceTemplates, readResource } from "./resources/mod.ts";
+import { callTool, listTools } from "./tools/mod.ts";
 
 export {
-  handleCallToolRequest,
-  handleGetPromptsRequest,
-  handleListPromptsRequest,
-  handleListResourcesRequest,
-  handleListResourceTemplatesRequest,
-  handleListToolsRequest,
-  handleReadResourceRequest,
+  callTool,
+  getPrompt,
+  listPrompts,
+  listResources,
+  listResourceTemplates,
+  listTools,
+  readResource,
 };

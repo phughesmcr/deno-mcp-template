@@ -20,11 +20,11 @@ if (Object.keys(knowledgeGraph.methods).length === 0) {
   tools.splice(tools.findIndex((tool) => tool.name === knowledgeGraph.name), 1);
 }
 
-export const handleListToolsRequest = async () => ({
+export const listTools = async () => ({
   tools: tools.flatMap((tool) => tool.tools),
 });
 
-export const handleCallToolRequest = async (request: CallToolRequest) => {
+export const callTool = async (request: CallToolRequest) => {
   const { name, arguments: args } = request.params;
   if (!args) throw new Error(`No arguments provided for tool: ${name}`);
   const module = tools.find((tool) => tool.tools.find((t) => t.name === name));
