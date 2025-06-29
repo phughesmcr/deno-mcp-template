@@ -9,13 +9,7 @@ import type { Application as ExpressApp } from "express";
 import type { Server as NodeHttpServer } from "node:http";
 
 import { APP_NAME } from "../constants.ts";
-import type {
-  AppConfig,
-  AppSpec,
-  ExpressResult,
-  InternalAppConfig,
-  TransportRecord,
-} from "../types.ts";
+import type { AppSpec, ExpressResult, InternalAppConfig, TransportRecord } from "../types.ts";
 import { getConfig } from "./config.ts";
 import { createExpressServer } from "./express.ts";
 
@@ -33,14 +27,14 @@ function setupSignalHandlers(app: App): void {
     Deno.exit(1);
   });
 
-  // Handle SIGINT signal (Ctrl+C)
+  // Handle SIGINT (Ctrl+C)
   Deno.addSignalListener("SIGINT", async (): Promise<void> => {
     app.alert("Received SIGINT, shutting down gracefully...");
     await app.stop();
     Deno.exit(0);
   });
 
-  // Handle SIGTERM signal (process termination)
+  // Handle SIGTERM
   if (Deno.build.os !== "windows") {
     Deno.addSignalListener("SIGTERM", async (): Promise<void> => {
       app.alert("Received SIGTERM, shutting down gracefully...");
@@ -170,41 +164,40 @@ class App {
  * @param config - The configuration for the app, defaults to the config from the CLI / env
  * @returns The App instance
  */
-export function createApp(server: Server, config: Partial<AppConfig> = {}): App {
+export function createApp(server: Server): App {
   // Construct the config
   const internalConfig: InternalAppConfig = {
     ...getConfig(),
-    ...config,
     staticDir: import.meta.dirname ?? "",
   };
 
   // Create HTTP server and get transports
-  const expressServer: ExpressResult = createExpressServer({
+  const { app, transports }: ExpressResult = createExpressServer({
     hostname: internalConfig.hostname,
     port: internalConfig.port,
     staticDir: internalConfig.staticDir,
   }, server);
 
   // Create the app
-  const app = new App({
-    server,
+  const result = new App({
+    app,
     config: internalConfig,
-    transports: expressServer.transports,
-    app: expressServer.app,
+    server,
+    transports,
   });
 
   // Setup signal handlers
-  setupSignalHandlers(app);
+  setupSignalHandlers(result);
 
   // Log the configuration
-  app.log("Configuration:", {
-    port: internalConfig.port,
-    hostname: internalConfig.hostname,
-    hasMemoryFilePath: !!internalConfig.memoryFilePath,
+  result.log("Configuration:", {
     debug: internalConfig.debug,
+    hasMemoryFilePath: !!internalConfig.memoryFilePath,
+    hostname: internalConfig.hostname,
+    port: internalConfig.port,
   });
 
-  return app;
+  return result;
 }
 
 export type { App };
