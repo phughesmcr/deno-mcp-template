@@ -21,6 +21,15 @@ const name = "knowledge_graph";
 const methods = await (async (): Promise<ReturnType<typeof knowledgeGraphMethodsFactory>> => {
   try {
     const kv = await Deno.openKv();
+
+    globalThis.addEventListener("beforeunload", (): void => {
+      try {
+        kv.close();
+      } catch (error) {
+        console.error("Error closing KV store:", error);
+      }
+    });
+
     const graph = new KnowledgeGraphManager(kv);
     return knowledgeGraphMethodsFactory(graph);
   } catch (error) {
