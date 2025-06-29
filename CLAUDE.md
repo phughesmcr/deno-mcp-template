@@ -13,7 +13,7 @@ deno.json     # Project configuration
 main.ts       # The main entry point
 src/              
 ├── app/                        
-│   ├── App.ts                  # The main application class
+│   ├── app.ts                  # The main application class
 │   ├── config.ts               # Configuration for the server
 │   ├── express.ts              # Express server code
 │   ├── inMemoryEventStore.ts   # In-memory event store for for session resumability
