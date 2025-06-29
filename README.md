@@ -93,39 +93,47 @@ claude mcp add --transport sse my-mcp-server http://127.0.0.1:3001/mcp
 
 ## Project Structure
 
+`App/` is a simple wrapper around the MCP server (`server.ts`), providing STDIO and SSE transport support, and HTTP routes for static files.
+
+`mcp/` contains all the example tools, prompts, and resources.
+
 The main project files are:
 
 ```markdown
-deno.json         # Project configuration
-main.ts           # The main entry point
+deno.json     # Project configuration
+main.ts       # The main entry point
 src/              
 ├── app/                        
 │   ├── App.ts                  # The main application class
 │   ├── config.ts               # Configuration for the server
 │   ├── express.ts              # Express server code
 │   ├── inMemoryEventStore.ts   # In-memory event store for for session resumability
-│   └── utils.ts                # Utility functions for the application
-├── tools/                             
-│   ├── knowledgeGraph/                 # The knowledge graph MCP tool
-│   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
-│   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls
-│   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
-│   │   ├── schema.ts                   # The input schema for the knowledge graph tool
-│   │   └── types.ts                    # Shared types for the knowledge graph tool
-│   └── mod.ts      # Provides a single point of export for all the MCP tools
-├── constants.ts    # Shared constants for the server and application
-├── server.ts       # The MCP server
-├── types.ts        # Shared types for the MCP server
-└── utils.ts        # Shared utility functions for the MCP server
+├── mcp/ 
+│   ├── prompts/                             
+│   │   ├── codeReview.ts                   # A simple code-review prompt example
+│   │   └── mod.ts                          # Provides a single point of export for all the MCP prompts
+│   ├── resources/                             
+│   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
+│   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
+│   │   └── mod.ts                          # Provides a single point of export for all the MCP resources
+│   ├── tools/                             
+│   │   ├── knowledgeGraph/                 # The knowledge graph example tool
+│   │   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
+│   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
+│   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
+│   │   └── mod.ts                    # Provides a single point of export for all the MCP tools
+│   └── mod.ts                  # Provides a single point of export for all the MCP internals
+├── constants.ts                # Shared constants for the server and application
+├── server.ts                   # The MCP server
+├── types.ts                    # Shared types for the MCP server
+└── utils.ts                    # Shared utility functions for the MCP server
 static/             
 ├── .well-known/    
-│   ├── llms.txt        # An example llms.txt giving LLMs information about the server    
-│   └── openapi.yaml    # An example OpenAPI specification for the server 
+│   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
+│   └── openapi.yaml            # An example OpenAPI specification for the server 
 vendor/
-└── schema.ts   # The 2025-06-18 MCP schema from Anthropic
+└── schema.ts                   # The 2025-06-18 MCP schema from Anthropic
 ```
-
-`App/` is a simple wrapper around the MCP server (`server.ts`), providing STDIO and SSE transport support, and HTTP routes for static files.
 
 ## Development
 
@@ -139,7 +147,7 @@ Run `deno task setup` to setup the project for your own use.
 
 ⚠️ Remember to check all files in `routes/` and `static/` as some of these files (e.g. `openapi.yaml`) will need modifying to match your MCP server's capabilities / endpoints.
 
-⚠️ If using the server remotely, remember to set `ALLOWED_ORIGINS` in `constants.ts`.
+⚠️ If using `enableDnsRebindingProtection`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `constants.ts`. If not, you can disable `enableDnsRebindingProtection` in `app/express.ts` (it is enabled by default).
 
 ⚠️ `src/app/inMemoryEventStore.ts` is a simple implementation of session resumability. It is not suitable for production use.
 

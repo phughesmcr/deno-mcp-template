@@ -1,7 +1,7 @@
 ---
-description: High-level project structure
+description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 ## Build/Development Commands
 
@@ -15,33 +15,39 @@ alwaysApply: false
 ## Project Structure
 
 ```markdown
-deno.json         # Project configuration
-main.ts           # The main entry point
+deno.json     # Project configuration
+main.ts       # The main entry point
 src/              
 ├── app/                        
 │   ├── App.ts                  # The main application class
 │   ├── config.ts               # Configuration for the server
 │   ├── express.ts              # Express server code
 │   ├── inMemoryEventStore.ts   # In-memory event store for for session resumability
-│   └── utils.ts                # Utility functions for the application
-├── tools/                             
-│   ├── knowledgeGraph/                 # The knowledge graph MCP tool
-│   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
-│   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls
-│   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
-│   │   ├── schema.ts                   # The input schema for the knowledge graph tool
-│   │   └── types.ts                    # Shared types for the knowledge graph tool
-│   └── mod.ts      # Provides a single point of export for all the MCP tools
-├── constants.ts    # Shared constants for the server and application
-├── server.ts       # The MCP server
-├── types.ts        # Shared types for the MCP server
-└── utils.ts        # Shared utility functions for the MCP server
+├── mcp/ 
+│   ├── prompts/                             
+│   │   ├── codeReview.ts                   # A simple code-review prompt example
+│   │   └── mod.ts                          # Provides a single point of export for all the MCP prompts
+│   ├── resources/                             
+│   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
+│   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
+│   │   └── mod.ts                          # Provides a single point of export for all the MCP resources
+│   ├── tools/                             
+│   │   ├── knowledgeGraph/                 # The knowledge graph example tool
+│   │   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
+│   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
+│   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
+│   │   └── mod.ts                    # Provides a single point of export for all the MCP tools
+│   └── mod.ts                  # Provides a single point of export for all the MCP internals
+├── constants.ts                # Shared constants for the server and application
+├── server.ts                   # The MCP server
+├── types.ts                    # Shared types for the MCP server
+└── utils.ts                    # Shared utility functions for the MCP server
 static/             
 ├── .well-known/    
-│   ├── llms.txt        # An example llms.txt giving LLMs information about the server    
-│   └── openapi.yaml    # An example OpenAPI specification for the server 
+│   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
+│   └── openapi.yaml            # An example OpenAPI specification for the server 
 vendor/
-└── schema.ts   # The 2025-06-18 MCP schema from Anthropic
+└── schema.ts                   # The 2025-06-18 MCP schema from Anthropic
 ```
 
 ## Code Style Guidelines

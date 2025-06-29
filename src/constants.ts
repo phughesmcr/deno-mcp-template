@@ -13,10 +13,13 @@ export const APP_VERSION = DenoJson.version;
 export const DEFAULT_PORT = 3001;
 export const DEFAULT_HOSTNAME = "127.0.0.1";
 
-export const ALLOWED_ORIGINS = [
-  "https://your-remote-domain.com",
-  "https://your-other-remote-domain.com",
-];
+export const ALLOWED_HOSTS = [];
+export const ALLOWED_ORIGINS = [];
+
+export const HEADER_KEYS = {
+  SESSION_ID: "mcp-session-id",
+  LAST_EVENT_ID: "last-event-id",
+} as const;
 
 export const HTTP_STATUS = {
   SUCCESS: 200,
@@ -37,4 +40,33 @@ export const RPC_ERROR_CODES = {
   METHOD_NOT_FOUND: -32601,
   INVALID_PARAMS: -32602,
   INTERNAL_ERROR: -32603,
+} as const;
+
+export const CLI_STRING_ARGS = [
+  "port",
+  "hostname",
+  "memory-file-path",
+] as const;
+
+export const CLI_BOOLEAN_ARGS = ["debug", "help", "version"] as const;
+
+export const CLI_ALIAS_ARGS: Partial<
+  Record<
+    (typeof CLI_STRING_ARGS)[number] | (typeof CLI_BOOLEAN_ARGS)[number],
+    string
+  >
+> = {
+  "port": "p",
+  "hostname": "h",
+  "memory-file-path": "m",
+  "debug": "d",
+  "help": "H",
+  "version": "V",
+};
+
+export const ENV_VARS = {
+  PORT: "PORT",
+  HOSTNAME: "HOSTNAME",
+  MEMORY_FILE_PATH: "MEMORY_FILE_PATH",
+  DEBUG: "DEBUG",
 } as const;

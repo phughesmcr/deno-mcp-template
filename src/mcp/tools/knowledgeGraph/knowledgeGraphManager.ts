@@ -6,33 +6,58 @@
 
 import { isAbsolute, join } from "@std/path";
 
-import type {
-  AddObservationResult,
-  Deletion,
-  Entity,
-  KnowledgeGraph,
-  Observation,
-  Relation,
-} from "./types.ts";
+import { ENV_VARS } from "../../../constants.ts";
+
+export interface Entity {
+  name: string;
+  entityType: string;
+  observations: string[];
+}
+
+export interface Relation {
+  from: string;
+  to: string;
+  relationType: string;
+}
+
+export interface KnowledgeGraph {
+  entities: Entity[];
+  relations: Relation[];
+}
+
+export interface Observation {
+  entityName: string;
+  contents: string[];
+}
+
+export interface Deletion {
+  entityName: string;
+  observations: string[];
+}
+
+export interface AddObservationResult {
+  entityName: string;
+  addedObservations: string[];
+}
 
 async function readGraphFromFile(path: string): Promise<KnowledgeGraph> {
   const data = await Deno.readTextFile(path);
   const lines = data.split("\n").filter((line) => line.trim() !== "");
   return lines.reduce((graph: KnowledgeGraph, line) => {
     const item = JSON.parse(line);
-    if (item.type === "entity") { graph.entities.push(item as Entity); }
-    if (item.type === "relation") { graph.relations.push(item as Relation); }
+    if (item.type === "entity") graph.entities.push(item as Entity);
+    if (item.type === "relation") graph.relations.push(item as Relation);
     return graph;
   }, { entities: [], relations: [] });
 }
 
-function entityExists(graph: KnowledgeGraph) {
+function isNewEntity(graph: KnowledgeGraph) {
   return (entity: Entity) => {
     return !graph.entities.some((e) => e.name === entity.name);
   };
 }
 
-function relationExists(graph: KnowledgeGraph) {
+function isNewRelationship(graph: KnowledgeGraph) {
   return (relation: Relation) => {
     return !graph.relations.some((existingRelation) =>
       existingRelation.from === relation.from &&
@@ -55,7 +80,7 @@ export class KnowledgeGraphManager {
 
   /** Returns the path to the local file that stores the knowledge graph */
   get localPath(): string {
-    const pathEnvValue = Deno.env.get("MEMORY_FILE_PATH");
+    const pathEnvValue = Deno.env.get(ENV_VARS.MEMORY_FILE_PATH);
     return pathEnvValue ?
       // If MEMORY_FILE_PATH is just a filename, put it in the same directory as the script
       isAbsolute(pathEnvValue) ? pathEnvValue : join(import.meta.dirname ?? "", pathEnvValue) :
@@ -90,7 +115,7 @@ export class KnowledgeGraphManager {
   async createEntities(entities: Entity[]): Promise<Entity[]> {
     // Filter out entities that already exist
     const graph = await this.readGraph();
-    const exists = entityExists(graph);
+    const exists = isNewEntity(graph);
     const newEntities = entities.filter(exists);
 
     // If no new entities, return early
@@ -120,7 +145,7 @@ export class KnowledgeGraphManager {
   async createRelations(relations: Relation[]): Promise<Relation[]> {
     // Filter out relations that already exist
     const graph = await this.readGraph();
-    const exists = relationExists(graph);
+    const exists = isNewRelationship(graph);
     const newRelations = relations.filter(exists);
 
     // If no new relations, return early
@@ -175,7 +200,7 @@ export class KnowledgeGraphManager {
    * @param entityNames - The names of the entities to delete
    */
   async deleteEntities(entityNames: string[]): Promise<void> {
-    if (entityNames.length === 0) { return; }
+    if (entityNames.length === 0) return;
 
     const transaction = this.#kv.atomic();
 

@@ -56,7 +56,9 @@ import { createApp } from "./src/app/App.ts";
 import { createMcpServer } from "./src/server.ts";
 
 if (import.meta.main) {
+  // server = the MCP server
   const server = createMcpServer();
-  const app = createApp(server);
+  // app = a wrapper for Express and STDIO etc.
+  const app = await createApp(server);
   await app.start();
 }

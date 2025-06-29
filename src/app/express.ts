@@ -1,5 +1,5 @@
 /**
- * @description HTTP server setup for MCP over HTTP transport
+ * @description Express server setup for MCP over HTTP transport
  * @module
  */
 
@@ -8,33 +8,60 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { join } from "@std/path";
 import cors from "cors";
+import express, { type Request, type Response } from "express";
 import serveStatic from "serve-static";
 
-import { APP_NAME, HTTP_STATUS, RPC_ERROR_CODES, SESSION_ID_KEY } from "../constants.ts";
-import type { SessionRecord } from "../types.ts";
+import {
+  ALLOWED_HOSTS,
+  ALLOWED_ORIGINS,
+  APP_NAME,
+  HEADER_KEYS,
+  HTTP_STATUS,
+  RPC_ERROR_CODES,
+} from "../constants.ts";
+import type { ExpressConfig, ExpressResult, RequestHandler, TransportRecord } from "../types.ts";
 import { createRPCError, createRPCSuccess } from "../utils.ts";
 import { InMemoryEventStore } from "./inMemoryEventStore.ts";
 
-export interface ExpressAppConfig {
-  hostname: string;
-  port: number;
-  staticDir: string;
-}
-
-export interface ExpressApp {
-  app: express.Application;
-  transports: SessionRecord;
-}
-
-export function createHttpServer(config: ExpressAppConfig, server: Server): ExpressApp {
-  const transports: SessionRecord = {};
+/**
+ * Creates an Express server for MCP over HTTP/SSE transport
+ * @param config - The configuration for the Express server
+ * @param server - The MCP server
+ * @returns The Express server and transports
+ */
+export function createExpressServer(
+  config: ExpressConfig,
+  server: Server,
+): ExpressResult {
+  const transports: TransportRecord = {};
   const app = express();
   app.use(express.json());
 
-  // Make sure to set your allowed origins in `constants.ts`
+  // Setup allowed hosts and origins for DNS rebinding protection
+  // remember to set your allowed hosts and origins in `constants.ts`
+  const url = new URL(import.meta.url);
+  const metaUrl = url.protocol.match(/^https?/) ? url : null;
+
+  const allowedHosts = [
+    ...new Set([
+      ...ALLOWED_HOSTS,
+      config.hostname,
+      ...(metaUrl?.hostname ? [metaUrl.hostname] : []),
+    ]),
+  ];
+
+  const allowedOrigins = [
+    ...new Set([
+      ...ALLOWED_ORIGINS,
+      config.hostname,
+      ...(metaUrl?.origin ? [metaUrl.origin] : []),
+    ]),
+  ];
+
+  // Setup CORS
   app.use(
     cors({
-      origin: ALLOWED_ORIGINS,
+      origin: allowedOrigins,
       exposedHeaders: Object.values(HEADER_KEYS),
       allowedHeaders: ["Content-Type", ...Object.values(HEADER_KEYS)],
     }),
@@ -42,13 +69,19 @@ export function createHttpServer(config: ExpressAppConfig, server: Server): Expr
 
   // Static Routes
   app.use("/.well-known", serveStatic(join(config.staticDir, ".well-known")));
-  app.get("/llms.txt", (_req, res) => res.redirect("/.well-known/llms.txt"));
-  app.get("/openapi.yaml", (_req, res) => res.redirect("/.well-known/openapi.yaml"));
+  app.get("/llms.txt", (_, res) => res.redirect("/.well-known/llms.txt"));
+  app.get("/openapi.yaml", (_, res) => res.redirect("/.well-known/openapi.yaml"));
 
-  // MCP Routes
-  app.post("/mcp", createMcpPostHandler(server, transports));
-  app.get("/mcp", createMcpSessionHandler(transports));
-  app.delete("/mcp", createMcpSessionHandler(transports));
+  // MCP POST Route
+  app.post(
+    "/mcp",
+    createMcpPostHandler(server, transports, { allowedHosts, allowedOrigins }),
+  );
+
+  // MCP Session GET and DELETE Routes for session management
+  const mcpSessionHandler = createMcpSessionHandler(transports);
+  app.get("/mcp", mcpSessionHandler);
+  app.delete("/mcp", mcpSessionHandler);
 
   // Root route
   app.get("/", (_req, res) => {
@@ -59,26 +92,49 @@ export function createHttpServer(config: ExpressAppConfig, server: Server): Expr
   return { app, transports };
 }
 
-function createMcpPostHandler(server: Server, transports: SessionRecord) {
-  return async (req: express.Request, res: express.Response): Promise<void> => {
+/**
+ * Factory for MCP POST handler
+ * @param server - The MCP server
+ * @param transports - The transports to route the request to
+ * @returns The handler function
+ */
+function createMcpPostHandler(
+  server: Server,
+  transports: TransportRecord,
+  config: { allowedHosts: string[]; allowedOrigins: string[] },
+): RequestHandler {
+  return async (req: Request, res: Response): Promise<void> => {
     try {
-      const sessionId = req.headers[SESSION_ID_KEY] as string | undefined;
+      // Check for existing session ID
+      const sessionId = req.headers[HEADER_KEYS.SESSION_ID] as
+        | string
+        | undefined;
       let transport: StreamableHTTPServerTransport;
 
       if (sessionId && transports[sessionId]) {
+        // Reuse existing transport
         transport = transports[sessionId];
       } else if (isInitializeRequest(req.body)) {
+        // New initialization request
         const newSessionId = crypto.randomUUID();
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => newSessionId,
+          onsessioninitialized: (actualSessionId) => transports[actualSessionId] = transport,
           enableJsonResponse: true,
           eventStore: new InMemoryEventStore(),
-          onsessioninitialized: (actualSessionId) => {
-            transports[actualSessionId] = transport;
-          },
+          // @ts-expect-error - Property exists in runtime but not in type definitions
+          enableDnsRebindingProtection: true,
+          allowedHosts: config.allowedHosts, // remove if enableDnsRebindingProtection is false
+          allowedOrigins: config.allowedOrigins, // remove if enableDnsRebindingProtection is false
         });
 
-        transports[newSessionId] = transport;
+        // Clean up transport when closed
+        transport.onclose = () => {
+          if (transport.sessionId) {
+            delete transports[transport.sessionId];
+          }
+        };
+
         await server.connect(transport);
       } else {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -107,9 +163,14 @@ function createMcpPostHandler(server: Server, transports: SessionRecord) {
   };
 }
 
-function createMcpSessionHandler(transports: SessionRecord) {
-  return async (req: express.Request, res: express.Response): Promise<void> => {
-    const sessionId = req.headers[SESSION_ID_KEY] as string | undefined;
+/**
+ * Factory for MCP Session GET and DELETE handlers
+ * @param transports - The transports to route the request to
+ * @returns The handler function
+ */
+function createMcpSessionHandler(transports: TransportRecord): RequestHandler {
+  return async (req: Request, res: Response): Promise<void> => {
+    const sessionId = req.headers[HEADER_KEYS.SESSION_ID] as string | undefined;
     if (!sessionId || !transports[sessionId]) {
       res.status(HTTP_STATUS.BAD_REQUEST).send("Invalid or missing session ID");
       return;

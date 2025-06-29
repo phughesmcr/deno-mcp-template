@@ -1,10 +1,20 @@
 /**
- * @description The input schema for the knowledge graph tools
- * @see {@link https://github.com/modelcontextprotocol/servers/tree/main/src/memory}
+ * @description A barrel file for exporting the knowledge graph tool cleanly
+ * @see         {@link https://github.com/modelcontextprotocol/servers/tree/main/src/memory}
  * @module
  */
 
-export const knowledgeGraphToolSchema = [
+import type { Tool } from "@vendor/schema";
+import { KV } from "../../../constants.ts";
+import type { ToolModule } from "../../../types.ts";
+import { KnowledgeGraphManager } from "./knowledgeGraphManager.ts";
+import { knowledgeGraphMethodsFactory } from "./methods.ts";
+
+// The knowledge graph MCP tool methods
+const methods = knowledgeGraphMethodsFactory(new KnowledgeGraphManager(KV));
+
+// The list of tools that can be used by the LLM
+const tools: Tool[] = [
   {
     name: "create_entities",
     description: "Create multiple new entities in the knowledge graph",
@@ -199,3 +209,6 @@ export const knowledgeGraphToolSchema = [
     },
   },
 ];
+
+export const knowledgeGraph = { methods, tools } as ToolModule<typeof methods>;
+export type { KnowledgeGraphManager };
