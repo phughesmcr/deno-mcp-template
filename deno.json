@@ -82,7 +82,8 @@
         ],
         "rules": {
             "tags": [
-                "recommended"
+                "recommended",
+                "jsr"
             ],
             "exclude": [
                 "require-await"
