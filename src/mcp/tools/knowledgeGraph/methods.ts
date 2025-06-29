@@ -4,12 +4,12 @@
  */
 
 import type { CallToolResult } from "@vendor/schema";
-import {
-  type Deletion,
-  type Entity,
+import type {
+  Deletion,
+  Entity,
   KnowledgeGraphManager,
-  type Observation,
-  type Relation,
+  Observation,
+  Relation,
 } from "./knowledgeGraphManager.ts";
 
 const createTextResponse = (obj: unknown): CallToolResult => {
