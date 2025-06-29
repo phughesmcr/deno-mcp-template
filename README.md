@@ -88,7 +88,7 @@ You can then use your binary like any other MCP server, for example:
 claude mcp add my-mcp-server "absolute/path/to/binary"
 
 # or with SSE (use `deno task start` first)
-claude mcp add --transport sse my-mcp-server http://127.0.0.1:3001/mcp
+claude mcp add --transport http my-mcp-server http://127.0.0.1:3001/mcp
 ```
 
 ## Project Structure
