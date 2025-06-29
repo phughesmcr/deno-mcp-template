@@ -11,7 +11,15 @@ import { KnowledgeGraphManager } from "./knowledgeGraphManager.ts";
 import { knowledgeGraphMethodsFactory } from "./methods.ts";
 
 // The knowledge graph MCP tool methods
-const methods = knowledgeGraphMethodsFactory(new KnowledgeGraphManager(KV));
+const methods = await (async (): Promise<ReturnType<typeof knowledgeGraphMethodsFactory>> => {
+  try {
+    const kv = await Deno.openKv();
+    return knowledgeGraphMethodsFactory(new KnowledgeGraphManager(kv));
+  } catch (error) {
+    console.error("Error opening KV store:", error);
+    return {} as unknown as typeof methods;
+  }
+})();
 
 // The list of tools that can be used by the LLM
 const tools: Tool[] = [

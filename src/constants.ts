@@ -5,8 +5,6 @@
 
 import DenoJson from "../deno.json" with { type: "json" };
 
-export const KV = await Deno.openKv();
-
 export const APP_NAME = "deno-mcp-template";
 export const APP_VERSION = DenoJson.version;
 

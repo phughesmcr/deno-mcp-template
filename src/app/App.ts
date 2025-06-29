@@ -28,7 +28,7 @@ function setupSignalHandlers(app: App): void {
     } catch (error) {
       if (error instanceof Deno.errors.BadResource) {
         // Ignore error if the KV store is already closed
-        app.log("Closed KV store");
+        app.log("KV store already closed");
         return;
       }
       app.alert("Error closing KV store:", error);
