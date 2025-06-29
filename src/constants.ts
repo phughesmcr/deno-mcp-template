@@ -14,6 +14,10 @@ export const DEFAULT_HOSTNAME = "127.0.0.1";
 export const ALLOWED_HOSTS = [];
 export const ALLOWED_ORIGINS = [];
 
+// *****************************************************
+// * You should not need to change the constants below *
+// *****************************************************
+
 export const HEADER_KEYS = {
   SESSION_ID: "mcp-session-id",
   LAST_EVENT_ID: "last-event-id",
