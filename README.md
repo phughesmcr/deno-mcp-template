@@ -14,7 +14,7 @@
 
 A simple template for writing MCP servers using [Deno](https://deno.com/), publishing them using [JSR.io](https://jsr.io), compiling them to a standalone binary, and using hosting on [Deno Deploy](https://deno.com/deploy).
 
-The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool, and allow for session resumability (see `src/tools` for the implementation).
+The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool (see `src/tools` for the implementation).
 
 🥳 Just clone the repo and run `deno task setup` to setup the project for your own use.
 
@@ -149,7 +149,7 @@ Run `deno task setup` to setup the project for your own use.
 
 ⚠️ If using `enableDnsRebindingProtection`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `constants.ts`. If not, you can disable `enableDnsRebindingProtection` in `app/express.ts` (it is enabled by default).
 
-⚠️ `src/app/inMemoryEventStore.ts` is a simple implementation of session resumability. It is not suitable for production use.
+⚠️ `src/app/inMemoryEventStore.ts` is a simple utility for session resumability. It is not suitable for production use.
 
 ⚠️ The example server runs with `deno run -A` which enables all of Deno's permissions. You should [finetune the permissions](https://docs.deno.com/runtime/fundamentals/security/) before deploying to production.
 
