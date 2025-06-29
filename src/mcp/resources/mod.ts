@@ -5,8 +5,8 @@
  */
 
 import type { ResourceModule, ResourceTemplateModule } from "../../types.ts";
-import * as greetings from "./greetings.ts";
-import * as helloWorld from "./helloWorld.ts";
+import { greetings } from "./greetings.ts";
+import { helloWorld } from "./helloWorld.ts";
 
 const resources: ResourceModule[] = [
   helloWorld,

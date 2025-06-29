@@ -101,7 +101,10 @@ export interface ResourceModule {
 /** A wrapper for all the required properties for a handling a resource template */
 export interface ResourceTemplateModule<T> {
   readonly resourceTemplate: ResourceTemplate;
-  readonly request: (...args: T[]) => Promise<ReadResourceResult>;
+  readonly request: (
+    request: { params: { uri: string } },
+    ...args: T[]
+  ) => Promise<ReadResourceResult>;
 }
 
 /** A wrapper for all the required properties for a handling a tool */

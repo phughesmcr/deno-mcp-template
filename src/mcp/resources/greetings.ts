@@ -4,15 +4,16 @@
  */
 
 import type { ReadResourceResult, ResourceTemplate } from "@vendor/schema";
+import type { ResourceTemplateModule } from "../../types.ts";
 
-export const resourceTemplate: ResourceTemplate = {
+const resourceTemplate: ResourceTemplate = {
   uriTemplate: "greetings://{name}",
   name: "Personal Greeting",
   description: "A personalized greeting message",
   mimeType: "text/plain",
 };
 
-export const request = async (
+const request = async (
   request: { params: { uri: string } },
   greetingMatch: RegExpMatchArray | null,
 ): Promise<ReadResourceResult> => {
@@ -29,4 +30,9 @@ export const request = async (
       },
     ],
   };
+};
+
+export const greetings: ResourceTemplateModule<RegExpMatchArray | null> = {
+  resourceTemplate,
+  request,
 };

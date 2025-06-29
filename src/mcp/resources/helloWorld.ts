@@ -4,15 +4,16 @@
  */
 
 import type { ReadResourceResult, Resource } from "@vendor/schema";
+import type { ResourceModule } from "../../types.ts";
 
-export const resource: Resource = {
+const resource: Resource = {
   uri: "hello://world",
   name: "Hello World Message",
   description: "A simple greeting message",
   mimeType: "text/plain",
 };
 
-export const request = async (): Promise<ReadResourceResult> => ({
+const request = async (): Promise<ReadResourceResult> => ({
   contents: [
     {
       uri: "hello://world",
@@ -20,3 +21,8 @@ export const request = async (): Promise<ReadResourceResult> => ({
     },
   ],
 });
+
+export const helloWorld: ResourceModule = {
+  resource,
+  request,
+};

@@ -4,8 +4,9 @@
  */
 
 import type { GetPromptResult, Prompt } from "@vendor/schema";
+import type { PromptModule } from "../../types.ts";
 
-export const prompt: Prompt = {
+const prompt: Prompt = {
   name: "review-code",
   title: "Code Review",
   description: "Review code for best practices and potential issues",
@@ -16,7 +17,7 @@ export const prompt: Prompt = {
   }],
 };
 
-export const request = async ({ code }: { code: string }): Promise<GetPromptResult> => ({
+const request = async ({ code }: { code: string }): Promise<GetPromptResult> => ({
   messages: [{
     role: "user",
     content: {
@@ -25,3 +26,8 @@ export const request = async ({ code }: { code: string }): Promise<GetPromptResu
     },
   }],
 });
+
+export const codeReview: PromptModule<{ code: string }> = {
+  prompt,
+  request,
+};
