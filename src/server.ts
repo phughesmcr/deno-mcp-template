@@ -15,7 +15,7 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { APP_NAME, APP_VERSION } from "./constants.ts";
+import { SERVER_CAPABILITIES, SERVER_INFO } from "./constants.ts";
 import {
   handleCallToolRequest,
   handleGetPromptsRequest,
@@ -28,26 +28,8 @@ import {
 
 /** Creates a new MCP server and initializes the request handlers */
 export function createMcpServer(): Server {
-  const server = new Server({
-    name: APP_NAME,
-    version: APP_VERSION,
-  }, {
-    capabilities: {
-      completions: {},
-      logging: {},
-      prompts: {
-        listChanged: true,
-      },
-      resources: {
-        listChanged: true,
-        subscribe: true,
-      },
-      tools: {
-        listChanged: true,
-      },
-      // experimental: {},
-    },
-  });
+  // You can edit the server capabilities in `src/constants.ts`
+  const server = new Server(SERVER_INFO, SERVER_CAPABILITIES);
 
   // Resource handlers
   server.setRequestHandler(ListResourceTemplatesRequestSchema, handleListResourceTemplatesRequest);
@@ -62,6 +44,5 @@ export function createMcpServer(): Server {
   server.setRequestHandler(ListPromptsRequestSchema, handleListPromptsRequest);
   server.setRequestHandler(GetPromptRequestSchema, handleGetPromptsRequest);
 
-  // Return the MCP server
   return server;
 }

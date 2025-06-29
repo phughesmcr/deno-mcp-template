@@ -6,6 +6,7 @@
 import DenoJson from "../deno.json" with { type: "json" };
 
 export const APP_NAME = "deno-mcp-template";
+export const APP_TITLE = "Deno MCP Template";
 
 export const DEFAULT_PORT = 3001;
 export const DEFAULT_HOSTNAME = "127.0.0.1";
@@ -13,11 +14,35 @@ export const DEFAULT_HOSTNAME = "127.0.0.1";
 export const ALLOWED_HOSTS = [];
 export const ALLOWED_ORIGINS = [];
 
+export const SERVER_CAPABILITIES = {
+  capabilities: {
+    completions: {},
+    logging: {},
+    prompts: {
+      listChanged: true,
+    },
+    resources: {
+      listChanged: true,
+      subscribe: true,
+    },
+    tools: {
+      listChanged: true,
+    },
+    // experimental: {},
+  },
+};
+
 // *****************************************************
 // * You should not need to change the constants below *
 // *****************************************************
 
 export const APP_VERSION = DenoJson.version;
+
+export const SERVER_INFO = {
+  name: APP_NAME,
+  title: APP_TITLE,
+  version: APP_VERSION,
+} as const;
 
 export const HEADER_KEYS = {
   SESSION_ID: "mcp-session-id",
