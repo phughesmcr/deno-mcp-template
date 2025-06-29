@@ -50,7 +50,7 @@
  * @module
  */
 
-import { createApp } from "./src/app/App.ts";
+import { createApp } from "./src/app/app.ts";
 import { createMcpServer } from "./src/server.ts";
 
 // Load environment variables
