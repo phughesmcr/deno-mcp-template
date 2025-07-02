@@ -51,7 +51,7 @@
  */
 
 import { createApp } from "./src/app/app.ts";
-import { createMcpServer } from "./src/server.ts";
+import { createMcpServer } from "./src/mcp/mod.ts";
 
 // Load environment variables
 import "@std/dotenv/load";
