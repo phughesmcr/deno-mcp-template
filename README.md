@@ -121,9 +121,9 @@ claude mcp add --transport http my-mcp-server http://127.0.0.1:3001/mcp
 
 ## Project Structure
 
-`src/app/` is a simple wrapper around the MCP server (`server.ts`), providing STDIO and HTTP transports, and HTTP routes for static files.
+`src/app/` is a simple wrapper around the MCP server, providing STDIO and HTTP transports, and HTTP routes for static files.
 
-`src/mcp/` contains all the example tools, prompts, and resources.
+`src/mcp/` contains the MCP server and all the example tools, prompts, and resources.
 
 The main project files are:
 
@@ -150,9 +150,8 @@ src/
 │   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
 │   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
 │   │   └── mod.ts                    # Provides a single point of export for all the MCP tools
-│   └── mod.ts                  # Provides a single point of export for all the MCP internals
+│   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
 ├── constants.ts                # Shared constants for the server and application
-├── server.ts                   # The MCP server
 ├── types.ts                    # Shared types for the MCP server
 └── utils.ts                    # Shared utility functions for the MCP server
 static/             

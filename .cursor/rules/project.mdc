@@ -38,9 +38,8 @@ src/
 │   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
 │   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
 │   │   └── mod.ts                    # Provides a single point of export for all the MCP tools
-│   └── mod.ts                  # Provides a single point of export for all the MCP internals
+│   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
 ├── constants.ts                # Shared constants for the server and application
-├── server.ts                   # The MCP server
 ├── types.ts                    # Shared types for the MCP server
 └── utils.ts                    # Shared utility functions for the MCP server
 static/             
