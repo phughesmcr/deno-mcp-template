@@ -23,7 +23,7 @@ src/
 │   ├── app.ts                  # The main application class
 │   ├── config.ts               # Configuration for the server
 │   ├── express.ts              # Express server code
-│   ├── inMemoryEventStore.ts   # In-memory event store for for session resumability
+│   └── inMemoryEventStore.ts   # In-memory event store for for session resumability
 ├── mcp/ 
 │   ├── prompts/                             
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
@@ -36,7 +36,7 @@ src/
 │   │   ├── knowledgeGraph/                 # The knowledge graph example tool
 │   │   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
 │   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
-│   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
+│   │   │   └── mod.ts                      # Provides a single point of export for the knowledge graph
 │   │   └── mod.ts                    # Provides a single point of export for all the MCP tools
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
 ├── constants.ts                # Shared constants for the server and application
