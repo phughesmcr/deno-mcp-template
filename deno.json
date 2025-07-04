@@ -42,7 +42,6 @@
         "setup": "deno run -A scripts/setup-template.ts"
     },
     "compilerOptions": {
-        "erasableSyntaxOnly": true,
         "strict": true,
         "allowUnreachableCode": false,
         "allowUnusedLabels": false,
