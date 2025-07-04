@@ -5,6 +5,7 @@
 
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Application as ExpressApp } from "express";
 import type { Server as NodeHttpServer } from "node:http";
 
@@ -16,31 +17,31 @@ import { Logger } from "./logger.ts";
 
 /** Sets up signal handlers for graceful shutdown */
 function setupSignalHandlers(app: App): void {
-  // Handle beforeunload event (for web environments)
+  const exit = async (code: number, msg?: string) => {
+    if (msg) app.alert(msg);
+    await app.stop();
+    Deno.exit(code);
+  };
+
+  // Handle beforeunload event
   globalThis.addEventListener("beforeunload", async (): Promise<void> => {
     await app.stop();
   });
 
   // Handle uncaught exceptions
   globalThis.addEventListener("unhandledrejection", async (): Promise<void> => {
-    app.alert("Received unhandled rejection, attempting to shut down gracefully...");
-    await app.stop();
-    Deno.exit(1);
+    await exit(1, "Received unhandled rejection, attempting to shut down gracefully...");
   });
 
   // Handle SIGINT (Ctrl+C)
   Deno.addSignalListener("SIGINT", async (): Promise<void> => {
-    app.alert("Received SIGINT, shutting down gracefully...");
-    await app.stop();
-    Deno.exit(0);
+    await exit(0, "Received SIGINT, shutting down gracefully...");
   });
 
   // Handle SIGTERM
   if (Deno.build.os !== "windows") {
     Deno.addSignalListener("SIGTERM", async (): Promise<void> => {
-      app.alert("Received SIGTERM, shutting down gracefully...");
-      await app.stop();
-      Deno.exit(0);
+      await exit(0, "Received SIGTERM, shutting down gracefully...");
     });
   }
 }
@@ -105,17 +106,16 @@ class App extends Logger {
     // Close all session transports
     let errorCount = 0;
     let successCount = 0;
-    await Promise.allSettled(
-      Object.values(this.#httpTransports).map(async (transport) => {
-        try {
-          await transport?.close();
-          successCount++;
-        } catch (error) {
-          this.alert(`Error closing transport:`, error);
-          errorCount++;
-        }
-      }),
-    );
+    const closeTransport = async (transport: StreamableHTTPServerTransport) => {
+      try {
+        await transport?.close();
+        successCount++;
+      } catch (error) {
+        this.error(`Error closing transport:`, error);
+        errorCount++;
+      }
+    };
+    await Promise.allSettled(Object.values(this.#httpTransports).map(closeTransport));
     this.info(`Closed ${successCount} transports, ${errorCount} errors`);
 
     // Close STDIO transport
