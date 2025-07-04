@@ -11,6 +11,7 @@ import type {
   Tool,
 } from "@vendor/schema";
 import type { Application, Request, Response } from "express";
+import type { LOG_LEVEL } from "./constants.ts";
 
 /** An object that maps session IDs to transports */
 export interface TransportRecord {
@@ -117,3 +118,7 @@ export interface ToolModule<T extends Record<string, unknown>> {
   };
   readonly request: (name: string, args: Record<string, unknown>) => Promise<CallToolResult>;
 }
+
+export type LogLevelKey = keyof typeof LOG_LEVEL;
+export type LogLevelValue = typeof LOG_LEVEL[LogLevelKey];
+export type LogParams = Parameters<typeof console.error>;

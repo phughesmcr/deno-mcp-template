@@ -12,6 +12,7 @@ import { APP_NAME } from "../constants.ts";
 import type { AppSpec, ExpressResult, InternalAppConfig, TransportRecord } from "../types.ts";
 import { getConfig } from "./config.ts";
 import { createExpressServer } from "./express.ts";
+import { Logger } from "./logger.ts";
 
 /** Sets up signal handlers for graceful shutdown */
 function setupSignalHandlers(app: App): void {
@@ -44,7 +45,7 @@ function setupSignalHandlers(app: App): void {
   }
 }
 
-class App {
+class App extends Logger {
   /** The Express app for HTTP */
   #expressApp: ExpressApp;
 
@@ -71,27 +72,8 @@ class App {
    * @param spec - properties to construct the app with
    */
   constructor(spec: AppSpec) {
-    this.#server = spec.server;
-    this.#config = spec.config;
-    this.#httpTransports = spec.transports;
-    this.#expressApp = spec.app;
-  }
-
-  /** Returns the Express app */
-  get express(): NodeHttpServer | null {
-    return this.#expressServer;
-  }
-
-  /** Sends a message to stderr regardless of debug logging */
-  alert(message: string, ...args: unknown[]): void {
-    console.error(message, ...args);
-  }
-
-  /** Sends a message to stderr only if debug logging is enabled */
-  log(message: string, ...args: unknown[]): void {
-    if (this.#config.debug) {
-      console.error(message, ...args);
-    }
+    const { app, config, server, transports } = spec;
+    super(server, spec.config.debug ? "debug" : "info");
   }
 
   /** Starts the server */
@@ -101,12 +83,12 @@ class App {
     // Start STDIO transport
     this.#stdioTransport = new StdioServerTransport();
     await this.#server.connect(this.#stdioTransport);
-    this.alert(`MCP server ${APP_NAME} is listening on STDIO.`);
+    this.info(`MCP server ${APP_NAME} is listening on STDIO.`);
 
     // Start HTTP server
     const { hostname, port } = this.#config;
     this.#expressServer = this.#expressApp.listen(port, hostname, () => {
-      this.alert(`MCP server ${APP_NAME} is listening on ${hostname}:${port}.`);
+      this.info(`MCP server ${APP_NAME} is listening on ${hostname}:${port}.`);
     });
 
     this.#running = true;
@@ -130,16 +112,16 @@ class App {
         }
       }),
     );
-    this.log(`Closed ${successCount} transports, ${errorCount} errors`);
+    this.info(`Closed ${successCount} transports, ${errorCount} errors`);
 
     // Close STDIO transport
     if (this.#stdioTransport) {
       try {
         await this.#stdioTransport.close();
         this.#stdioTransport = null;
-        this.log("Closed STDIO transport");
+        this.info("Closed STDIO transport");
       } catch (error) {
-        this.alert("Error closing STDIO transport:", error);
+        this.error("Error closing STDIO transport:", error);
       }
     }
 
@@ -148,9 +130,9 @@ class App {
       try {
         this.#expressServer.close();
         this.#expressServer = null;
-        this.log("Closed Express server");
+        this.info("Closed Express server");
       } catch (error) {
-        this.alert("Error closing Express server:", error);
+        this.error("Error closing Express server:", error);
       }
     }
 
@@ -190,11 +172,12 @@ export function createApp(server: Server): App {
   setupSignalHandlers(result);
 
   // Log the configuration
-  result.log("Configuration:", {
-    debug: internalConfig.debug,
-    hasMemoryFilePath: !!internalConfig.memoryFilePath,
-    hostname: internalConfig.hostname,
-    port: internalConfig.port,
+  result.debug("Configuration:", {
+    debug: config.debug,
+    hasMemoryFilePath: !!config.memoryFilePath,
+    hasStaticDir: !!config.staticDir,
+    hostname: config.hostname,
+    port: config.port,
   });
 
   return result;
