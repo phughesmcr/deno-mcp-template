@@ -4,6 +4,7 @@
  */
 
 import {
+  type CallToolResult,
   JSONRPC_VERSION,
   type JSONRPCError,
   type JSONRPCResponse,
@@ -114,3 +115,12 @@ export function isValidHostname(hostname: string): boolean {
 
   return true;
 }
+
+export const createCallToolTextResponse = (obj: unknown): CallToolResult => {
+  return {
+    content: [{
+      type: "text",
+      text: JSON.stringify(obj, null, 2),
+    }],
+  };
+};
