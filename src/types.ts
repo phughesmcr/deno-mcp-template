@@ -31,10 +31,7 @@ export interface AppConfig {
 
   /** Whether to enable debug logging */
   debug?: boolean;
-}
 
-/** Private app config */
-export interface InternalAppConfig extends AppConfig {
   /** The static directory for the app */
   staticDir: string;
 }
@@ -45,7 +42,7 @@ export interface AppSpec {
   app: Application;
 
   /** The configuration for the app */
-  config: InternalAppConfig;
+  config: AppConfig;
 
   /** The MCP server */
   server: Server;

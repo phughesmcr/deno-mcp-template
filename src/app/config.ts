@@ -41,6 +41,7 @@ export function getConfig(): AppConfig {
     hostname: getValidatedHostname(args.hostname),
     memoryFilePath: getValidatedMemoryFilePath(args.memoryFilePath as string | undefined),
     debug: !!args.debug || Deno.env.get(ENV_VARS.DEBUG)?.toLowerCase() === "true",
+    staticDir: import.meta.dirname ?? "",
   };
 }
 

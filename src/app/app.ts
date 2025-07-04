@@ -9,7 +9,7 @@ import type { Application as ExpressApp } from "express";
 import type { Server as NodeHttpServer } from "node:http";
 
 import { APP_NAME } from "../constants.ts";
-import type { AppSpec, ExpressResult, InternalAppConfig, TransportRecord } from "../types.ts";
+import type { AppConfig, AppSpec, ExpressResult, TransportRecord } from "../types.ts";
 import { getConfig } from "./config.ts";
 import { createExpressServer } from "./express.ts";
 import { Logger } from "./logger.ts";
@@ -53,7 +53,7 @@ class App extends Logger {
   #expressServer: NodeHttpServer | null = null;
 
   /** The configuration for the app */
-  #config: InternalAppConfig;
+  #config: AppConfig;
 
   /** Whether the server is running */
   #running = false;
@@ -74,6 +74,10 @@ class App extends Logger {
   constructor(spec: AppSpec) {
     const { app, config, server, transports } = spec;
     super(server, spec.config.debug ? "debug" : "info");
+    this.#server = server;
+    this.#config = config;
+    this.#httpTransports = transports;
+    this.#expressApp = app;
   }
 
   /** Starts the server */
@@ -148,22 +152,19 @@ class App extends Logger {
  */
 export function createApp(server: Server): App {
   // Construct the config
-  const internalConfig: InternalAppConfig = {
-    ...getConfig(),
-    staticDir: import.meta.dirname ?? "",
-  };
+  const config: AppConfig = getConfig();
 
   // Create HTTP server and get transports
   const { app, transports }: ExpressResult = createExpressServer({
-    hostname: internalConfig.hostname,
-    port: internalConfig.port,
-    staticDir: internalConfig.staticDir,
+    hostname: config.hostname,
+    port: config.port,
+    staticDir: config.staticDir,
   }, server);
 
   // Create the app
   const result = new App({
     app,
-    config: internalConfig,
+    config,
     server,
     transports,
   });
