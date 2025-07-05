@@ -27,9 +27,6 @@ export interface AppConfig {
   /** The hostname to listen on */
   hostname: string;
 
-  /** The file path to the memory file */
-  memoryFilePath: string | null;
-
   /** Whether to enable debug logging */
   debug?: boolean;
 

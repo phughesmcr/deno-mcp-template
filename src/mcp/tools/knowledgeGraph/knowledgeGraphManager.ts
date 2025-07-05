@@ -4,9 +4,8 @@
  * @module
  */
 
-import { isAbsolute, join } from "@std/path";
+import { join } from "@std/path";
 
-import { ENV_VARS } from "../../../constants.ts";
 import { getGlobal } from "../../../utils.ts";
 
 export interface Entity {
@@ -81,11 +80,7 @@ export class KnowledgeGraphManager {
 
   /** Returns the path to the local file that stores the knowledge graph */
   get localPath(): string {
-    const pathEnvValue = Deno.env.get(ENV_VARS.MEMORY_FILE_PATH);
-    return pathEnvValue ?
-      // If MEMORY_FILE_PATH is just a filename, put it in the same directory as the script
-      isAbsolute(pathEnvValue) ? pathEnvValue : join(import.meta.dirname ?? "", pathEnvValue) :
-      join(import.meta.dirname ?? "", "memory.json");
+    return join(import.meta.dirname ?? "", "memory.json");
   }
 
   /** Returns a copy of the knowledge graph */

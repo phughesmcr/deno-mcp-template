@@ -3,6 +3,10 @@
  * @module
  */
 
+// *****************************************************
+// * Configure your MCP server here                    *
+// *****************************************************
+
 /** The MCP server's machine-facing name. */
 export const APP_NAME = "deno-mcp-template";
 
@@ -58,12 +62,11 @@ export const HEADER_KEYS = {
 } as const;
 
 export const CLI_ARGS = {
-  string: ["port", "hostname", "memory-file-path"],
+  string: ["port", "hostname"],
   boolean: ["debug", "help", "quiet", "version"],
   alias: {
     "port": "p",
     "hostname": "h",
-    "memory-file-path": "m",
     "debug": "d",
     "help": "H",
     "quiet": "q",
@@ -72,7 +75,6 @@ export const CLI_ARGS = {
   default: {
     "port": DEFAULT_PORT,
     "hostname": DEFAULT_HOSTNAME,
-    "memory-file-path": null,
     "debug": false,
     "help": false,
     "quiet": false,
@@ -83,7 +85,6 @@ export const CLI_ARGS = {
 export const ENV_VARS = {
   PORT: "PORT",
   HOSTNAME: "HOSTNAME",
-  MEMORY_FILE_PATH: "MEMORY_FILE_PATH",
   DEBUG: "DEBUG",
   QUIET: "QUIET",
 } as const;

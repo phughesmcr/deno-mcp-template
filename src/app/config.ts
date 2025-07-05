@@ -39,7 +39,6 @@ export function getConfig(): AppConfig {
   return {
     debug: !!args.debug || Deno.env.get(ENV_VARS.DEBUG)?.toLowerCase() === "true",
     hostname: getValidatedHostname(args.hostname),
-    memoryFilePath: getValidatedMemoryFilePath(args.memoryFilePath as string | undefined),
     port: getValidatedPort(args.port.toString()),
     quiet: !!args.quiet || Deno.env.get(ENV_VARS.QUIET)?.toLowerCase() === "true",
     staticDir: import.meta.dirname ?? "",
@@ -63,7 +62,6 @@ Usage: ${usage} [OPTIONS]
 Options:
   -p, --port <PORT>              Port to listen on (default: ${DEFAULT_PORT})
   -h, --hostname <HOSTNAME>      Hostname to bind to (default: ${DEFAULT_HOSTNAME})
-  -m, --memory-file-path <PATH>  Path to memory file for knowledge graph
   -d, --debug                    Enable verbose logging (can be combined with -q to send debug logs to MCP server only)
   -q, --quiet                    Suppress logging to stderr (but not the MCP server logs)
   -H, --help                     Show this help message
@@ -72,7 +70,6 @@ Options:
 Environment Variables:
   PORT <number>                  Port to listen on
   HOSTNAME <string>              Hostname to bind to
-  MEMORY_FILE_PATH <string>      Path to memory file for knowledge graph
   DEBUG <boolean>                Enable debug logging (true/false)
   QUIET <boolean>                Suppress logging to stderr (but not the MCP server logs)
 
@@ -118,37 +115,4 @@ function getValidatedHostname(cliValue?: string): string {
   }
 
   return hostname;
-}
-
-/**
- * Validates and returns the memory file path from the CLI or environment variable
- * @param cliValue - The CLI value for the memory file path
- * @returns The validated memory file path or null if not provided
- */
-function getValidatedMemoryFilePath(cliValue?: string): string | null {
-  const value = (cliValue || Deno.env.get(ENV_VARS.MEMORY_FILE_PATH))?.trim();
-  if (value === undefined || value === "") {
-    return null;
-  }
-
-  try {
-    const stats = Deno.statSync(value);
-    if (!stats.isFile) {
-      throw new Error(`Path exists but is not a file: ${value}`);
-    }
-  } catch (error) {
-    // If file doesn't exist, create it
-    if (error instanceof Deno.errors.NotFound) {
-      try {
-        const file = Deno.createSync(value);
-        file?.close();
-      } catch (createError) {
-        throw new Error(`Cannot create memory file at ${value}: ${createError}`);
-      }
-    } else {
-      throw error;
-    }
-  }
-
-  return value;
 }

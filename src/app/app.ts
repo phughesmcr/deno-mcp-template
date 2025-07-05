@@ -199,7 +199,6 @@ export function createApp(server: Server): App {
       debug: "Configuration",
       details: {
         debug: config.debug,
-        hasMemoryFilePath: !!config.memoryFilePath,
         hasStaticDir: !!config.staticDir,
         hostname: config.hostname,
         port: config.port,
