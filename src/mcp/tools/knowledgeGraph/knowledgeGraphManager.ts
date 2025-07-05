@@ -6,8 +6,6 @@
 
 import { join } from "@std/path";
 
-import { getGlobal } from "../../../utils.ts";
-
 export interface Entity {
   name: string;
   entityType: string;
@@ -341,16 +339,14 @@ export class KnowledgeGraphManager {
         ...graph.relations.map((r) => JSON.stringify({ type: "relation", ...r })),
       ];
       await Deno.writeTextFile(this.localPath, lines.join("\n"));
-      if (!getGlobal("QUIET")) {
-        console.error(`Successfully exported knowledge graph to ${this.localPath}`);
-      }
+      // TODO: change to console.log and send valid RPC error
+      console.error(`Successfully exported knowledge graph to ${this.localPath}`);
     } catch (error) {
       const message = `Error exporting graph to file: ${
         error instanceof Error ? error.message : String(error)
       }`;
-      if (!getGlobal("QUIET")) {
-        console.error(message);
-      }
+      // TODO: change to console.log and send valid RPC error
+      console.error(message);
       throw new Error(message);
     }
   }
@@ -368,17 +364,15 @@ export class KnowledgeGraphManager {
         error instanceof Error && "code" in error &&
         error.code === "ENOENT"
       ) {
-        if (!getGlobal("QUIET")) {
-          console.error(`No existing file found at ${this.localPath}, starting with empty graph`);
-        }
+        // TODO: change to console.log and send valid RPC error
+        console.error(`No existing file found at ${this.localPath}, starting with empty graph`);
         graph = { entities: [], relations: [] };
       } else {
         const message = `Error reading graph from file: ${
           error instanceof Error ? error.message : String(error)
         }`;
-        if (!getGlobal("QUIET")) {
-          console.error(message);
-        }
+        // TODO: change to console.log and send valid RPC error
+        console.error(message);
         throw new Error(message);
       }
     }

@@ -20,18 +20,16 @@ const methods = await (async (): Promise<ReturnType<typeof knowledgeGraphMethods
       try {
         kv.close();
       } catch (error) {
-        if (!getGlobal("QUIET")) {
+        // TODO: change to console.log and send valid RPC error
         console.error("Error closing KV store:", error);
-        }
       }
     });
 
     const graph = new KnowledgeGraphManager(kv);
     return knowledgeGraphMethodsFactory(graph);
   } catch (error) {
-    if (!getGlobal("QUIET")) {
+    // TODO: change to console.log and send valid RPC error
     console.error("Error opening KV store:", error);
-    }
     return {} as unknown as typeof methods;
   }
 })();

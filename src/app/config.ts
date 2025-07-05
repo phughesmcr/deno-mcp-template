@@ -40,7 +40,6 @@ export function getConfig(): AppConfig {
     debug: !!args.debug || Deno.env.get(ENV_VARS.DEBUG)?.toLowerCase() === "true",
     hostname: getValidatedHostname(args.hostname),
     port: getValidatedPort(args.port.toString()),
-    quiet: !!args.quiet || Deno.env.get(ENV_VARS.QUIET)?.toLowerCase() === "true",
     staticDir: import.meta.dirname ?? "",
   };
 }
@@ -63,7 +62,6 @@ Options:
   -p, --port <PORT>              Port to listen on (default: ${DEFAULT_PORT})
   -h, --hostname <HOSTNAME>      Hostname to bind to (default: ${DEFAULT_HOSTNAME})
   -d, --debug                    Enable verbose logging (can be combined with -q to send debug logs to MCP server only)
-  -q, --quiet                    Suppress logging to stderr (but not the MCP server logs)
   -H, --help                     Show this help message
   -V, --version                  Show version information
 
@@ -71,7 +69,6 @@ Environment Variables:
   PORT <number>                  Port to listen on
   HOSTNAME <string>              Hostname to bind to
   DEBUG <boolean>                Enable debug logging (true/false)
-  QUIET <boolean>                Suppress logging to stderr (but not the MCP server logs)
 
 Note: CLI flags take precedence over environment variables.
 `);

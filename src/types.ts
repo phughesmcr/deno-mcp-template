@@ -32,9 +32,6 @@ export interface AppConfig {
 
   /** The static directory for the app */
   staticDir: string;
-
-  /** Whether to suppress logging to stderr (but not the MCP server logs) */
-  quiet?: boolean;
 }
 
 /** Properties for the App constructor */
