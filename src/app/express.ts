@@ -116,7 +116,6 @@ function createMcpPostHandler(
           onsessioninitialized: (actualSessionId) => transports[actualSessionId] = transport,
           enableJsonResponse: true,
           eventStore: new InMemoryEventStore(),
-          // @ts-expect-error - Property exists in runtime but not in type definitions
           enableDnsRebindingProtection: true,
           allowedHosts: config.allowedHosts, // remove if enableDnsRebindingProtection is false
           allowedOrigins: config.allowedOrigins, // remove if enableDnsRebindingProtection is false
