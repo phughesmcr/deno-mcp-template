@@ -6,6 +6,7 @@
 
 import type { CallToolRequest } from "@vendor/schema";
 import type { ToolModule } from "../../types.ts";
+import { getGlobal } from "../../utils.ts";
 import { knowledgeGraph } from "./knowledgeGraph/mod.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -16,7 +17,9 @@ const tools: ToolModule<any>[] = [
 
 // If Deno KV failed to open, the knowledge graph tool is removed from the list of tools
 if (Object.keys(knowledgeGraph.methods).length === 0) {
-  console.error("Knowledge graph methods are not available. Tool disabled.");
+  if (!getGlobal("QUIET")) {
+    console.error("Knowledge graph methods are not available. Tool disabled.");
+  }
   tools.splice(tools.findIndex((tool) => tool.name === knowledgeGraph.name), 1);
 }
 

@@ -37,10 +37,11 @@ export function getConfig(): AppConfig {
   }
 
   return {
-    port: getValidatedPort(args.port.toString()),
+    debug: !!args.debug || Deno.env.get(ENV_VARS.DEBUG)?.toLowerCase() === "true",
     hostname: getValidatedHostname(args.hostname),
     memoryFilePath: getValidatedMemoryFilePath(args.memoryFilePath as string | undefined),
-    debug: !!args.debug || Deno.env.get(ENV_VARS.DEBUG)?.toLowerCase() === "true",
+    port: getValidatedPort(args.port.toString()),
+    quiet: !!args.quiet || Deno.env.get(ENV_VARS.QUIET)?.toLowerCase() === "true",
     staticDir: import.meta.dirname ?? "",
   };
 }
@@ -63,15 +64,17 @@ Options:
   -p, --port <PORT>              Port to listen on (default: ${DEFAULT_PORT})
   -h, --hostname <HOSTNAME>      Hostname to bind to (default: ${DEFAULT_HOSTNAME})
   -m, --memory-file-path <PATH>  Path to memory file for knowledge graph
-  -d, --debug                    Enable debug logging
+  -d, --debug                    Enable verbose logging (can be combined with -q to send debug logs to MCP server only)
+  -q, --quiet                    Suppress logging to stderr (but not the MCP server logs)
   -H, --help                     Show this help message
   -V, --version                  Show version information
 
 Environment Variables:
-  PORT                   Port to listen on
-  HOSTNAME               Hostname to bind to
-  MEMORY_FILE_PATH       Path to memory file for knowledge graph
-  DEBUG                  Enable debug logging (true/false)
+  PORT <number>                  Port to listen on
+  HOSTNAME <string>              Hostname to bind to
+  MEMORY_FILE_PATH <string>      Path to memory file for knowledge graph
+  DEBUG <boolean>                Enable debug logging (true/false)
+  QUIET <boolean>                Suppress logging to stderr (but not the MCP server logs)
 
 Note: CLI flags take precedence over environment variables.
 `);

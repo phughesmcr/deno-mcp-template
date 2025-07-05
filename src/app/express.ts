@@ -20,7 +20,7 @@ import {
   RPC_ERROR_CODES,
 } from "../constants.ts";
 import type { ExpressConfig, ExpressResult, RequestHandler, TransportRecord } from "../types.ts";
-import { createRPCError, createRPCSuccess } from "../utils.ts";
+import { createRPCError, createRPCSuccess, getGlobal } from "../utils.ts";
 import { InMemoryEventStore } from "./inMemoryEventStore.ts";
 
 /**
@@ -144,7 +144,9 @@ function createMcpPostHandler(
 
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
-      console.error("Error handling MCP request:", error);
+      if (!getGlobal("QUIET")) {
+        console.error("Error handling MCP request:", error);
+      }
       if (!res.headersSent) {
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
           createRPCError(

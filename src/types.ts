@@ -11,6 +11,7 @@ import type {
   Tool,
 } from "@vendor/schema";
 import type { Application, Request, Response } from "express";
+
 import type { LOG_LEVEL } from "./constants.ts";
 
 /** An object that maps session IDs to transports */
@@ -34,6 +35,9 @@ export interface AppConfig {
 
   /** The static directory for the app */
   staticDir: string;
+
+  /** Whether to suppress logging to stderr (but not the MCP server logs) */
+  quiet?: boolean;
 }
 
 /** Properties for the App constructor */
@@ -119,3 +123,8 @@ export interface ToolModule<T extends Record<string, unknown>> {
 export type LogLevelKey = keyof typeof LOG_LEVEL;
 export type LogLevelValue = typeof LOG_LEVEL[LogLevelKey];
 export type LogParams = Parameters<typeof console.error>;
+
+export type LogData = {
+  logger?: string;
+  data: Record<string, unknown>;
+};

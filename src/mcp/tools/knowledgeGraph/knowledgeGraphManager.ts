@@ -7,6 +7,7 @@
 import { isAbsolute, join } from "@std/path";
 
 import { ENV_VARS } from "../../../constants.ts";
+import { getGlobal } from "../../../utils.ts";
 
 export interface Entity {
   name: string;
@@ -345,12 +346,16 @@ export class KnowledgeGraphManager {
         ...graph.relations.map((r) => JSON.stringify({ type: "relation", ...r })),
       ];
       await Deno.writeTextFile(this.localPath, lines.join("\n"));
-      console.error(`Successfully exported knowledge graph to ${this.localPath}`);
+      if (!getGlobal("QUIET")) {
+        console.error(`Successfully exported knowledge graph to ${this.localPath}`);
+      }
     } catch (error) {
       const message = `Error exporting graph to file: ${
         error instanceof Error ? error.message : String(error)
       }`;
-      console.error(message);
+      if (!getGlobal("QUIET")) {
+        console.error(message);
+      }
       throw new Error(message);
     }
   }
@@ -368,13 +373,17 @@ export class KnowledgeGraphManager {
         error instanceof Error && "code" in error &&
         error.code === "ENOENT"
       ) {
-        console.error(`No existing file found at ${this.localPath}, starting with empty graph`);
+        if (!getGlobal("QUIET")) {
+          console.error(`No existing file found at ${this.localPath}, starting with empty graph`);
+        }
         graph = { entities: [], relations: [] };
       } else {
         const message = `Error reading graph from file: ${
           error instanceof Error ? error.message : String(error)
         }`;
-        console.error(message);
+        if (!getGlobal("QUIET")) {
+          console.error(message);
+        }
         throw new Error(message);
       }
     }

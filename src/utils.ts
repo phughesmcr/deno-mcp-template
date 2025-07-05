@@ -12,6 +12,8 @@ import {
   type Result,
 } from "@vendor/schema";
 
+import { GLOBAL_KEYS } from "./constants.ts";
+
 /** Creates a JSON-RPC error response */
 export function createRPCError(
   id: RequestId,
@@ -124,3 +126,13 @@ export const createCallToolTextResponse = (obj: unknown): CallToolResult => {
     }],
   };
 };
+
+export function setGlobal(key: keyof typeof GLOBAL_KEYS, value: boolean): void {
+  // deno-lint-ignore no-explicit-any
+  (globalThis as any)[GLOBAL_KEYS[key]] = value;
+}
+
+export function getGlobal(key: keyof typeof GLOBAL_KEYS): boolean {
+  // deno-lint-ignore no-explicit-any
+  return (globalThis as any)[GLOBAL_KEYS[key]];
+}

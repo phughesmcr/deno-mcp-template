@@ -6,13 +6,7 @@
 
 import type { CallToolResult, Tool } from "@vendor/schema";
 import type { ToolModule } from "../../../types.ts";
-import {
-  type Deletion,
-  type Entity,
-  KnowledgeGraphManager,
-  type Observation,
-  type Relation,
-} from "./knowledgeGraphManager.ts";
+import { getGlobal } from "../../../utils.ts";
 import { knowledgeGraphMethodsFactory } from "./methods.ts";
 
 const name = "knowledge_graph";
@@ -26,14 +20,18 @@ const methods = await (async (): Promise<ReturnType<typeof knowledgeGraphMethods
       try {
         kv.close();
       } catch (error) {
+        if (!getGlobal("QUIET")) {
         console.error("Error closing KV store:", error);
+        }
       }
     });
 
     const graph = new KnowledgeGraphManager(kv);
     return knowledgeGraphMethodsFactory(graph);
   } catch (error) {
+    if (!getGlobal("QUIET")) {
     console.error("Error opening KV store:", error);
+    }
     return {} as unknown as typeof methods;
   }
 })();

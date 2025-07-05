@@ -111,7 +111,14 @@ class App extends Logger {
         await transport?.close();
         successCount++;
       } catch (error) {
-        this.error(`Error closing transport:`, error);
+        this.error({
+          data: {
+            message: `Error closing transport: ${
+              (error instanceof Error) ? error.message : String(error)
+            }`,
+            details: error,
+          },
+        });
         errorCount++;
       }
     };
@@ -125,7 +132,14 @@ class App extends Logger {
         this.#stdioTransport = null;
         this.info("Closed STDIO transport");
       } catch (error) {
-        this.error("Error closing STDIO transport:", error);
+        this.error({
+          data: {
+            error: `Error closing transport: ${
+              (error instanceof Error) ? error.message : String(error)
+            }`,
+            details: error,
+          },
+        });
       }
     }
 
@@ -136,7 +150,14 @@ class App extends Logger {
         this.#expressServer = null;
         this.info("Closed Express server");
       } catch (error) {
-        this.error("Error closing Express server:", error);
+        this.error({
+          data: {
+            error: `Error closing Express server: ${
+              (error instanceof Error) ? error.message : String(error)
+            }`,
+            details: error,
+          },
+        });
       }
     }
 
@@ -173,12 +194,17 @@ export function createApp(server: Server): App {
   setupSignalHandlers(result);
 
   // Log the configuration
-  result.debug("Configuration:", {
-    debug: config.debug,
-    hasMemoryFilePath: !!config.memoryFilePath,
-    hasStaticDir: !!config.staticDir,
-    hostname: config.hostname,
-    port: config.port,
+  result.debug({
+    data: {
+      debug: "Configuration",
+      details: {
+        debug: config.debug,
+        hasMemoryFilePath: !!config.memoryFilePath,
+        hasStaticDir: !!config.staticDir,
+        hostname: config.hostname,
+        port: config.port,
+      },
+    },
   });
 
   return result;

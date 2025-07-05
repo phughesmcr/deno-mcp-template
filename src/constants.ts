@@ -59,13 +59,14 @@ export const HEADER_KEYS = {
 
 export const CLI_ARGS = {
   string: ["port", "hostname", "memory-file-path"],
-  boolean: ["debug", "help", "version"],
+  boolean: ["debug", "help", "quiet", "version"],
   alias: {
     "port": "p",
     "hostname": "h",
     "memory-file-path": "m",
     "debug": "d",
     "help": "H",
+    "quiet": "q",
     "version": "V",
   },
   default: {
@@ -74,6 +75,7 @@ export const CLI_ARGS = {
     "memory-file-path": null,
     "debug": false,
     "help": false,
+    "quiet": false,
     "version": false,
   },
 } as const;
@@ -83,6 +85,7 @@ export const ENV_VARS = {
   HOSTNAME: "HOSTNAME",
   MEMORY_FILE_PATH: "MEMORY_FILE_PATH",
   DEBUG: "DEBUG",
+  QUIET: "QUIET",
 } as const;
 
 export const HTTP_STATUS = {
@@ -119,3 +122,7 @@ export const LOG_LEVEL = {
 } as const;
 
 export const VALID_LOG_LEVELS = Object.keys(LOG_LEVEL) as (keyof typeof LOG_LEVEL)[];
+
+export const GLOBAL_KEYS = {
+  QUIET: Symbol.for(ENV_VARS.QUIET),
+} as const;
