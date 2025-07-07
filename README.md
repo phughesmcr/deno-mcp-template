@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/phughesmcr-deno-mcp-template-badge.png)](https://mseep.ai/app/phughesmcr-deno-mcp-template)
+
 # Deno MCP Template
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/ci.yml?label=CI)
