@@ -4,10 +4,24 @@
  * @module
  */
 
+import type { z } from "zod";
+
 import type { CallToolResult, Tool } from "@vendor/schema";
+import { createValidationMiddleware, safeToolExecution } from "../../../app/middleware.ts";
 import type { ToolModule } from "../../../types.ts";
-import { getGlobal } from "../../../utils.ts";
+import { KnowledgeGraphManager } from "./knowledgeGraphManager.ts";
 import { knowledgeGraphMethodsFactory } from "./methods.ts";
+import { InputSanitizer } from "./sanitization.ts";
+import {
+  AddObservationsArgsSchema,
+  CreateEntitiesArgsSchema,
+  CreateRelationsArgsSchema,
+  DeleteEntitiesArgsSchema,
+  DeleteObservationsArgsSchema,
+  DeleteRelationsArgsSchema,
+  OpenNodesArgsSchema,
+  SearchNodesArgsSchema,
+} from "./schemas.ts";
 
 const name = "knowledge_graph";
 
@@ -34,27 +48,141 @@ const methods = await (async (): Promise<ReturnType<typeof knowledgeGraphMethods
   }
 })();
 
+// Create validators
+const validateCreateEntities = createValidationMiddleware(CreateEntitiesArgsSchema);
+const validateCreateRelations = createValidationMiddleware(CreateRelationsArgsSchema);
+const validateAddObservations = createValidationMiddleware(AddObservationsArgsSchema);
+const validateDeleteEntities = createValidationMiddleware(DeleteEntitiesArgsSchema);
+const validateDeleteObservations = createValidationMiddleware(DeleteObservationsArgsSchema);
+const validateDeleteRelations = createValidationMiddleware(DeleteRelationsArgsSchema);
+const validateSearchNodes = createValidationMiddleware(SearchNodesArgsSchema);
+const validateOpenNodes = createValidationMiddleware(OpenNodesArgsSchema);
+
+// Type aliases for validated arguments
+export type CreateEntitiesArgs = z.infer<typeof CreateEntitiesArgsSchema>;
+export type CreateRelationsArgs = z.infer<typeof CreateRelationsArgsSchema>;
+export type AddObservationsArgs = z.infer<typeof AddObservationsArgsSchema>;
+export type DeleteEntitiesArgs = z.infer<typeof DeleteEntitiesArgsSchema>;
+export type DeleteObservationsArgs = z.infer<typeof DeleteObservationsArgsSchema>;
+export type DeleteRelationsArgs = z.infer<typeof DeleteRelationsArgsSchema>;
+export type SearchNodesArgs = z.infer<typeof SearchNodesArgsSchema>;
+export type OpenNodesArgs = z.infer<typeof OpenNodesArgsSchema>;
+
 // The knowledge graph MCP tool request router
 const request = (name: string, args: Record<string, unknown>): Promise<CallToolResult> => {
   switch (name) {
     case "create_entities":
-      return methods.createEntities(args["entities"] as Entity[]);
+      return safeToolExecution(
+        validateCreateEntities,
+        async (validatedArgs) => {
+          // Sanitize entity names and observations
+          const sanitizedEntities = validatedArgs.entities.map((entity) => ({
+            ...entity,
+            name: InputSanitizer.sanitizeEntityName(entity.name),
+            entityType: InputSanitizer.sanitizeEntityName(entity.entityType),
+            observations: entity.observations.map((obs) => InputSanitizer.sanitizeObservation(obs)),
+          }));
+
+          return methods.createEntities(sanitizedEntities);
+        },
+      )(args);
+
     case "create_relations":
-      return methods.createRelations(args["relations"] as Relation[]);
+      return safeToolExecution(
+        validateCreateRelations,
+        async (validatedArgs) => {
+          const sanitizedRelations = validatedArgs.relations.map((relation) => ({
+            ...relation,
+            from: InputSanitizer.sanitizeEntityName(relation.from),
+            to: InputSanitizer.sanitizeEntityName(relation.to),
+            relationType: InputSanitizer.sanitizeEntityName(relation.relationType),
+          }));
+
+          return methods.createRelations(sanitizedRelations);
+        },
+      )(args);
+
     case "add_observations":
-      return methods.addObservations(args["observations"] as Observation[]);
+      return safeToolExecution(
+        validateAddObservations,
+        async (validatedArgs) => {
+          const sanitizedObservations = validatedArgs.observations.map((obs) => ({
+            ...obs,
+            entityName: InputSanitizer.sanitizeEntityName(obs.entityName),
+            contents: obs.contents.map((content) => InputSanitizer.sanitizeObservation(content)),
+          }));
+
+          return methods.addObservations(sanitizedObservations);
+        },
+      )(args);
+
     case "delete_entities":
-      return methods.deleteEntities(args["entityNames"] as string[]);
+      return safeToolExecution(
+        validateDeleteEntities,
+        async (validatedArgs) => {
+          const sanitizedNames = validatedArgs.entityNames.map((name) =>
+            InputSanitizer.sanitizeEntityName(name)
+          );
+
+          return methods.deleteEntities(sanitizedNames);
+        },
+      )(args);
+
     case "delete_observations":
-      return methods.deleteObservations(args["deletions"] as Deletion[]);
+      return safeToolExecution(
+        validateDeleteObservations,
+        async (validatedArgs) => {
+          const sanitizedDeletions = validatedArgs.deletions.map((deletion) => ({
+            ...deletion,
+            entityName: InputSanitizer.sanitizeEntityName(deletion.entityName),
+            observations: deletion.observations.map((obs) =>
+              InputSanitizer.sanitizeObservation(obs)
+            ),
+          }));
+
+          return methods.deleteObservations(sanitizedDeletions);
+        },
+      )(args);
+
     case "delete_relations":
-      return methods.deleteRelations(args["relations"] as Relation[]);
+      return safeToolExecution(
+        validateDeleteRelations,
+        async (validatedArgs) => {
+          const sanitizedRelations = validatedArgs.relations.map((relation) => ({
+            ...relation,
+            from: InputSanitizer.sanitizeEntityName(relation.from),
+            to: InputSanitizer.sanitizeEntityName(relation.to),
+            relationType: InputSanitizer.sanitizeEntityName(relation.relationType),
+          }));
+
+          return methods.deleteRelations(sanitizedRelations);
+        },
+      )(args);
+
     case "read_graph":
       return methods.readGraph();
+
     case "search_nodes":
-      return methods.searchNodes(args["query"] as string);
+      return safeToolExecution(
+        validateSearchNodes,
+        async (validatedArgs) => {
+          const sanitizedQuery = InputSanitizer.sanitizeSearchQuery(validatedArgs.query);
+          return methods.searchNodes(sanitizedQuery);
+        },
+      )(args);
+
     case "open_nodes":
-      return methods.openNodes(args["names"] as string[]);
+      return safeToolExecution(
+        validateOpenNodes,
+        async (validatedArgs) => {
+          const sanitizedNames = validatedArgs.names.map((name) =>
+            InputSanitizer.sanitizeEntityName(name)
+          );
+
+          return methods.openNodes(sanitizedNames);
+        },
+      )(args);
+
     // ... more tools ...
     default:
       throw new Error(`Unknown tool: ${name}`);
