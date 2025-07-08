@@ -54,6 +54,8 @@ export const ALLOWED_ORIGINS = [
   `https://${DEFAULT_HOSTNAME}`,
   `http://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
   `https://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
+  `${DEFAULT_HOSTNAME}`,
+  `${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
   // Add localhost for local development
   // consider deleting this if you're not developing locally
   "http://localhost",

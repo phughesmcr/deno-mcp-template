@@ -75,7 +75,7 @@ export function createExpressServer(
   app.use((req, _res, next) => {
     if (!req.headers.origin) {
       // Set a default origin for requests without one (e.g., non-browser clients)
-      req.headers.origin = `http://${config.hostname}:${config.port}`;
+      req.headers.origin = req.headers.referer || req.headers.host;
     }
     next();
   });
