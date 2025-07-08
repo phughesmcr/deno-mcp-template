@@ -22,7 +22,7 @@ export class Logger {
       async (request) => {
         const levelName = request.params.level.trim().toLowerCase();
         if (VALID_LOG_LEVELS.includes(levelName as LogLevelKey)) {
-          this.setLoggingLevel(levelName as LogLevelKey);
+          this.#setLoggingLevel(levelName as LogLevelKey);
         } else {
           this.error({
             data: {
@@ -41,7 +41,7 @@ export class Logger {
   }
 
   /** Sets the log level */
-  async setLoggingLevel(level: LogLevelKey): Promise<void> {
+  async #setLoggingLevel(level: LogLevelKey): Promise<void> {
     this.#level = LOG_LEVEL[level];
     return this.#server.sendLoggingMessage({
       level: "info",
@@ -62,6 +62,7 @@ export class Logger {
 
   /** Notify the server and print to stderr */
   #log(level: LogLevelKey, log: LogData | string): void {
+    if (this.#level < LOG_LEVEL[level]) return;
     const logData: LogData = typeof log === "string" ? { data: { [level]: log } } : log;
     const { logger = APP_NAME, data } = logData;
     this.#server.sendLoggingMessage({ level, data, logger }).catch((error) => {
@@ -73,58 +74,26 @@ export class Logger {
   }
 
   /** Log channel for detailed debugging information (e.g., Function entry/exit points) */
-  debug(data: LogData | string) {
-    if (this.#level <= LOG_LEVEL.debug) {
-      this.#log("debug", data);
-    }
-  }
+  debug = this.#log.bind(this, "debug");
 
   /** Log channel for general informational messages (e.g., Operation progress updates) */
-  info(data: LogData | string) {
-    if (this.#level <= LOG_LEVEL.info) {
-      this.#log("info", data);
-    }
-  }
+  info = this.#log.bind(this, "info");
 
   /** Log channel for normal but significant events	(e.g., Configuration changes) */
-  notice(data: LogData | string) {
-    if (this.#level <= LOG_LEVEL.notice) {
-      this.#log("notice", data);
-    }
-  }
+  notice = this.#log.bind(this, "notice");
 
   /** Log channel for warning conditions (e.g. Deprecated feature usage) */
-  warning(data: LogData | string) {
-    if (this.#level <= LOG_LEVEL.warning) {
-      this.#log("warning", data);
-    }
-  }
+  warning = this.#log.bind(this, "warning");
 
   /** Log channel for error conditions (e.g., Operation failures) */
-  error(data: LogData | string) {
-    if (this.#level <= LOG_LEVEL.error) {
-      this.#log("error", data);
-    }
-  }
+  error = this.#log.bind(this, "error");
 
   /** Log channel for critical conditions (e.g., System component failures) */
-  critical(data: LogData | string) {
-    if (this.#level <= LOG_LEVEL.critical) {
-      this.#log("critical", data);
-    }
-  }
+  critical = this.#log.bind(this, "critical");
 
   /** Log channel for action must be taken immediately (e.g., Data corruption detected) */
-  alert(data: LogData | string) {
-    if (this.#level <= LOG_LEVEL.alert) {
-      this.#log("alert", data);
-    }
-  }
+  alert = this.#log.bind(this, "alert");
 
   /** Log channel for when the system is unusable (e.g., Complete system failure) */
-  emergency(data: LogData | string) {
-    if (this.#level <= LOG_LEVEL.emergency) {
-      this.#log("emergency", data);
-    }
-  }
+  emergency = this.#log.bind(this, "emergency");
 }
