@@ -9,6 +9,7 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { join } from "@std/path";
 import cors from "cors";
 import express, { type Request, type Response } from "express";
+import helmet from "helmet";
 import serveStatic from "serve-static";
 
 import {
@@ -35,6 +36,7 @@ export function createExpressServer(
 ): ExpressResult {
   const transports: TransportRecord = {};
   const app = express();
+  app.use(helmet());
   app.use(express.json());
 
   // Setup allowed hosts and origins for DNS rebinding protection
