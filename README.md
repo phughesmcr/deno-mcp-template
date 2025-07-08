@@ -133,23 +133,28 @@ main.ts       # The main entry point
 src/              
 ├── app/                        
 │   ├── app.ts                  # The main application class
-│   ├── config.ts               # Configuration for the server
-│   ├── express.ts              # Express server code
-│   └── inMemoryEventStore.ts   # In-memory event store for for session resumability
+│   ├── config.ts               # Configuration for the Express and MCP server
+│   ├── express.ts              # The Express server
+│   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
+│   ├── logger.ts               # A simple logger that doesn't interfere with stdout
+│   └── middleware.ts           # Middleware for the server (tool-call validation, etc.)
 ├── mcp/ 
 │   ├── prompts/                             
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
-│   │   └── mod.ts                          # Provides a single point of export for all the MCP prompts
+│   │   ├── mod.ts                          # Provides a single point of export for all the MCP prompts
+│   │   └── schemas.ts                      # Zod schemas for MCP prompts
 │   ├── resources/                             
 │   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
 │   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
-│   │   └── mod.ts                          # Provides a single point of export for all the MCP resources
+│   │   ├── mod.ts                          # Provides a single point of export for all the MCP resources
+│   │   └── schemas.ts                      # Zod schemas for MCP resources
 │   ├── tools/                             
 │   │   ├── knowledgeGraph/                 # The knowledge graph example tool
 │   │   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
 │   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
-│   │   │   └── mod.ts                      # Provides a single point of export for the knowledge graph
-│   │   └── mod.ts                    # Provides a single point of export for all the MCP tools
+│   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
+│   │   │   └── schemas.ts                  # Zod schemas for knowledge graph tools
+│   │   └── mod.ts                          # Provides a single point of export for all the MCP tools
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
 ├── constants.ts                # Shared constants for the server and application
 ├── types.ts                    # Shared types for the MCP server
