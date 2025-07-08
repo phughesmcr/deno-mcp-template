@@ -30,6 +30,7 @@
         "@vendor/schema": "./vendor/schema.ts",
         "cors": "npm:cors@^2.8.5",
         "express": "npm:express@^5.1.0",
+        "express-rate-limit": "npm:express-rate-limit@7.5.1",
         "helmet": "npm:helmet@^8.1.0",
         "serve-static": "npm:serve-static@^2.2.0",
         "zod": "npm:zod@^3.25.76"

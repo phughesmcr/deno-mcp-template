@@ -9,6 +9,7 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { join } from "@std/path";
 import cors from "cors";
 import express, { type Request, type Response } from "express";
+import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import serveStatic from "serve-static";
 
@@ -45,8 +46,17 @@ export function createExpressServer(
 ): ExpressResult {
   const transports: TransportRecord = {};
   const app = express();
-  app.use(helmet());
   app.use(express.json());
+
+  // Setup helmet and rate limiting
+  app.use(helmet());
+  app.use(rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes).
+    standardHeaders: "draft-8", // draft-6: `RateLimit-*` headers; draft-7 & draft-8: combined `RateLimit` header
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
+    // store: ... , // ⚠️ use Redis, Memcached, etc. in production.
+  }));
 
   // Setup allowed hosts and origins for DNS rebinding protection
   // remember to set your allowed hosts and origins in `../constants.ts`
