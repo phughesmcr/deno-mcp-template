@@ -56,12 +56,45 @@ export function createExpressServer(
     ]),
   ];
 
-  // Setup CORS
+  // Add middleware to set default Origin for MCP clients that don't send one
+  app.use((req, _res, next) => {
+    // TODO: is this secure?
+    // If no Origin header is present, set it to a default allowed value
+    if (!req.headers.origin) {
+      req.headers.origin = `http://${config.hostname}:${config.port}`;
+    }
+    next();
+  });
+
+  // Setup CORS for MCP clients
   app.use(
     cors({
-      origin: allowedOrigins,
-      exposedHeaders: Object.values(HEADER_KEYS),
-      allowedHeaders: ["Content-Type", ...Object.values(HEADER_KEYS)],
+      origin: (
+        origin: string,
+        callback: (err: Error | null, allow?: boolean) => void,
+      ) => {
+        if (allowedOrigins.includes(origin) || allowedOrigins.includes("null")) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
+      },
+      exposedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "x-api-key",
+        ...Object.values(HEADER_KEYS),
+      ],
+      allowedHeaders: [
+        "Content-Type",
+        "Accept",
+        "Authorization",
+        "x-api-key",
+        ...Object.values(HEADER_KEYS),
+      ],
+      allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+      maxAge: 86400,
+      credentials: true,
     }),
   );
 
@@ -92,6 +125,7 @@ export function createExpressServer(
  * Factory for MCP POST handler
  * @param server - The MCP server
  * @param transports - The transports to route the request to
+ * @param config - The DNS rebinding protection configuration
  * @returns The handler function
  */
 function createMcpPostHandler(
@@ -117,8 +151,8 @@ function createMcpPostHandler(
           enableJsonResponse: true,
           eventStore: new InMemoryEventStore(),
           enableDnsRebindingProtection: true,
-          allowedHosts: config.allowedHosts, // remove if enableDnsRebindingProtection is false
-          allowedOrigins: config.allowedOrigins, // remove if enableDnsRebindingProtection is false
+          allowedHosts: config.allowedHosts, // removable if enableDnsRebindingProtection is false
+          allowedOrigins: config.allowedOrigins, // removable if enableDnsRebindingProtection is false
         });
 
         // Clean up transport when closed
@@ -133,7 +167,7 @@ function createMcpPostHandler(
         // Bad Request: No valid session ID provided
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           createRPCError(
-            req.body.id,
+            req.body?.id || 0,
             RPC_ERROR_CODES.INVALID_REQUEST,
             "Bad Request: No valid session ID provided",
           ),
@@ -148,7 +182,7 @@ function createMcpPostHandler(
       if (!res.headersSent) {
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
           createRPCError(
-            req.body.id,
+            req.body?.id || 0,
             RPC_ERROR_CODES.INTERNAL_ERROR,
             "Internal server error",
           ),
@@ -169,7 +203,7 @@ function createMcpSessionHandler(transports: TransportRecord): RequestHandler {
     if (!sessionId || Array.isArray(sessionId)) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
         createRPCError(
-          req.body.id,
+          req.body?.id || 0,
           RPC_ERROR_CODES.INVALID_REQUEST,
           "Invalid session ID",
         ),
@@ -180,7 +214,7 @@ function createMcpSessionHandler(transports: TransportRecord): RequestHandler {
     if (!transport) {
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
         createRPCError(
-          req.body.id,
+          req.body?.id || 0,
           RPC_ERROR_CODES.INTERNAL_ERROR,
           "No session transport found",
         ),

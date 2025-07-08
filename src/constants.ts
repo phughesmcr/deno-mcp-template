@@ -1,3 +1,5 @@
+import type { ServerCapabilities } from "@modelcontextprotocol/sdk/types";
+
 /**
  * @description Shared constants for the MCP server
  * @module
@@ -13,14 +15,39 @@ export const APP_NAME = "deno-mcp-template";
 /** The MCP server's human-facing title. */
 export const APP_TITLE = "Deno MCP Template";
 
+/** The default port for the HTTP server. */
+export const DEFAULT_PORT = 3001;
+
+/** The default hostname for the HTTP server. */
+export const DEFAULT_HOSTNAME = "127.0.0.1";
+
 /** The allowed hosts for the MCP server's DNS rebinding protection. */
-export const ALLOWED_HOSTS = [];
+export const ALLOWED_HOSTS = [
+  `${DEFAULT_HOSTNAME}`,
+  `${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
+  // Add localhost for local development
+  // consider deleting this if you're not developing locally
+  "localhost",
+];
 
 /** The allowed origins for the MCP server's DNS rebinding protection. */
-export const ALLOWED_ORIGINS = [];
+export const ALLOWED_ORIGINS = [
+  `http://${DEFAULT_HOSTNAME}`,
+  `https://${DEFAULT_HOSTNAME}`,
+  `http://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
+  `https://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
+  // Add localhost for local development
+  // consider deleting this if you're not developing locally
+  "http://localhost",
+  "https://localhost",
+  // Add null / undefined origin for MCP clients that don't send Origin header
+  // consider deleting these if you know your MCP clients will always send an Origin header
+  "null",
+  "undefined",
+];
 
 /** The MCP server's capabilities. */
-export const SERVER_CAPABILITIES = {
+export const SERVER_CAPABILITIES: ServerCapabilities = {
   completions: {},
   logging: {},
   prompts: {
@@ -35,12 +62,6 @@ export const SERVER_CAPABILITIES = {
   },
   // experimental: {},
 };
-
-/** The default port for the HTTP server. */
-export const DEFAULT_PORT = 3001;
-
-/** The default hostname for the HTTP server. */
-export const DEFAULT_HOSTNAME = "127.0.0.1";
 
 // *****************************************************
 // * You should not need to change the constants below *

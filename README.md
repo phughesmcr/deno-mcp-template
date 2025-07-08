@@ -44,7 +44,7 @@ deno task start
 deno task dev
 ```
 
-Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/constants.ts`, examine the `src/app` directory for any changes you need to make, and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
+Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/constants.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/express.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
 
 ## Usage
 
