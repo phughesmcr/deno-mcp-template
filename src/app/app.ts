@@ -74,7 +74,7 @@ class App extends Logger {
    */
   constructor(spec: AppSpec) {
     const { app, config, server, transports } = spec;
-    super(server, spec.config.debug ? "debug" : "info");
+    super(server, config.log);
     this.#server = server;
     this.#config = config;
     this.#httpTransports = transports;
@@ -176,18 +176,14 @@ export function createApp(server: Server): App {
   const config: AppConfig = getConfig();
 
   // Create HTTP server and get transports
-  const { app, transports }: ExpressResult = createExpressServer({
-    hostname: config.hostname,
-    port: config.port,
-    staticDir: config.staticDir,
-  }, server);
+  const express: ExpressResult = createExpressServer(config, server);
 
   // Create the app
   const result = new App({
-    app,
+    app: express.app,
     config,
     server,
-    transports,
+    transports: express.transports,
   });
 
   // Setup signal handlers
@@ -198,10 +194,12 @@ export function createApp(server: Server): App {
     data: {
       debug: "Configuration",
       details: {
-        debug: config.debug,
         hasStaticDir: !!config.staticDir,
         hostname: config.hostname,
+        log: config.log,
         port: config.port,
+        allowedHosts: express.allowedHosts,
+        allowedOrigins: express.allowedOrigins,
       },
     },
   });

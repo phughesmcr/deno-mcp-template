@@ -6,9 +6,12 @@
 import type { CallToolResult } from "@vendor/schema";
 import { z } from "zod";
 
+/**
+ * Custom error class for Zod validation errors
+ */
 export class ValidationError extends Error {
-  public readonly field: string;
-  public readonly code: string;
+  readonly field: string;
+  readonly code: string;
 
   constructor(
     message: string,
@@ -22,6 +25,12 @@ export class ValidationError extends Error {
   }
 }
 
+/**
+ * Middleware to validate arguments against a Zod schema
+ * @template T - The type of the validated arguments
+ * @param schema - The Zod schema to validate against
+ * @returns A function that validates arguments
+ */
 export function createValidationMiddleware<T>(schema: z.ZodSchema<T>) {
   return (args: unknown): T => {
     try {
@@ -40,7 +49,12 @@ export function createValidationMiddleware<T>(schema: z.ZodSchema<T>) {
   };
 }
 
-export function safeToolExecution<T, R>(
+/**
+ * Middleware to safely call a tool with validation and error handling
+ * @template T - The type of the validated arguments
+ * @template R - The type of the result
+ */
+export function safeToolCall<T, R>(
   validator: (args: unknown) => T,
   handler: (validatedArgs: T) => Promise<R>,
 ): (args: unknown) => Promise<CallToolResult> {

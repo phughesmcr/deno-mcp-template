@@ -16,8 +16,6 @@ const tools: ToolModule<any>[] = [
 
 // If Deno KV failed to open, the knowledge graph tool is removed from the list of tools
 if (Object.keys(knowledgeGraph.methods).length === 0) {
-  // TODO: change to console.log and send valid RPC error
-  console.error("Knowledge graph methods are not available. Tool disabled.");
   tools.splice(tools.findIndex((tool) => tool.name === knowledgeGraph.name), 1);
 }
 

@@ -13,15 +13,24 @@ import helmet from "helmet";
 import serveStatic from "serve-static";
 
 import {
+  ALLOWED_HEADERS,
   ALLOWED_HOSTS,
+  ALLOWED_METHODS,
   ALLOWED_ORIGINS,
   APP_NAME,
+  EXPOSED_HEADERS,
   HEADER_KEYS,
   HTTP_STATUS,
   RPC_ERROR_CODES,
 } from "../constants.ts";
-import type { ExpressConfig, ExpressResult, RequestHandler, TransportRecord } from "../types.ts";
-import { createRPCError, createRPCSuccess } from "../utils.ts";
+import type {
+  AppConfig,
+  ExpressResult,
+  LogLevelKey,
+  RequestHandler,
+  TransportRecord,
+} from "../types.ts";
+import { createCallToolErrorResponse, createRPCError, createRPCSuccess } from "../utils.ts";
 import { InMemoryEventStore } from "./inMemoryEventStore.ts";
 
 /**
@@ -31,7 +40,7 @@ import { InMemoryEventStore } from "./inMemoryEventStore.ts";
  * @returns The Express server and transports
  */
 export function createExpressServer(
-  config: ExpressConfig,
+  config: AppConfig,
   server: Server,
 ): ExpressResult {
   const transports: TransportRecord = {};
@@ -47,6 +56,7 @@ export function createExpressServer(
     ...new Set([
       ...ALLOWED_HOSTS,
       config.hostname,
+      `${config.hostname}:${config.port}`,
       ...(metaUrl?.hostname ? [metaUrl.hostname] : []),
     ]),
   ];
@@ -54,15 +64,17 @@ export function createExpressServer(
     ...new Set([
       ...ALLOWED_ORIGINS,
       config.hostname,
+      `http://${config.hostname}:${config.port}`,
+      `https://${config.hostname}:${config.port}`,
       ...(metaUrl?.origin ? [metaUrl.origin] : []),
     ]),
   ];
 
-  // Add middleware to set default Origin for MCP clients that don't send one
+  // Middleware to handle missing Origin headers for DNS rebinding protection
+  // ⚠️ You may not want this in production
   app.use((req, _res, next) => {
-    // TODO: is this secure?
-    // If no Origin header is present, set it to a default allowed value
     if (!req.headers.origin) {
+      // Set a default origin for requests without one (e.g., non-browser clients)
       req.headers.origin = `http://${config.hostname}:${config.port}`;
     }
     next();
@@ -72,29 +84,30 @@ export function createExpressServer(
   app.use(
     cors({
       origin: (
-        origin: string,
+        origin: string | undefined,
         callback: (err: Error | null, allow?: boolean) => void,
       ) => {
-        if (allowedOrigins.includes(origin) || allowedOrigins.includes("null")) {
+        // Handle requests without Origin header (e.g., same-origin requests, some tools)
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+
+        if (allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
-          callback(new Error("Not allowed by CORS"));
+          callback(new Error(`Origin ${origin} not allowed by CORS policy`));
         }
       },
       exposedHeaders: [
-        "Content-Type",
-        "Authorization",
-        "x-api-key",
+        ...EXPOSED_HEADERS,
         ...Object.values(HEADER_KEYS),
       ],
       allowedHeaders: [
-        "Content-Type",
-        "Accept",
-        "Authorization",
-        "x-api-key",
+        ...ALLOWED_HEADERS,
         ...Object.values(HEADER_KEYS),
       ],
-      allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+      allowMethods: ALLOWED_METHODS,
       maxAge: 86400,
       credentials: true,
     }),
@@ -106,11 +119,15 @@ export function createExpressServer(
   app.get("/openapi.yaml", (_, res) => res.redirect("/.well-known/openapi.yaml"));
 
   // MCP POST Route
-  const handlePost = createMcpPostHandler(server, transports, { allowedHosts, allowedOrigins });
+  const handlePost = createMcpPostHandler(server, transports, {
+    allowedHosts,
+    allowedOrigins,
+    log: config.log,
+  });
   app.post("/mcp", handlePost);
 
   // MCP Session GET and DELETE Routes for session management
-  const handleSession = createMcpSessionHandler(transports);
+  const handleSession = createMcpSessionHandler(transports, { log: config.log });
   app.get("/mcp", handleSession);
   app.delete("/mcp", handleSession);
 
@@ -120,7 +137,7 @@ export function createExpressServer(
     res.status(HTTP_STATUS.SUCCESS).json(createRPCSuccess(0, { message }));
   });
 
-  return { app, transports };
+  return { app, transports, allowedHosts, allowedOrigins };
 }
 
 /**
@@ -133,7 +150,7 @@ export function createExpressServer(
 function createMcpPostHandler(
   server: Server,
   transports: TransportRecord,
-  config: { allowedHosts: string[]; allowedOrigins: string[] },
+  config: { allowedHosts: string[]; allowedOrigins: string[]; log: LogLevelKey },
 ): RequestHandler {
   return async (req: Request, res: Response): Promise<void> => {
     try {
@@ -167,28 +184,31 @@ function createMcpPostHandler(
         await server.connect(transport);
       } else {
         // Bad Request: No valid session ID provided
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          createRPCError(
-            req.body?.id || 0,
-            RPC_ERROR_CODES.INVALID_REQUEST,
-            "Bad Request: No valid session ID provided",
-          ),
+        const rpcError = createRPCError(
+          req.body?.id || 0,
+          RPC_ERROR_CODES.INVALID_REQUEST,
+          "Bad Request: No valid session ID provided",
         );
+        if (config.log === "debug") {
+          console.error(createCallToolErrorResponse(rpcError), rpcError);
+        }
+        res.status(HTTP_STATUS.BAD_REQUEST).json(rpcError);
         return;
       }
 
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
-      // TODO: change to console.log and send valid RPC error
-      console.error("Error handling MCP request:", error);
+      const rpcError = createRPCError(
+        req.body?.id || 0,
+        RPC_ERROR_CODES.INTERNAL_ERROR,
+        "Internal server error",
+        error instanceof Error ? error : "Unknown error",
+      );
+      if (config.log === "debug") {
+        console.error(createCallToolErrorResponse(rpcError), rpcError);
+      }
       if (!res.headersSent) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-          createRPCError(
-            req.body?.id || 0,
-            RPC_ERROR_CODES.INTERNAL_ERROR,
-            "Internal server error",
-          ),
-        );
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(rpcError);
       }
     }
   };
@@ -199,28 +219,35 @@ function createMcpPostHandler(
  * @param transports - The transports to route the request to
  * @returns The handler function
  */
-function createMcpSessionHandler(transports: TransportRecord): RequestHandler {
+function createMcpSessionHandler(
+  transports: TransportRecord,
+  config: { log: LogLevelKey },
+): RequestHandler {
   return async (req: Request, res: Response): Promise<void> => {
     const sessionId = req.headers[HEADER_KEYS.SESSION_ID];
     if (!sessionId || Array.isArray(sessionId)) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        createRPCError(
-          req.body?.id || 0,
-          RPC_ERROR_CODES.INVALID_REQUEST,
-          "Invalid session ID",
-        ),
+      const rpcError = createRPCError(
+        req.body?.id || 0,
+        RPC_ERROR_CODES.INVALID_REQUEST,
+        "Invalid session ID",
       );
+      if (config.log === "debug") {
+        console.error(createCallToolErrorResponse(rpcError), rpcError);
+      }
+      res.status(HTTP_STATUS.BAD_REQUEST).json(rpcError);
       return;
     }
     const transport = transports[sessionId];
     if (!transport) {
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-        createRPCError(
-          req.body?.id || 0,
-          RPC_ERROR_CODES.INTERNAL_ERROR,
-          "No session transport found",
-        ),
+      const rpcError = createRPCError(
+        req.body?.id || 0,
+        RPC_ERROR_CODES.INTERNAL_ERROR,
+        "No session transport found",
       );
+      if (config.log === "debug") {
+        console.error(createCallToolErrorResponse(rpcError), rpcError);
+      }
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(rpcError);
       return;
     }
     await transport.handleRequest(req, res);

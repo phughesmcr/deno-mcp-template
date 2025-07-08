@@ -15,37 +15,6 @@ export const APP_NAME = "deno-mcp-template";
 /** The MCP server's human-facing title. */
 export const APP_TITLE = "Deno MCP Template";
 
-/** The default port for the HTTP server. */
-export const DEFAULT_PORT = 3001;
-
-/** The default hostname for the HTTP server. */
-export const DEFAULT_HOSTNAME = "127.0.0.1";
-
-/** The allowed hosts for the MCP server's DNS rebinding protection. */
-export const ALLOWED_HOSTS = [
-  `${DEFAULT_HOSTNAME}`,
-  `${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
-  // Add localhost for local development
-  // consider deleting this if you're not developing locally
-  "localhost",
-];
-
-/** The allowed origins for the MCP server's DNS rebinding protection. */
-export const ALLOWED_ORIGINS = [
-  `http://${DEFAULT_HOSTNAME}`,
-  `https://${DEFAULT_HOSTNAME}`,
-  `http://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
-  `https://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
-  // Add localhost for local development
-  // consider deleting this if you're not developing locally
-  "http://localhost",
-  "https://localhost",
-  // Add null / undefined origin for MCP clients that don't send Origin header
-  // consider deleting these if you know your MCP clients will always send an Origin header
-  "null",
-  "undefined",
-];
-
 /** The MCP server's capabilities. */
 export const SERVER_CAPABILITIES: ServerCapabilities = {
   completions: {},
@@ -63,11 +32,74 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
   // experimental: {},
 };
 
+/** The default port for the HTTP server. */
+export const DEFAULT_PORT = 3001;
+
+/** The default hostname for the HTTP server. */
+export const DEFAULT_HOSTNAME = "127.0.0.1";
+
+/** The allowed hosts for the MCP server's DNS rebinding protection. */
+export const ALLOWED_HOSTS = [
+  `${DEFAULT_HOSTNAME}`,
+  `${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
+  // Add localhost for local development
+  // consider deleting this if you're not developing locally
+  "localhost",
+  `localhost:${DEFAULT_PORT}`,
+];
+
+/** The allowed origins for the MCP server's DNS rebinding protection. */
+export const ALLOWED_ORIGINS = [
+  `http://${DEFAULT_HOSTNAME}`,
+  `https://${DEFAULT_HOSTNAME}`,
+  `http://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
+  `https://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}`,
+  // Add localhost for local development
+  // consider deleting this if you're not developing locally
+  "http://localhost",
+  "https://localhost",
+  `http://localhost:${DEFAULT_PORT}`,
+  `https://localhost:${DEFAULT_PORT}`,
+];
+
+/**
+ * The allowed methods for the MCP server's CORS protection.
+ * @note GET/POST are required by the Express server.
+ */
+export const ALLOWED_METHODS = ["GET", "POST", "DELETE", "OPTIONS"];
+
+/**
+ * The allowed headers for the MCP server's CORS protection.
+ * @note Headers required by the MCP spec are automatically added.
+ */
+export const ALLOWED_HEADERS = [
+  "Origin",
+  "Content-Type",
+  "Accept",
+  "Authorization",
+  "x-api-key",
+  "X-Requested-With",
+];
+
+/**
+ * The exposed headers for the MCP server's CORS protection.
+ * @note Headers required by the MCP spec are automatically added.
+ */
+export const EXPOSED_HEADERS = [
+  "Content-Type",
+  "Authorization",
+  "x-api-key",
+];
+
+/** The app's default log level. */
+export const DEFAULT_LOG_LEVEL: LogLevelKey = "info";
+
 // *****************************************************
 // * You should not need to change the constants below *
 // *****************************************************
 
 import DenoJson from "../deno.json" with { type: "json" };
+import type { LogLevelKey } from "./types.ts";
 
 export const APP_VERSION = DenoJson.version;
 
@@ -83,28 +115,28 @@ export const HEADER_KEYS = {
 } as const;
 
 export const CLI_ARGS = {
-  string: ["port", "hostname"],
-  boolean: ["debug", "help", "version"],
+  string: ["port", "hostname", "log"],
+  boolean: ["help", "version"],
   alias: {
-    "port": "p",
-    "hostname": "h",
-    "debug": "d",
     "help": "H",
+    "hostname": "h",
+    "log": "l",
+    "port": "p",
     "version": "V",
   },
   default: {
-    "port": DEFAULT_PORT,
-    "hostname": DEFAULT_HOSTNAME,
-    "debug": false,
     "help": false,
+    "hostname": DEFAULT_HOSTNAME,
+    "log": DEFAULT_LOG_LEVEL,
+    "port": DEFAULT_PORT,
     "version": false,
   },
 } as const;
 
 export const ENV_VARS = {
-  PORT: "PORT",
-  HOSTNAME: "HOSTNAME",
-  DEBUG: "DEBUG",
+  PORT: "MCP_PORT",
+  HOSTNAME: "MCP_HOSTNAME",
+  LOG: "MCP_LOG_LEVEL",
 } as const;
 
 export const HTTP_STATUS = {
@@ -141,5 +173,3 @@ export const LOG_LEVEL = {
 } as const;
 
 export const VALID_LOG_LEVELS = Object.keys(LOG_LEVEL) as (keyof typeof LOG_LEVEL)[];
-
-export const GLOBAL_KEYS = {} as const;

@@ -9,10 +9,12 @@ import {
   APP_VERSION,
   CLI_ARGS,
   DEFAULT_HOSTNAME,
+  DEFAULT_LOG_LEVEL,
   DEFAULT_PORT,
   ENV_VARS,
+  VALID_LOG_LEVELS,
 } from "../constants.ts";
-import type { AppConfig } from "../types.ts";
+import type { AppConfig, LogLevelKey } from "../types.ts";
 import { isValidHostname } from "../utils.ts";
 
 /**
@@ -37,8 +39,8 @@ export function getConfig(): AppConfig {
   }
 
   return {
-    debug: !!args.debug || Deno.env.get(ENV_VARS.DEBUG)?.toLowerCase() === "true",
     hostname: getValidatedHostname(args.hostname),
+    log: getValidatedLogLevel(args.log),
     port: getValidatedPort(args.port.toString()),
     staticDir: import.meta.dirname ?? "",
   };
@@ -61,14 +63,14 @@ Usage: ${usage} [OPTIONS]
 Options:
   -p, --port <PORT>              Port to listen on (default: ${DEFAULT_PORT})
   -h, --hostname <HOSTNAME>      Hostname to bind to (default: ${DEFAULT_HOSTNAME})
-  -d, --debug                    Enable verbose logging (can be combined with -q to send debug logs to MCP server only)
+  -l, --log <LEVEL>              Log level (default: info)
   -H, --help                     Show this help message
   -V, --version                  Show version information
 
 Environment Variables:
-  PORT <number>                  Port to listen on
-  HOSTNAME <string>              Hostname to bind to
-  DEBUG <boolean>                Enable debug logging (true/false)
+  MCP_PORT <number>                  Port to listen on
+  MCP_HOSTNAME <string>              Hostname to bind to
+  MCP_LOG_LEVEL <string>             Log level (default: info)
 
 Note: CLI flags take precedence over environment variables.
 `);
@@ -112,4 +114,24 @@ function getValidatedHostname(cliValue?: string): string {
   }
 
   return hostname;
+}
+
+function getValidatedLogLevel(cliValue?: string): LogLevelKey {
+  const value = cliValue || Deno.env.get(ENV_VARS.LOG);
+  if (value === undefined) {
+    return DEFAULT_LOG_LEVEL;
+  }
+
+  const logLevel = value.trim().toLowerCase();
+  if (logLevel === "") {
+    return DEFAULT_LOG_LEVEL;
+  }
+
+  if (!VALID_LOG_LEVELS.includes(logLevel as LogLevelKey)) {
+    throw new Error(
+      `Invalid log level: ${logLevel}. Must be one of: ${VALID_LOG_LEVELS.join(", ")}.`,
+    );
+  }
+
+  return logLevel as LogLevelKey;
 }

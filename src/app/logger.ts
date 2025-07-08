@@ -1,6 +1,6 @@
 import type { Server } from "@modelcontextprotocol/sdk/server";
 
-import { APP_NAME, LOG_LEVEL, VALID_LOG_LEVELS } from "../constants.ts";
+import { APP_NAME, DEFAULT_LOG_LEVEL, LOG_LEVEL, VALID_LOG_LEVELS } from "../constants.ts";
 import { SetLevelRequestSchema } from "../schemas.ts";
 import type { LogData, LogLevelKey, LogLevelValue } from "../types.ts";
 
@@ -12,7 +12,7 @@ export class Logger {
   #server: Server;
 
   /** A simple MCP-safe logger, routing messages to stderr to avoid STDIO bugs */
-  constructor(server: Server, level: LogLevelKey = "info") {
+  constructor(server: Server, level: LogLevelKey = DEFAULT_LOG_LEVEL) {
     this.#level = LOG_LEVEL[level];
     this.#server = server;
 

@@ -27,8 +27,8 @@ export interface AppConfig {
   /** The hostname to listen on */
   hostname: string;
 
-  /** Whether to enable debug logging */
-  debug?: boolean;
+  /** The log level */
+  log: LogLevelKey;
 
   /** The static directory for the app */
   staticDir: string;
@@ -68,6 +68,12 @@ export interface ExpressResult {
 
   /** The session transports */
   transports: TransportRecord;
+
+  /** The allowed hosts */
+  allowedHosts: string[];
+
+  /** The allowed origins */
+  allowedOrigins: string[];
 }
 
 /** A handler function for Express routes */

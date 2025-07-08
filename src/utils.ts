@@ -12,18 +12,17 @@ import {
   type Result,
 } from "@vendor/schema";
 
-import { GLOBAL_KEYS } from "./constants.ts";
-
 /** Creates a JSON-RPC error response */
 export function createRPCError(
   id: RequestId,
   code: number,
   message: string,
+  data?: unknown,
 ): JSONRPCError {
   return {
     jsonrpc: JSONRPC_VERSION,
     id,
-    error: { code, message },
+    error: { code, message, data },
   };
 }
 
@@ -118,21 +117,27 @@ export function isValidHostname(hostname: string): boolean {
   return true;
 }
 
-export const createCallToolTextResponse = (obj: unknown): CallToolResult => {
+export const createCallToolTextResponse = (
+  obj: unknown,
+  structuredContent?: Record<string, unknown>,
+): CallToolResult => {
   return {
-    content: [{
-      type: "text",
-      text: JSON.stringify(obj, null, 2),
-    }],
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(obj),
+      },
+    ],
+    structuredContent,
   };
 };
 
-export function setGlobal(key: keyof typeof GLOBAL_KEYS, value: boolean): void {
-  // deno-lint-ignore no-explicit-any
-  (globalThis as any)[GLOBAL_KEYS[key]] = value;
-}
-
-export function getGlobal(key: keyof typeof GLOBAL_KEYS): boolean {
-  // deno-lint-ignore no-explicit-any
-  return (globalThis as any)[GLOBAL_KEYS[key]];
+export function createCallToolErrorResponse(
+  obj: unknown,
+  structuredContent?: Record<string, unknown>,
+): CallToolResult {
+  return {
+    isError: true,
+    ...createCallToolTextResponse(obj, structuredContent),
+  };
 }

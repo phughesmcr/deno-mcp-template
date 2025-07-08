@@ -7,7 +7,7 @@
 import type { z } from "zod";
 
 import type { CallToolResult, Tool } from "@vendor/schema";
-import { createValidationMiddleware, safeToolExecution } from "../../../app/middleware.ts";
+import { createValidationMiddleware, safeToolCall } from "../../../app/middleware.ts";
 import type { ToolModule } from "../../../types.ts";
 import { KnowledgeGraphManager } from "./knowledgeGraphManager.ts";
 import { knowledgeGraphMethodsFactory } from "./methods.ts";
@@ -33,17 +33,14 @@ const methods = await (async (): Promise<ReturnType<typeof knowledgeGraphMethods
     globalThis.addEventListener("beforeunload", (): void => {
       try {
         kv.close();
-      } catch (error) {
-        // TODO: change to console.log and send valid RPC error
-        console.error("Error closing KV store:", error);
+      } catch {
+        // Ignore errors
       }
     });
 
     const graph = new KnowledgeGraphManager(kv);
     return knowledgeGraphMethodsFactory(graph);
-  } catch (error) {
-    // TODO: change to console.log and send valid RPC error
-    console.error("Error opening KV store:", error);
+  } catch {
     return {} as unknown as typeof methods;
   }
 })();
@@ -72,7 +69,7 @@ export type OpenNodesArgs = z.infer<typeof OpenNodesArgsSchema>;
 const request = (name: string, args: Record<string, unknown>): Promise<CallToolResult> => {
   switch (name) {
     case "create_entities":
-      return safeToolExecution(
+      return safeToolCall(
         validateCreateEntities,
         async (validatedArgs) => {
           // Sanitize entity names and observations
@@ -88,7 +85,7 @@ const request = (name: string, args: Record<string, unknown>): Promise<CallToolR
       )(args);
 
     case "create_relations":
-      return safeToolExecution(
+      return safeToolCall(
         validateCreateRelations,
         async (validatedArgs) => {
           const sanitizedRelations = validatedArgs.relations.map((relation) => ({
@@ -103,7 +100,7 @@ const request = (name: string, args: Record<string, unknown>): Promise<CallToolR
       )(args);
 
     case "add_observations":
-      return safeToolExecution(
+      return safeToolCall(
         validateAddObservations,
         async (validatedArgs) => {
           const sanitizedObservations = validatedArgs.observations.map((obs) => ({
@@ -117,7 +114,7 @@ const request = (name: string, args: Record<string, unknown>): Promise<CallToolR
       )(args);
 
     case "delete_entities":
-      return safeToolExecution(
+      return safeToolCall(
         validateDeleteEntities,
         async (validatedArgs) => {
           const sanitizedNames = validatedArgs.entityNames.map((name) =>
@@ -129,7 +126,7 @@ const request = (name: string, args: Record<string, unknown>): Promise<CallToolR
       )(args);
 
     case "delete_observations":
-      return safeToolExecution(
+      return safeToolCall(
         validateDeleteObservations,
         async (validatedArgs) => {
           const sanitizedDeletions = validatedArgs.deletions.map((deletion) => ({
@@ -145,7 +142,7 @@ const request = (name: string, args: Record<string, unknown>): Promise<CallToolR
       )(args);
 
     case "delete_relations":
-      return safeToolExecution(
+      return safeToolCall(
         validateDeleteRelations,
         async (validatedArgs) => {
           const sanitizedRelations = validatedArgs.relations.map((relation) => ({
@@ -163,7 +160,7 @@ const request = (name: string, args: Record<string, unknown>): Promise<CallToolR
       return methods.readGraph();
 
     case "search_nodes":
-      return safeToolExecution(
+      return safeToolCall(
         validateSearchNodes,
         async (validatedArgs) => {
           const sanitizedQuery = InputSanitizer.sanitizeSearchQuery(validatedArgs.query);
@@ -172,7 +169,7 @@ const request = (name: string, args: Record<string, unknown>): Promise<CallToolR
       )(args);
 
     case "open_nodes":
-      return safeToolExecution(
+      return safeToolCall(
         validateOpenNodes,
         async (validatedArgs) => {
           const sanitizedNames = validatedArgs.names.map((name) =>
