@@ -64,6 +64,7 @@ export function createExpressServer(
     ...new Set([
       ...ALLOWED_ORIGINS,
       config.hostname,
+      `${config.hostname}:${config.port}`,
       `http://${config.hostname}:${config.port}`,
       `https://${config.hostname}:${config.port}`,
       ...(metaUrl?.origin ? [metaUrl.origin] : []),
@@ -71,7 +72,7 @@ export function createExpressServer(
   ];
 
   // Middleware to handle missing Origin headers for DNS rebinding protection
-  // ⚠️ You may not want this in production
+  // ⚠️ You may want to do something more robust in production
   app.use((req, _res, next) => {
     if (!req.headers.origin) {
       // Set a default origin for requests without one (e.g., non-browser clients)
@@ -114,7 +115,7 @@ export function createExpressServer(
   );
 
   // Static Routes
-  app.use("/.well-known", serveStatic(join(config.staticDir, ".well-known")));
+  app.use("/.well-known", serveStatic(join("./static", ".well-known")));
   app.get("/llms.txt", (_, res) => res.redirect("/.well-known/llms.txt"));
   app.get("/openapi.yaml", (_, res) => res.redirect("/.well-known/openapi.yaml"));
 

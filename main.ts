@@ -60,7 +60,24 @@ import "@std/dotenv/load";
 if (import.meta.main) {
   // server is the MCP server
   const server = createMcpServer();
+
   // app is a wrapper for Express and STDIO etc.
   const app = createApp(server);
   await app.start();
+
+  // Log som
+  setTimeout(() => {
+    app.debug({
+      data: {
+        debug: "App configuration details",
+        details: {
+          allowedHosts: app.allowedHosts,
+          allowedOrigins: app.allowedOrigins,
+          hostname: app.config.hostname,
+          log: app.config.log,
+          port: app.config.port,
+        },
+      },
+    });
+  }, 200);
 }

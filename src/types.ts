@@ -19,36 +19,6 @@ export interface TransportRecord {
   [sessionId: string]: StreamableHTTPServerTransport;
 }
 
-/** Public app config */
-export interface AppConfig {
-  /** The port to listen on */
-  port: number;
-
-  /** The hostname to listen on */
-  hostname: string;
-
-  /** The log level */
-  log: LogLevelKey;
-
-  /** The static directory for the app */
-  staticDir: string;
-}
-
-/** Properties for the App constructor */
-export interface AppSpec {
-  /** The Express app */
-  app: Application;
-
-  /** The configuration for the app */
-  config: AppConfig;
-
-  /** The MCP server */
-  server: Server;
-
-  /** The session transports */
-  transports: TransportRecord;
-}
-
 /** Properties for the Express server */
 export interface ExpressConfig {
   /** The hostname to listen on */
@@ -56,9 +26,24 @@ export interface ExpressConfig {
 
   /** The port to listen on */
   port: number;
+}
 
-  /** The static directory for the app */
-  staticDir: string;
+/** Public app config */
+export interface AppConfig extends ExpressConfig {
+  /** The log level */
+  log: LogLevelKey;
+}
+
+/** Properties for the App constructor */
+export interface AppSpec {
+  /** The configuration for the app */
+  config: AppConfig;
+
+  /** The Express app */
+  express: ExpressResult;
+
+  /** The MCP server */
+  server: Server;
 }
 
 /** Result from the Express server */

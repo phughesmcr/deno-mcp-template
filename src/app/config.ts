@@ -4,6 +4,7 @@
  */
 
 import { parseArgs } from "@std/cli";
+
 import {
   APP_NAME,
   APP_VERSION,
@@ -42,7 +43,6 @@ export function getConfig(): AppConfig {
     hostname: getValidatedHostname(args.hostname),
     log: getValidatedLogLevel(args.log),
     port: getValidatedPort(args.port.toString()),
-    staticDir: import.meta.dirname ?? "",
   };
 }
 

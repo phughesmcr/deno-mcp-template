@@ -68,17 +68,37 @@ class App extends Logger {
   /** The STDIO transport */
   #stdioTransport: StdioServerTransport | null = null;
 
+  /** The Express server's allowed hosts */
+  readonly #allowedHosts: string[];
+
+  /** The Express server's allowed origins */
+  readonly #allowedOrigins: string[];
+
   /**
    * Creates a new App instance
    * @param spec - properties to construct the app with
    */
   constructor(spec: AppSpec) {
-    const { app, config, server, transports } = spec;
+    const { express, config, server } = spec;
     super(server, config.log);
     this.#server = server;
     this.#config = config;
-    this.#httpTransports = transports;
-    this.#expressApp = app;
+    this.#httpTransports = express.transports;
+    this.#expressApp = express.app;
+    this.#allowedHosts = express.allowedHosts;
+    this.#allowedOrigins = express.allowedOrigins;
+  }
+
+  get config() {
+    return { ...this.#config };
+  }
+
+  get allowedHosts() {
+    return [...this.#allowedHosts];
+  }
+
+  get allowedOrigins() {
+    return [...this.#allowedOrigins];
   }
 
   /** Starts the server */
@@ -168,7 +188,6 @@ class App extends Logger {
 /**
  * Factory function for creating an App instance to avoid throwables in the constructor
  * @param server - The MCP server
- * @param config - The configuration for the app, defaults to the config from the CLI / env
  * @returns The App instance
  */
 export function createApp(server: Server): App {
@@ -179,32 +198,12 @@ export function createApp(server: Server): App {
   const express: ExpressResult = createExpressServer(config, server);
 
   // Create the app
-  const result = new App({
-    app: express.app,
-    config,
-    server,
-    transports: express.transports,
-  });
+  const app = new App({ config, express, server });
 
   // Setup signal handlers
-  setupSignalHandlers(result);
+  setupSignalHandlers(app);
 
-  // Log the configuration
-  result.debug({
-    data: {
-      debug: "Configuration",
-      details: {
-        hasStaticDir: !!config.staticDir,
-        hostname: config.hostname,
-        log: config.log,
-        port: config.port,
-        allowedHosts: express.allowedHosts,
-        allowedOrigins: express.allowedOrigins,
-      },
-    },
-  });
-
-  return result;
+  return app;
 }
 
 export type { App };

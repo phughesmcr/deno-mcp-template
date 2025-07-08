@@ -20,20 +20,20 @@ export function createMcpServer(): Server {
   const server = new Server(SERVER_INFO, { capabilities: SERVER_CAPABILITIES });
 
   // Prompt handlers
-  if (SERVER_CAPABILITIES.prompts) {
+  if ("prompts" in SERVER_CAPABILITIES) {
     server.setRequestHandler(ListPromptsRequestSchema, listPrompts);
     server.setRequestHandler(GetPromptRequestSchema, getPrompt);
   }
 
   // Resource handlers
-  if (SERVER_CAPABILITIES.resources) {
+  if ("resources" in SERVER_CAPABILITIES) {
     server.setRequestHandler(ListResourceTemplatesRequestSchema, listResourceTemplates);
     server.setRequestHandler(ListResourcesRequestSchema, listResources);
     server.setRequestHandler(ReadResourceRequestSchema, readResource);
   }
 
   // Tool handlers
-  if (SERVER_CAPABILITIES.tools) {
+  if ("tools" in SERVER_CAPABILITIES) {
     server.setRequestHandler(ListToolsRequestSchema, listTools);
     server.setRequestHandler(CallToolRequestSchema, callTool);
   }
