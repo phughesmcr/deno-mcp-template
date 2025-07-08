@@ -31,7 +31,7 @@
         "cors": "npm:cors@^2.8.5",
         "express": "npm:express@^5.1.0",
         "serve-static": "npm:serve-static@^2.2.0",
-        "zod": "npm:zod@^3.25.74"
+        "zod": "npm:zod@^3.25.76"
     },
     "tasks": {
         "prep": "deno fmt && deno lint --fix && deno check main.ts",
