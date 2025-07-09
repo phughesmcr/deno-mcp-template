@@ -43,25 +43,36 @@ export const DEFAULT_LOG_LEVEL: LogLevelKey = "info";
 export const DEFAULT_PORT = 3001;
 
 /** The default hostname for the HTTP server. */
-export const DEFAULT_HOSTNAME = "127.0.0.1";
+export const DEFAULT_HOSTNAME = "localhost";
 
 /** The default headers for the MCP server. */
 export const HEADERS: string[] = [];
 
-/** The allowed hosts for the MCP server's DNS rebinding protection. */
-export const ALLOWED_HOSTS: string[] = ["*"];
+/**
+ * The expected hosts for the MCP server's DNS rebinding protection to accept.
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Host}
+ * @note This is ignored if env.MCP_ALLOWED_HOSTS is set or CLI --host is provided.
+ */
+export const ALLOWED_HOSTS: string[] = [DEFAULT_HOSTNAME];
 
-/** The allowed origins for the MCP server's DNS rebinding protection. */
+/**
+ * The expected origins for the MCP server's DNS rebinding protection to accept.
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Origin}
+ * @note The presence of "*" will allow all origins.
+ * @note This is ignored if env.MCP_ALLOWED_ORIGINS is set or CLI --origin is provided.
+ */
 export const ALLOWED_ORIGINS: string[] = ["*"];
 
 /**
  * The allowed methods for the MCP server's CORS protection.
- * @note GET/POST are required by the Express server.
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Methods}
+ * @note GET/POST are required for the Express server to function correctly.
  */
 export const ALLOWED_METHODS = ["GET", "POST", "DELETE", "OPTIONS"] as const;
 
 /**
  * The allowed headers for the MCP server's CORS protection.
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers}
  * @note Headers required by the MCP spec are automatically added.
  */
 export const ALLOWED_HEADERS = [
@@ -75,6 +86,7 @@ export const ALLOWED_HEADERS = [
 
 /**
  * The exposed headers for the MCP server's CORS protection.
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Expose-Headers}
  * @note Headers required by the MCP spec are automatically added.
  */
 export const EXPOSED_HEADERS = [

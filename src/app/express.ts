@@ -48,7 +48,7 @@ export function createExpressServer(
   const app = express();
   app.use(express.json());
 
-  // Setup helmet and rate limiting
+  // Setup helmet and rate limiting for security
   app.use(helmet());
   app.use(rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -59,15 +59,54 @@ export function createExpressServer(
   }));
 
   // Setup allowed hosts and origins for DNS rebinding protection
-  const allowedHosts = [...new Set([...ALLOWED_HOSTS])];
-  const allowedOrigins = [...new Set([...ALLOWED_ORIGINS])];
+  const allowedHosts = [
+    ...new Set([
+      ...ALLOWED_HOSTS,
+      config.hostname,
+      `${config.hostname}:${config.port}`,
+    ]),
+  ];
+
+  const allowedOrigins = [
+    ...new Set([
+      ...ALLOWED_ORIGINS,
+      config.hostname,
+      `${config.hostname}:${config.port}`,
+      `http://${config.hostname}:${config.port}`,
+      `https://${config.hostname}:${config.port}`,
+    ]),
+  ];
+
+  // Middleware to handle missing Origin headers for DNS rebinding protection
+  // ⚠️ You may want to do something more robust in production
+  app.use((req, _res, next) => {
+    if (!req.headers.origin && allowedOrigins.includes("*")) {
+      req.headers.origin = req.headers.referer || req.headers.host;
+    }
+    next();
+  });
 
   // Setup CORS for MCP clients
   app.use(
     cors({
-      allowOrigin: "*",
-      allowMethods: ALLOWED_METHODS,
+      origin: (
+        origin: string | undefined,
+        callback: (err: Error | null, allow?: boolean) => void,
+      ) => {
+        // Handle requests without Origin header (e.g., same-origin requests, some tools)
+        if (!origin || allowedOrigins.includes("*")) {
+          callback(null, true);
+          return;
+        }
+
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Origin ${origin} not allowed by CORS policy`));
+        }
+      },
       credentials: true,
+      methods: ALLOWED_METHODS,
       exposedHeaders: [
         ...EXPOSED_HEADERS,
         ...Object.values(HEADER_KEYS),
@@ -142,8 +181,9 @@ function createMcpPostHandler(
 
         // Clean up transport when closed
         transport.onclose = () => {
-          if (transport.sessionId) {
-            delete transports[transport.sessionId];
+          const sessionId = transport.sessionId;
+          if (sessionId && transports[sessionId] === transport) {
+            delete transports[sessionId];
           }
         };
 
@@ -203,19 +243,23 @@ function createMcpSessionHandler(
       res.status(HTTP_STATUS.BAD_REQUEST).json(rpcError);
       return;
     }
+
     const transport = transports[sessionId];
     if (!transport) {
       const rpcError = createRPCError(
         req.body?.id || 0,
         RPC_ERROR_CODES.INTERNAL_ERROR,
-        "No session transport found",
+        "Session not found or expired",
       );
+
       if (config.log === "debug") {
         console.error(createCallToolErrorResponse(rpcError), rpcError);
       }
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(rpcError);
+
+      res.status(HTTP_STATUS.NOT_FOUND).json(rpcError);
       return;
     }
+
     await transport.handleRequest(req, res);
   };
 }
