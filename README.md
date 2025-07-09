@@ -1,4 +1,4 @@
-# 🦖🤖 Deno MCP Server Template 
+# 🦖🤖 Deno MCP Server Template
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/ci.yml?label=CI)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/release.yml?label=release)
@@ -116,7 +116,7 @@ You can then use your binary like any other MCP server, for example:
 claude mcp add my-mcp-server "absolute/path/to/binary"
 
 # or with HTTP (use `deno task start` first)
-claude mcp add --transport http my-mcp-server http://127.0.0.1:3001/mcp
+claude mcp add --transport http my-mcp-server http://localhost:3001/mcp
 ```
 
 ## Project Structure
@@ -245,4 +245,4 @@ If you use this template, please contribute fixes and features, star the repo, a
 
 MIT
 
-This is a boilerplate / template repo, not a library; meaning you do need to make changes before deploying to production. 
+This is a boilerplate / template repo, not a library; meaning you do need to make changes before deploying to production.

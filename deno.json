@@ -38,7 +38,7 @@
     "tasks": {
         "prep": "deno fmt && deno lint --fix && deno check main.ts",
         "start": "deno run -A main.ts",
-        "dev": "ALLOWED_ORIGINS=http://localhost:6274,http://127.0.0.1:3001 npx @modelcontextprotocol/inspector deno run -A --watch main.ts -l=debug",
+        "dev": "ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run -A --watch main.ts -l=debug",
         "ci": "deno task prep",
         "compile": "deno compile -A main.ts",
         "setup": "deno run -A scripts/setup-template.ts"

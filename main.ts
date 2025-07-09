@@ -44,7 +44,7 @@
  * claude mcp add my-mcp-server "absolute/path/to/binary"
  *
  * # or with HTTP (use `deno task start` first)
- * claude mcp add --transport http my-mcp-server http://127.0.0.1:3001/mcp
+ * claude mcp add --transport http my-mcp-server http://localhost:3001/mcp
  * ```
  *
  * @module
