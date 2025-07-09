@@ -130,9 +130,8 @@ function createMcpPostHandler(
         transport = transports[sessionId];
       } else if (isInitializeRequest(req.body)) {
         // New initialization request
-        const newSessionId = crypto.randomUUID();
         transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: () => newSessionId,
+          sessionIdGenerator: () => crypto.randomUUID(),
           onsessioninitialized: (actualSessionId) => transports[actualSessionId] = transport,
           enableJsonResponse: true,
           eventStore: new InMemoryEventStore(),
