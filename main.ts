@@ -69,14 +69,8 @@ if (import.meta.main) {
   setTimeout(() => {
     app.debug({
       data: {
-        debug: "App configuration details",
-        details: {
-          allowedHosts: app.allowedHosts,
-          allowedOrigins: app.allowedOrigins,
-          hostname: app.config.hostname,
-          log: app.config.log,
-          port: app.config.port,
-        },
+        debug: "App config",
+        details: app.config,
       },
     });
   }, 200);

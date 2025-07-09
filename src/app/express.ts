@@ -59,57 +59,15 @@ export function createExpressServer(
   }));
 
   // Setup allowed hosts and origins for DNS rebinding protection
-  // remember to set your allowed hosts and origins in `../constants.ts`
-  const url = new URL(import.meta.url);
-  const metaUrl = url.protocol.match(/^https?/) ? url : null;
-  const allowedHosts = [
-    ...new Set([
-      ...ALLOWED_HOSTS,
-      config.hostname,
-      `${config.hostname}:${config.port}`,
-      ...(metaUrl?.hostname ? [metaUrl.hostname] : []),
-    ]),
-  ];
-  const allowedOrigins = [
-    ...new Set([
-      ...ALLOWED_ORIGINS,
-      config.hostname,
-      `${config.hostname}:${config.port}`,
-      `http://${config.hostname}:${config.port}`,
-      `https://${config.hostname}:${config.port}`,
-      ...(metaUrl?.origin ? [metaUrl.origin] : []),
-    ]),
-  ];
-
-  // Middleware to handle missing Origin headers for DNS rebinding protection
-  // ⚠️ You may want to do something more robust in production
-  app.use((req, _res, next) => {
-    if (!req.headers.origin) {
-      // Set a default origin for requests without one (e.g., non-browser clients)
-      req.headers.origin = req.headers.referer || req.headers.host;
-    }
-    next();
-  });
+  const allowedHosts = [...new Set([...ALLOWED_HOSTS])];
+  const allowedOrigins = [...new Set([...ALLOWED_ORIGINS])];
 
   // Setup CORS for MCP clients
   app.use(
     cors({
-      origin: (
-        origin: string | undefined,
-        callback: (err: Error | null, allow?: boolean) => void,
-      ) => {
-        // Handle requests without Origin header (e.g., same-origin requests, some tools)
-        if (!origin) {
-          callback(null, true);
-          return;
-        }
-
-        if (allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error(`Origin ${origin} not allowed by CORS policy`));
-        }
-      },
+      allowOrigin: "*",
+      allowMethods: ALLOWED_METHODS,
+      credentials: true,
       exposedHeaders: [
         ...EXPOSED_HEADERS,
         ...Object.values(HEADER_KEYS),
@@ -118,9 +76,7 @@ export function createExpressServer(
         ...ALLOWED_HEADERS,
         ...Object.values(HEADER_KEYS),
       ],
-      allowMethods: ALLOWED_METHODS,
       maxAge: 86400,
-      credentials: true,
     }),
   );
 

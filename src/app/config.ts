@@ -1,11 +1,13 @@
 /**
- * @description Configuration management and validation for setting-up the app
+ * @description Configuration management and validation for the app
  * @module
  */
 
 import { parseArgs } from "@std/cli";
 
 import {
+  ALLOWED_HOSTS,
+  ALLOWED_ORIGINS,
   APP_NAME,
   APP_VERSION,
   CLI_ARGS,
@@ -13,10 +15,51 @@ import {
   DEFAULT_LOG_LEVEL,
   DEFAULT_PORT,
   ENV_VARS,
-  VALID_LOG_LEVELS,
 } from "../constants.ts";
 import type { AppConfig, LogLevelKey } from "../types.ts";
-import { isValidHostname } from "../utils.ts";
+import {
+  validateHeaders,
+  validateHostname,
+  validateHosts,
+  validateLogLevel,
+  validateOrigins,
+  validatePort,
+} from "../utils.ts";
+
+// Help text template function to keep showHelp() simple
+function getHelpText(usage: string): string {
+  return `
+Usage: ${usage} [OPTIONS]
+
+Examples: 
+
+$ ${usage} -p 3001 -h localhost -l debug
+
+$ ${usage} --origin "https://example.com" --origin "https://localhost:3001" --host "example.com" --host "localhost"
+
+$ ${usage} --header "Authorization: Bearer <token>"
+
+Options:
+  -p,  --port <PORT>                Port to listen on (default: ${DEFAULT_PORT})
+  -h,  --hostname <HOSTNAME>        Hostname to bind to (default: ${DEFAULT_HOSTNAME})
+  -l,  --log <LEVEL>                Log level (default: info)
+       --header [<HEADERS>]         Custom headers to set
+       --origin [<ORIGIN>]          Allow an origin
+       --host [<HOST>]              Allow a host
+       --help                       Show this help message
+  -V,  --version                    Show version information
+
+Environment Variables:
+  MCP_PORT <number>                  Port to listen on
+  MCP_HOSTNAME <string>              Hostname to bind to
+  MCP_LOG_LEVEL <string>             Log level (default: info)
+  MCP_ALLOWED_ORIGINS <string>       Comma-separated list of allowed origins
+  MCP_ALLOWED_HOSTS <string>         Comma-separated list of allowed hosts
+  MCP_HEADERS <string>               Comma-separated list of custom headers to set
+
+Note: CLI flags take precedence over environment variables.
+`;
+}
 
 /**
  * Validates and returns the application configuration
@@ -24,114 +67,87 @@ import { isValidHostname } from "../utils.ts";
  * @returns The validated configuration
  */
 export function getConfig(): AppConfig {
-  // Parse CLI arguments
   const args = parseArgs(Deno.args, CLI_ARGS);
 
-  // Show help if requested
   if (args.help) {
     showHelp();
     Deno.exit(0);
   }
 
-  // Show version if requested
   if (args.version) {
     showVersion();
     Deno.exit(0);
   }
 
   return {
-    hostname: getValidatedHostname(args.hostname),
-    log: getValidatedLogLevel(args.log),
-    port: getValidatedPort(args.port.toString()),
+    allowedOrigins: getArrayConfig(
+      args.origin,
+      ENV_VARS.ALLOWED_ORIGINS,
+      ALLOWED_ORIGINS,
+      validateOrigins,
+    ),
+    allowedHosts: getArrayConfig(args.host, ENV_VARS.ALLOWED_HOSTS, ALLOWED_HOSTS, validateHosts),
+    headers: getArrayConfig(args.header, ENV_VARS.HEADERS, [], validateHeaders),
+    hostname: getStringConfig(args.hostname, ENV_VARS.HOSTNAME, DEFAULT_HOSTNAME, validateHostname),
+    log: getStringConfig(
+      args.log,
+      ENV_VARS.LOG,
+      DEFAULT_LOG_LEVEL,
+      validateLogLevel,
+    ) as LogLevelKey,
+    port: getNumberConfig(
+      args.port ? args.port.toString() : undefined,
+      ENV_VARS.PORT,
+      DEFAULT_PORT,
+      validatePort,
+    ),
   };
 }
 
-/** Shows the name and version of the application */
 function showVersion(): void {
   console.error(`${APP_NAME} v${APP_VERSION}`);
 }
 
-/** Shows the help message for the application */
 function showHelp(): void {
-  const usage = Deno.build.standalone ? import.meta.filename : "deno task start";
-
+  const usage = Deno.build.standalone ? (import.meta.filename || APP_NAME) : "deno task start";
   showVersion();
-
-  console.error(`
-Usage: ${usage} [OPTIONS]
-
-Options:
-  -p, --port <PORT>              Port to listen on (default: ${DEFAULT_PORT})
-  -h, --hostname <HOSTNAME>      Hostname to bind to (default: ${DEFAULT_HOSTNAME})
-  -l, --log <LEVEL>              Log level (default: info)
-  -H, --help                     Show this help message
-  -V, --version                  Show version information
-
-Environment Variables:
-  MCP_PORT <number>                  Port to listen on
-  MCP_HOSTNAME <string>              Hostname to bind to
-  MCP_LOG_LEVEL <string>             Log level (default: info)
-
-Note: CLI flags take precedence over environment variables.
-`);
+  console.error(getHelpText(usage));
 }
 
-/** Validates and returns the port from the CLI or environment variable */
-function getValidatedPort(cliValue?: string): number {
-  const value = cliValue || Deno.env.get(ENV_VARS.PORT);
-  if (value === undefined) {
-    return DEFAULT_PORT;
-  }
-
-  const port = parseInt(value, 10);
-  if (isNaN(port)) {
-    throw new Error(`Port must be a number, got: ${value}`);
-  }
-
-  if (port < 1 || port > 65535) {
-    throw new Error(`Invalid port: ${port}. Must be between 1 and 65535.`);
-  }
-
-  return port;
+function getStringConfig(
+  cliValue: string | undefined,
+  envVar: string,
+  defaultValue: string,
+  validator: (value: string) => string = (value) => value,
+): string {
+  const value = cliValue || Deno.env.get(envVar) || defaultValue;
+  return validator(value);
 }
 
-function getValidatedHostname(cliValue?: string): string {
-  const value = cliValue || Deno.env.get(ENV_VARS.HOSTNAME);
-  if (value === undefined) {
-    return DEFAULT_HOSTNAME;
+function getNumberConfig(
+  cliValue: string | undefined,
+  envVar: string,
+  defaultValue: number,
+  validator: (value: number) => number = (value) => value,
+): number {
+  const value = cliValue || Deno.env.get(envVar) || defaultValue;
+  if (value === undefined) return defaultValue;
+  const parsed = parseInt(value.toString(), 10);
+  if (isNaN(parsed)) {
+    throw new Error(`Must be a number, got: ${value}`);
   }
-
-  const hostname = value.trim();
-  if (hostname === "") {
-    return DEFAULT_HOSTNAME;
-  }
-
-  // Comprehensive hostname validation
-  if (!isValidHostname(hostname)) {
-    throw new Error(
-      `Invalid hostname: ${hostname}. Must be a valid hostname or IP address.`,
-    );
-  }
-
-  return hostname;
+  return validator(parsed);
 }
 
-function getValidatedLogLevel(cliValue?: string): LogLevelKey {
-  const value = cliValue || Deno.env.get(ENV_VARS.LOG);
-  if (value === undefined) {
-    return DEFAULT_LOG_LEVEL;
-  }
-
-  const logLevel = value.trim().toLowerCase();
-  if (logLevel === "") {
-    return DEFAULT_LOG_LEVEL;
-  }
-
-  if (!VALID_LOG_LEVELS.includes(logLevel as LogLevelKey)) {
-    throw new Error(
-      `Invalid log level: ${logLevel}. Must be one of: ${VALID_LOG_LEVELS.join(", ")}.`,
-    );
-  }
-
-  return logLevel as LogLevelKey;
+function getArrayConfig(
+  cliValues: string[] | undefined,
+  envVar: string,
+  defaultValue: string[],
+  validator: (value: string[]) => string[] = (value) => value,
+): string[] {
+  const envValue = Deno.env.get(envVar);
+  const cli = (cliValues || []).map((v) => v.trim()).filter((v) => v !== "");
+  const env = (envValue ? envValue.split(",").map((v) => v.trim()) : []).filter((v) => v !== "");
+  const combined = [...new Set([...cli, ...env])];
+  return validator(combined.length > 0 ? combined : defaultValue);
 }

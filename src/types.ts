@@ -32,6 +32,15 @@ export interface ExpressConfig {
 export interface AppConfig extends ExpressConfig {
   /** The log level */
   log: LogLevelKey;
+
+  /** The custom headers to set */
+  headers: string[];
+
+  /** The allowed origins */
+  allowedOrigins: string[];
+
+  /** The allowed hosts */
+  allowedHosts: string[];
 }
 
 /** Properties for the App constructor */
