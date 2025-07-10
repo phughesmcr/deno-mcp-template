@@ -20,7 +20,7 @@ main.ts       # The main entry point
 src/              
 ├── app/                        
 │   ├── app.ts                  # The main application class
-│   ├── config.ts               # Configuration for the Express and MCP server
+│   ├── config.ts               # Configuration for the App and MCP server
 │   ├── httpServer.ts           # The HTTP server
 │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
 │   ├── logger.ts               # A simple logger that doesn't interfere with stdout
@@ -61,7 +61,7 @@ vendor/
 
 Deno: This project uses Deno exclusively. Follow Deno standards and best practice.
 Imports: Use JSR imports (`jsr:`) or npm imports (`npm:`) with explicit paths. ES module style, include `.ts` extension. Group imports logically.
-Structure: The entrypoint is `main.ts`. Core functionality is in `src/`. `src/app` wraps the MCP server from `src/mcp` in some convenience functions for Express, logging, etc.
+Structure: The entrypoint is `main.ts`. Core functionality is in `src/`. `src/app` wraps the MCP server from `src/mcp` in some convenience functions for serving HTTP, logging, etc.
 TypeScript: Strict type checking, ES modules, explicit return types
 Naming: PascalCase for classes/types, camelCase for functions/variables
 Files: Lowercase with hyphens, test files with .test.ts suffix

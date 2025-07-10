@@ -44,7 +44,7 @@ deno task start
 deno task dev
 ```
 
-Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/constants.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/express.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
+Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/constants.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/httpServer.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
 
 ## Usage
 
@@ -133,7 +133,7 @@ main.ts       # The main entry point
 src/              
 ├── app/                        
 │   ├── app.ts                  # The main application class
-│   ├── config.ts               # Configuration for the Express and MCP server
+│   ├── config.ts               # Configuration for the App and MCP server
 │   ├── httpServer.ts           # The HTTP server
 │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
 │   ├── logger.ts               # A simple logger that doesn't interfere with stdout
@@ -182,7 +182,7 @@ Run `deno task setup` to setup the project for your own use.
 
 ⚠️ Remember to check all files in `static/` as some of these files (e.g. `openapi.yaml`) will need modifying to match your MCP server's capabilities / endpoints.
 
-⚠️ If using `enableDnsRebindingProtection`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `src/constants.ts`. If not, you can disable `enableDnsRebindingProtection` in `src/app/express.ts` (it is enabled by default).
+⚠️ If using `enableDnsRebindingProtection`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `src/constants.ts`. If not, you can disable `enableDnsRebindingProtection` in `src/app/httpServer.ts` (it is enabled by default).
 
 ⚠️ `src/app/inMemoryEventStore.ts` is a simple utility for session resumability. It is **not** suitable for production use.
 
