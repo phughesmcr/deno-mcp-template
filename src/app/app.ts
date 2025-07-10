@@ -1,209 +1,78 @@
 /**
- * @description The main app for the MCP server
+ * @description Simple application orchestrator following Single Responsibility Principle
  * @module
  */
 
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { Application as ExpressApp } from "express";
-import type { Server as NodeHttpServer } from "node:http";
+import type { Hono } from "hono";
 
-import { APP_NAME } from "../constants.ts";
-import type { AppConfig, AppSpec, ExpressResult, TransportRecord } from "../types.ts";
-import { getConfig } from "./config.ts";
-import { createExpressServer } from "./express.ts";
+import type { AppConfig } from "../types.ts";
+import { parseConfig } from "./config.ts";
+import { createHttpServer } from "./httpServer.ts";
 import { Logger } from "./logger.ts";
+import { SignalHandler } from "./signals.ts";
+import { TransportManager } from "./transports.ts";
 
-/** Sets up signal handlers for graceful shutdown */
-function setupSignalHandlers(app: App): void {
-  const exit = async (code: number, msg?: string) => {
-    if (msg) app.alert(msg);
-    await app.stop();
-    Deno.exit(code);
-  };
-
-  // Handle beforeunload event
-  globalThis.addEventListener("beforeunload", async (): Promise<void> => {
-    await app.stop();
-  });
-
-  // Handle uncaught exceptions
-  globalThis.addEventListener("unhandledrejection", async (): Promise<void> => {
-    await exit(1, "Received unhandled rejection, attempting to shut down gracefully...");
-  });
-
-  // Handle SIGINT (Ctrl+C)
-  Deno.addSignalListener("SIGINT", async (): Promise<void> => {
-    await exit(0, "Received SIGINT, shutting down gracefully...");
-  });
-
-  // Handle SIGTERM
-  if (Deno.build.os !== "windows") {
-    Deno.addSignalListener("SIGTERM", async (): Promise<void> => {
-      await exit(0, "Received SIGTERM, shutting down gracefully...");
-    });
-  }
-}
-
-class App extends Logger {
-  /** The Express app for HTTP */
-  #expressApp: ExpressApp;
-
-  /** The Express server or null if not running */
-  #expressServer: NodeHttpServer | null = null;
-
-  /** The configuration for the app */
-  #config: AppConfig;
-
-  /** Whether the server is running */
+export class Application extends Logger {
   #running = false;
 
-  /** The MCP server */
-  #server: Server;
+  readonly transports: TransportManager;
+  readonly config: AppConfig;
 
-  /** The HTTP transports */
-  #httpTransports: TransportRecord;
-
-  /** The STDIO transport */
-  #stdioTransport: StdioServerTransport | null = null;
-
-  /** The Express server's allowed hosts */
-  readonly #allowedHosts: string[];
-
-  /** The Express server's allowed origins */
-  readonly #allowedOrigins: string[];
-
-  /**
-   * Creates a new App instance
-   * @param spec - properties to construct the app with
-   */
-  constructor(spec: AppSpec) {
-    const { express, config, server } = spec;
-    super(server, config.log);
-    this.#server = server;
-    this.#config = config;
-    this.#httpTransports = express.transports;
-    this.#expressApp = express.app;
-    this.#allowedHosts = express.allowedHosts;
-    this.#allowedOrigins = express.allowedOrigins;
+  constructor(
+    mcp: Server,
+    transports: TransportManager,
+    config: AppConfig,
+  ) {
+    super(mcp, config.log);
+    this.transports = transports;
+    this.config = config;
   }
 
-  get config() {
-    return { ...this.#config };
-  }
-
-  get allowedHosts() {
-    return [...this.#allowedHosts];
-  }
-
-  get allowedOrigins() {
-    return [...this.#allowedOrigins];
-  }
-
-  /** Starts the server */
+  /** Start all services */
   async start(): Promise<void> {
     if (this.#running) return;
-
-    // Start STDIO transport
-    this.#stdioTransport = new StdioServerTransport();
-    await this.#server.connect(this.#stdioTransport);
-    this.info(`MCP server ${APP_NAME} is listening on STDIO.`);
-
-    // Start HTTP server
-    const { hostname, port } = this.#config;
-    this.#expressServer = this.#expressApp.listen(port, hostname, () => {
-      this.info(`MCP server ${APP_NAME} is listening on ${hostname}:${port}.`);
-    });
-
+    await this.transports.stdio.start();
+    await this.transports.http.start();
     this.#running = true;
   }
 
-  /** Stops the server */
+  /** Stop all services gracefully */
   async stop(): Promise<void> {
     if (!this.#running) return;
-
-    // Close all session transports
-    let errorCount = 0;
-    let successCount = 0;
-    const closeTransport = async (transport: StreamableHTTPServerTransport) => {
-      try {
-        await transport?.close();
-        successCount++;
-      } catch (error) {
-        this.error({
-          data: {
-            message: `Error closing transport: ${
-              (error instanceof Error) ? error.message : String(error)
-            }`,
-            details: error,
-          },
-        });
-        errorCount++;
-      }
-    };
-    await Promise.allSettled(Object.values(this.#httpTransports).map(closeTransport));
-    this.info(`Closed ${successCount} transports, ${errorCount} errors`);
-
-    // Close STDIO transport
-    if (this.#stdioTransport) {
-      try {
-        await this.#stdioTransport.close();
-        this.#stdioTransport = null;
-        this.info("Closed STDIO transport");
-      } catch (error) {
-        this.error({
-          data: {
-            error: `Error closing transport: ${
-              (error instanceof Error) ? error.message : String(error)
-            }`,
-            details: error,
-          },
-        });
-      }
-    }
-
-    // Close Express server
-    if (this.#expressServer) {
-      try {
-        this.#expressServer.close();
-        this.#expressServer = null;
-        this.info("Closed Express server");
-      } catch (error) {
-        this.error({
-          data: {
-            error: `Error closing Express server: ${
-              (error instanceof Error) ? error.message : String(error)
-            }`,
-            details: error,
-          },
-        });
-      }
-    }
-
+    await this.transports.stdio.stop();
+    await this.transports.http.stop();
     this.#running = false;
+  }
+
+  get isRunning(): boolean {
+    return this.#running;
   }
 }
 
 /**
- * Factory function for creating an App instance to avoid throwables in the constructor
+ * Factory function for creating an Application instance with dependency injection
  * @param server - The MCP server
- * @returns The App instance
+ * @returns The Application instance
  */
-export function createApp(server: Server): App {
-  // Construct the config
-  const config: AppConfig = getConfig();
+export function createApp(server: Server): Application {
+  // Load configuration
+  const config: AppConfig = parseConfig();
 
-  // Create HTTP server and get transports
-  const express: ExpressResult = createExpressServer(config, server);
+  // Create STDIO and HTTP transport manager
+  const transports = new TransportManager(server, config);
 
-  // Create the app
-  const app = new App({ config, express, server });
+  // Create Hono HTTP server
+  const http: Hono = createHttpServer(server, transports, config);
 
-  // Setup signal handlers
-  setupSignalHandlers(app);
+  // Set the fetch handler for the HTTP transport manager (called by Deno.serve)
+  transports.http.setFetch(http.fetch.bind(http));
+
+  // Create application instance
+  const app = new Application(server, transports, config);
+
+  // Create signal handler with app's shutdown method
+  new SignalHandler(() => app.stop());
 
   return app;
 }
-
-export type { App };

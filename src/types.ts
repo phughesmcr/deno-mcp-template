@@ -1,5 +1,5 @@
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+
 import type {
   CallToolResult,
   GetPromptResult,
@@ -10,8 +10,6 @@ import type {
   ResourceTemplate,
   Tool,
 } from "@vendor/schema";
-import type { Application, Request, Response } from "express";
-
 import type { LOG_LEVEL } from "./constants.ts";
 
 /** An object that maps session IDs to transports */
@@ -20,18 +18,12 @@ export interface TransportRecord {
 }
 
 /** Properties for the Express server */
-export interface ExpressConfig {
+export interface HttpServerConfig {
   /** The hostname to listen on */
   hostname: string;
 
   /** The port to listen on */
   port: number;
-}
-
-/** Public app config */
-export interface AppConfig extends ExpressConfig {
-  /** The log level */
-  log: LogLevelKey;
 
   /** The custom headers to set */
   headers: string[];
@@ -43,31 +35,10 @@ export interface AppConfig extends ExpressConfig {
   allowedHosts: string[];
 }
 
-/** Properties for the App constructor */
-export interface AppSpec {
-  /** The configuration for the app */
-  config: AppConfig;
-
-  /** The Express app */
-  express: ExpressResult;
-
-  /** The MCP server */
-  server: Server;
-}
-
-/** Result from the Express server */
-export interface ExpressResult {
-  /** The Express app */
-  app: Application;
-
-  /** The session transports */
-  transports: TransportRecord;
-
-  /** The allowed hosts */
-  allowedHosts: string[];
-
-  /** The allowed origins */
-  allowedOrigins: string[];
+/** Public app config */
+export interface AppConfig extends HttpServerConfig {
+  /** The log level */
+  log: LogLevelKey;
 }
 
 /** A handler function for Express routes */

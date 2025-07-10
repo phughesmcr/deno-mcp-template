@@ -15,6 +15,7 @@ import {
   DEFAULT_LOG_LEVEL,
   DEFAULT_PORT,
   ENV_VARS,
+  HEADERS,
 } from "../constants.ts";
 import type { AppConfig, LogLevelKey } from "../types.ts";
 import {
@@ -27,7 +28,9 @@ import {
 } from "../utils.ts";
 
 // Help text template function to keep showHelp() simple
-function getHelpText(usage: string): string {
+function getHelpText(): string {
+  const usage = Deno.build.standalone ? (import.meta.filename || APP_NAME) : "deno task start";
+
   return `
 Usage: ${usage} [OPTIONS]
 
@@ -37,7 +40,7 @@ $ ${usage} -p 3001 -h localhost -l debug
 
 $ ${usage} --origin "https://example.com" --origin "https://localhost:3001" --host "example.com" --host "localhost"
 
-$ ${usage} --header "Authorization: Bearer <token>"
+$ ${usage} --header "Authorization: Bearer <token>" --header "x-api-key: <key>"
 
 Options:
   -p,  --port <PORT>                Port to listen on (default: ${DEFAULT_PORT})
@@ -61,57 +64,13 @@ Note: CLI flags take precedence over environment variables.
 `;
 }
 
-/**
- * Validates and returns the application configuration
- * @note CLI flags take precedence over environment variables
- * @returns The validated configuration
- */
-export function getConfig(): AppConfig {
-  const args = parseArgs(Deno.args, CLI_ARGS);
-
-  if (args.help) {
-    showHelp();
-    Deno.exit(0);
-  }
-
-  if (args.version) {
-    showVersion();
-    Deno.exit(0);
-  }
-
-  return {
-    allowedOrigins: getArrayConfig(
-      args.origin,
-      ENV_VARS.ALLOWED_ORIGINS,
-      ALLOWED_ORIGINS,
-      validateOrigins,
-    ),
-    allowedHosts: getArrayConfig(args.host, ENV_VARS.ALLOWED_HOSTS, ALLOWED_HOSTS, validateHosts),
-    headers: getArrayConfig(args.header, ENV_VARS.HEADERS, [], validateHeaders),
-    hostname: getStringConfig(args.hostname, ENV_VARS.HOSTNAME, DEFAULT_HOSTNAME, validateHostname),
-    log: getStringConfig(
-      args.log,
-      ENV_VARS.LOG,
-      DEFAULT_LOG_LEVEL,
-      validateLogLevel,
-    ) as LogLevelKey,
-    port: getNumberConfig(
-      args.port ? args.port.toString() : undefined,
-      ENV_VARS.PORT,
-      DEFAULT_PORT,
-      validatePort,
-    ),
-  };
-}
-
 function showVersion(): void {
   console.error(`${APP_NAME} v${APP_VERSION}`);
 }
 
 function showHelp(): void {
-  const usage = Deno.build.standalone ? (import.meta.filename || APP_NAME) : "deno task start";
   showVersion();
-  console.error(getHelpText(usage));
+  console.error(getHelpText());
 }
 
 function getStringConfig(
@@ -150,4 +109,89 @@ function getArrayConfig(
   const env = (envValue ? envValue.split(",").map((v) => v.trim()) : []).filter((v) => v !== "");
   const combined = [...new Set([...cli, ...env])];
   return validator(combined.length > 0 ? combined : defaultValue);
+}
+
+/**
+ * Validates and returns the application configuration
+ * @note CLI flags take precedence over environment variables
+ * @returns The validated configuration
+ */
+export function parseConfig(): AppConfig {
+  const args = parseArgs(Deno.args, CLI_ARGS);
+
+  if (args.help) {
+    showHelp();
+    Deno.exit(0);
+  }
+
+  if (args.version) {
+    showVersion();
+    Deno.exit(0);
+  }
+
+  const res = {
+    allowedOrigins: getArrayConfig(
+      args.origin,
+      ENV_VARS.ALLOWED_ORIGINS,
+      ALLOWED_ORIGINS,
+      validateOrigins,
+    ),
+    allowedHosts: getArrayConfig(
+      args.host,
+      ENV_VARS.ALLOWED_HOSTS,
+      ALLOWED_HOSTS,
+      validateHosts,
+    ),
+    headers: getArrayConfig(
+      args.header,
+      ENV_VARS.HEADERS,
+      HEADERS,
+      validateHeaders,
+    ),
+    hostname: getStringConfig(
+      args.hostname,
+      ENV_VARS.HOSTNAME,
+      DEFAULT_HOSTNAME,
+      validateHostname,
+    ),
+    log: getStringConfig(
+      args.log,
+      ENV_VARS.LOG,
+      DEFAULT_LOG_LEVEL,
+      validateLogLevel,
+    ) as LogLevelKey,
+    port: getNumberConfig(
+      args.port ? args.port.toString() : undefined,
+      ENV_VARS.PORT,
+      DEFAULT_PORT,
+      validatePort,
+    ),
+  };
+
+  // Setup allowed hosts and origins for MCP DNS rebinding protection
+  const allowedHosts = [
+    ...new Set([
+      ...ALLOWED_HOSTS,
+      res.hostname,
+      `${res.hostname}:${res.port}`,
+    ]),
+  ];
+
+  const allowedOrigins = [
+    ...new Set([
+      ...ALLOWED_ORIGINS,
+      res.hostname,
+      `${res.hostname}:${res.port}`,
+      `http://${res.hostname}`,
+      `https://${res.hostname}`,
+      `http://${res.hostname}:${res.port}`,
+      `https://${res.hostname}:${res.port}`,
+    ]),
+  ];
+
+  return {
+    ...res,
+    allowedHosts,
+    allowedOrigins,
+  };
 }
