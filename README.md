@@ -5,10 +5,13 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/deploy.yml?label=deploy)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/publish.yml?label=publish)
 
-![License](https://img.shields.io/github/license/phughesmcr/deno-mcp-template)
 ![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
 ![Repo Size](https://img.shields.io/github/languages/code-size/phughesmcr/deno-mcp-template)
+
 ![Sponsor](https://img.shields.io/github/sponsors/phughesmcr)
+![License](https://img.shields.io/github/license/phughesmcr/deno-mcp-template)
+
 
 <div align="center">
     <img src="static/banner_480.png" alt="Repo Logo - a long-necked orange dinosaur walks in-front of a cliff-face with the letters M C P carved into it" width="320" />
@@ -18,11 +21,37 @@ This is a simple but comprehensive template for writing MCP servers using [Deno]
 
 Using Deno allows you to publish your MCP server using [JSR.io](https://jsr.io), compile it to a standalone binary, or host it on [Deno Deploy](https://deno.com/deploy).
 
-The repo has an `src/app` component which wraps the MCP server in some convenience functions for serving HTTP and STDIO routes and transports, logging, etc. So you don't have to worry about setting up best practices every time you start a new project, the "app" is designed to need only a few changes to get your MCP server up and running (see ⚠️ below).
+## What's Inside?
 
-The MCP server itself is in `src/mcp/`. It currently implements prompts, resources, and tools. These are mostly the official examples from the [MCP Documentation](https://modelcontextprotocol.io/), giving a good starting point for your own features.
+### MCP Server
 
-The example server also uses [Deno KV](https://deno.com/kv) to implement a simple knowledge graph tool (see `src/mcp/tools/knowledgeGraph` for the implementation).
+The MCP server is in `src/mcp/`. It currently implements prompts, resources (including dynamic resources), and tools. These are mostly the official examples from the [MCP Documentation](https://modelcontextprotocol.io/), giving a good starting point for your own features.
+
+The main tool example is the [knowledge graph memory server](https://github.com/modelcontextprotocol/servers/tree/main/src/memory) example from the [MCP Documentation](https://modelcontextprotocol.io/), implemented using [Deno KV](https://deno.com/kv) for storage.
+
+### App
+
+The "app" component, found in `src/app/`, wraps the MCP server in some convenience functions for serving HTTP and STDIO routes, as well as transport management, logging, etc. 
+
+So you don't have to worry about setting up best practices every time you start a new project, the "app" is designed to need only a few changes to get your MCP server up and running (see ⚠️ below).
+
+ℹ️ You can control the log level using the `MCP_LOG_LEVEL` environment variable or by passing `--log-level` to the server. E.g. `--log-level debug`.
+
+#### HTTP Server
+
+The app uses `Deno.serve` to start an HTTP server built with [Hono](https://hono.dev/). The server features comprehensive middleware including rate limiting, CORS protection, CSRF protection, security headers, request timeouts, and session management. DNS rebinding protection is also built in and enabled by default.
+
+ℹ️ For DNS rebinding protection, you can set the `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` variables in `src/constants.ts`. 
+
+⚠️ If no allowed hosts or origins are set, the server will allow all origins and hosts.
+
+ℹ️ You can disable the HTTP server by setting `MCP_NO_HTTP=true` in your `.env` file, or by passing `--no-http` to the server.
+
+#### STDIO Server
+
+By default the app will automatically start listening for STDIO connections.
+
+ℹ️ You can disable the STDIO transport by setting `MCP_NO_STDIO=true` in your `.env` file, or by passing `--no-stdio` to the server.
 
 ## Quick Start
 
@@ -46,11 +75,9 @@ deno task dev
 
 Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/constants.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/httpServer.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
 
-## Usage
+## Using your MCP server
 
 Replace the server name, and the package location in the following examples to correspond to your own MCP server.
-
-You can set HOSTNAME and PORT in a `.env` if desired, or by passing `--hostname` and `--port` to the server.
 
 These example are for Anthropic's products, but will work with other services that support MCP (e.g. Cursor, LMStudio, etc.)
 
@@ -66,7 +93,7 @@ These example are for Anthropic's products, but will work with other services th
 }
 ```
 
-### `claude-desktop-config.json` manually using the SSE/HTTP endpoint
+### `claude-desktop-config.json` using the HTTP server
 
 Start the server using `deno task start`.
 
@@ -131,15 +158,17 @@ The main project files are:
 deno.json     # Project configuration
 main.ts       # The main entry point
 src/              
-├── app/                        
+├── app/    
+│   ├── http/
+│   │   ├── manager.ts            # The HTTP transport manager
+│   │   └── server.ts             # The HTTP server
 │   ├── app.ts                  # The main application class
 │   ├── config.ts               # Configuration for the App and MCP server
-│   ├── httpServer.ts           # The HTTP server
 │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
 │   ├── logger.ts               # A simple logger that doesn't interfere with stdout
 │   ├── middleware.ts           # Middleware for the server (tool-call validation, etc.)
 │   ├── signals.ts              # Signal handling for the server
-│   └── transports.ts           # The transport manager for the server (HTTP and STDIO)
+│   └── stdio.ts                # The STDIO transport manager
 ├── mcp/ 
 │   ├── prompts/                             
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
@@ -155,6 +184,7 @@ src/
 │   │   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
 │   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
 │   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
+│   │   │   ├── sanitization.ts             # Input sanitization utilities for knowledge graph data
 │   │   │   └── schemas.ts                  # Zod schemas for knowledge graph tools
 │   │   └── mod.ts                          # Provides a single point of export for all the MCP tools
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
@@ -170,11 +200,26 @@ vendor/
 └── schema.ts                   # The 2025-06-18 MCP schema from Anthropic
 ```
 
+## Config
+
+| Environment Variable | Flag        | Default     | Description |
+| -------------------- | ----------- | ----------- | ----------- |
+| MCP_LOG_LEVEL        | -l          | "info"      | The log level to use |
+| MCP_HTTP_HOSTNAME    | -n          | "localhost" | The hostname to listen on for the HTTP server |
+| MCP_HTTP_PORT        | -p          | "3001"      | The port to listen on for the HTTP server |
+| MCP_HEADERS          | -H          | ""          | The headers to set for the HTTP server (CLI flag is a collection) |
+| MCP_ALLOW_ORIGINS    | --origin    | "*"         | The allowed origins for the HTTP server (CLI flag is a collection) |
+| MCP_ALLOW_HOSTS      | --host      | "localhost" | The allowed hosts for the HTTP server (CLI flag is a collection) |
+| MCP_NO_HTTP          | --no-http   | `false`     | Disable the HTTP server |
+| MCP_NO_STDIO         | --no-stdio  | `false`     | Disable the STDIO server |
+
+⚠️ CLI flags take precedence over environment variables, except in collections (e.g. `--H`, `--origin` and `--host`), where the two are combined.
+
 ## Development
 
 Run `deno task setup` to setup the project for your own use.
 
-‼️ By default the knowledge graph tool calls `await Deno.openKv()` - all KV functionality will be shared across users who access your server through `"command": "deno run -A --unstable-kv jsr:@your-scope/your-package`. You probably don't want this in production. Make sure user's can only read what they should have access to!
+‼️ By default the knowledge graph tool calls `await Deno.openKv()` - all KV functionality will be shared across users who access your server. You probably don't want this in production. Make sure user's can only read what they should have access to!
 
 ⚠️ You must grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information. (The setup task will do this for you.)
 

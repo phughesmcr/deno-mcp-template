@@ -116,13 +116,15 @@ export const HEADER_KEYS = {
 
 export const CLI_ARGS = {
   string: ["port", "hostname", "log", "header", "origin", "host"],
-  boolean: ["help", "version"],
+  boolean: ["help", "version", "no-http", "no-stdio"],
   collect: ["origin", "host", "header"],
   alias: {
-    "hostname": "h",
+    "help": "h",
+    "header": "H",
+    "hostname": "n",
     "log": "l",
     "port": "p",
-    "version": "V",
+    "version": "v",
   },
   default: {
     "help": false,
@@ -130,6 +132,8 @@ export const CLI_ARGS = {
     "log": DEFAULT_LOG_LEVEL,
     "port": DEFAULT_PORT,
     "version": false,
+    "no-http": false,
+    "no-stdio": false,
   },
 } as const;
 
@@ -140,6 +144,8 @@ export const ENV_VARS = {
   ALLOWED_ORIGINS: "MCP_ALLOWED_ORIGINS",
   ALLOWED_HOSTS: "MCP_ALLOWED_HOSTS",
   HEADERS: "MCP_HEADERS",
+  NO_HTTP: "MCP_NO_HTTP",
+  NO_STDIO: "MCP_NO_STDIO",
 } as const;
 
 export const HTTP_STATUS = {
@@ -186,21 +192,23 @@ Usage: ${usage} [OPTIONS]
 
 Examples: 
 
-$ ${usage} -p 3001 -h localhost -l debug
+$ ${usage} -p 3001 -n localhost -l debug
 
 $ ${usage} --origin "https://example.com" --origin "https://localhost:3001" --host "example.com" --host "localhost"
 
-$ ${usage} --header "Authorization: Bearer <token>" --header "x-api-key: <key>"
+$ ${usage} --header "Authorization: Bearer <token>" -H "x-api-key: <key>"
 
 Options:
   -p,  --port <PORT>                Port to listen on (default: ${DEFAULT_PORT})
-  -h,  --hostname <HOSTNAME>        Hostname to bind to (default: ${DEFAULT_HOSTNAME})
+  -n,  --hostname <HOSTNAME>        Hostname to bind to (default: ${DEFAULT_HOSTNAME})
   -l,  --log <LEVEL>                Log level (default: ${DEFAULT_LOG_LEVEL})
-       --header [<HEADERS>]         Custom headers to set
+  -H,  --header [<HEADER>]         Custom headers to set
        --origin [<ORIGIN>]          Allow an origin
        --host [<HOST>]              Allow a host
-       --help                       Show this help message
-  -V,  --version                    Show version information
+       --no-http                    Disable the HTTP server
+       --no-stdio                   Disable the STDIO server
+  -h,  --help                       Show this help message
+  -v,  --version                    Show version information
 
 Environment Variables:
   MCP_PORT <number>                  Port to listen on (default: ${DEFAULT_PORT})
@@ -209,6 +217,8 @@ Environment Variables:
   MCP_ALLOWED_ORIGINS <string>       Comma-separated list of allowed origins
   MCP_ALLOWED_HOSTS <string>         Comma-separated list of allowed hosts
   MCP_HEADERS <string>               Comma-separated list of custom headers to set
+  MCP_NO_HTTP <boolean>              Disable the HTTP server
+  MCP_NO_STDIO <boolean>             Disable the STDIO server
 
 Note: CLI flags take precedence over environment variables.
 `;

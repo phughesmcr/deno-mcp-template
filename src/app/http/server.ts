@@ -9,6 +9,7 @@ import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 
+import type { AppConfig } from "$/types.ts";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import {
   ALLOWED_HEADERS,
@@ -18,16 +19,16 @@ import {
   HEADER_KEYS,
   HTTP_STATUS,
   RPC_ERROR_CODES,
-} from "../constants.ts";
-import type { HttpServerConfig } from "../types.ts";
-import { createRPCError } from "../utils.ts";
-import type { TransportManager } from "./transports.ts";
+} from "../../constants.ts";
+import { createRPCError } from "../../utils.ts";
+import { HttpServerManager } from "./manager.ts";
 
 export function createHttpServer(
   mcp: Server,
-  transports: TransportManager,
-  config: HttpServerConfig,
-): Hono {
+  config: AppConfig,
+): HttpServerManager {
+  const transports = new HttpServerManager(config);
+
   const { allowedOrigins } = config;
 
   const app = new Hono();
@@ -98,7 +99,7 @@ export function createHttpServer(
       const sessionId = c.req.header(HEADER_KEYS.SESSION_ID);
 
       // Check if we have a valid initialize request before reading the body
-      let transport = transports.http.get(sessionId);
+      let transport = transports.get(sessionId);
 
       if (!transport) {
         // For new sessions, we need to check if this is an initialize request
@@ -106,7 +107,7 @@ export function createHttpServer(
         const jsonBody = await c.req.json();
 
         if (isInitializeRequest(jsonBody)) {
-          transport = transports.http.create();
+          transport = transports.create();
         } else {
           const msg = !sessionId ?
             "No valid session ID provided" :
@@ -171,7 +172,7 @@ export function createHttpServer(
         );
       }
 
-      const transport = transports.http.get(sessionId);
+      const transport = transports.get(sessionId);
       if (!transport) {
         return c.json(
           createRPCError(
@@ -215,5 +216,8 @@ export function createHttpServer(
   // Fallback Route - serve llms.txt for any unmatched routes
   app.get("*", serveStatic({ path: "./static/.well-known/llms.txt" }));
 
-  return app;
+  // Couple Deno.serve to the Hono HTTP server
+  transports.setFetch(app.fetch.bind(app));
+
+  return transports;
 }

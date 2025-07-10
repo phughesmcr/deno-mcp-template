@@ -1,47 +1,8 @@
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
-import { APP_NAME } from "../constants.ts";
-import type { AppConfig } from "../types.ts";
-import { InMemoryEventStore } from "./inMemoryEventStore.ts";
-
-class StdioTransportManager {
-  #server: Server;
-  #transport: StdioServerTransport | null = null;
-  #running = false;
-
-  constructor(server: Server) {
-    this.#server = server;
-  }
-
-  async start(): Promise<void> {
-    if (this.#running) return;
-
-    this.#transport = new StdioServerTransport();
-    await this.#server.connect(this.#transport);
-    console.error(`${APP_NAME} listening on STDIO`);
-    this.#running = true;
-  }
-
-  async stop(): Promise<void> {
-    if (!this.#running || !this.#transport) return;
-
-    try {
-      await this.#transport.close();
-      console.error(`${APP_NAME} STDIO transport closed`);
-    } catch (error) {
-      console.error(`Error closing ${APP_NAME} STDIO transport:`, error);
-    } finally {
-      this.#transport = null;
-      this.#running = false;
-    }
-  }
-
-  get isRunning(): boolean {
-    return this.#running;
-  }
-}
+import { APP_NAME } from "../../constants.ts";
+import type { AppConfig } from "../../types.ts";
+import { InMemoryEventStore } from "../inMemoryEventStore.ts";
 
 class HttpTransportManager {
   #transports: Record<string, StreamableHTTPServerTransport> = {};
@@ -123,12 +84,14 @@ class HttpTransportManager {
   }
 }
 
-class HttpServerManager {
+export class HttpServerManager {
   #transports: HttpTransportManager;
   #fetch: Deno.ServeHandler | null = null;
   #config: AppConfig;
   #server: Deno.HttpServer | null = null;
   #running = false;
+
+  readonly enabled: boolean;
 
   // Delegated transport methods
   create: () => StreamableHTTPServerTransport;
@@ -140,6 +103,7 @@ class HttpServerManager {
   constructor(config: AppConfig) {
     this.#config = config;
     this.#transports = new HttpTransportManager(config.allowedHosts, config.allowedOrigins);
+    this.enabled = !config.noHttp;
     this.create = this.#transports.create.bind(this.#transports);
     this.destroy = this.#transports.destroy.bind(this.#transports);
     this.has = this.#transports.has.bind(this.#transports);
@@ -158,7 +122,7 @@ class HttpServerManager {
   }
 
   async start(): Promise<void> {
-    if (this.#running || !this.#fetch) return;
+    if (this.#running || !this.#fetch || !this.enabled) return;
     const { hostname, port } = this.#config;
     this.#server = Deno.serve({
       hostname,
@@ -178,15 +142,5 @@ class HttpServerManager {
 
   get isRunning(): boolean {
     return this.#running;
-  }
-}
-
-export class TransportManager {
-  readonly http: HttpServerManager;
-  readonly stdio: StdioTransportManager;
-
-  constructor(server: Server, config: AppConfig) {
-    this.http = new HttpServerManager(config);
-    this.stdio = new StdioTransportManager(server);
   }
 }

@@ -77,6 +77,16 @@ export function parseConfig(): AppConfig {
       DEFAULT_LOG_LEVEL,
       validateLogLevel,
     ) as LogLevelKey,
+    noHttp: getBooleanConfig(
+      args["no-http"],
+      ENV_VARS.NO_HTTP,
+      false,
+    ),
+    noStdio: getBooleanConfig(
+      args["no-stdio"],
+      ENV_VARS.NO_STDIO,
+      false,
+    ),
     port: getNumberConfig(
       args.port ? args.port.toString() : undefined,
       ENV_VARS.PORT,
@@ -120,6 +130,14 @@ function showVersion(): void {
 function showHelp(): void {
   showVersion();
   console.error(helpText);
+}
+
+function getBooleanConfig(
+  cliValue: boolean,
+  envVar: string,
+  defaultValue: boolean,
+): boolean {
+  return !!(cliValue || Deno.env.get(envVar) || defaultValue);
 }
 
 function getStringConfig(

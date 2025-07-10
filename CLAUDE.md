@@ -14,15 +14,17 @@ Format, lint, and check code: `deno task prep`
 deno.json     # Project configuration
 main.ts       # The main entry point
 src/              
-├── app/                        
+├── app/    
+│   ├── http/
+│   │   ├── manager.ts            # The HTTP transport manager
+│   │   └── server.ts             # The HTTP server
 │   ├── app.ts                  # The main application class
 │   ├── config.ts               # Configuration for the App and MCP server
-│   ├── httpServer.ts           # The HTTP server
 │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
 │   ├── logger.ts               # A simple logger that doesn't interfere with stdout
 │   ├── middleware.ts           # Middleware for the server (tool-call validation, etc.)
 │   ├── signals.ts              # Signal handling for the server
-│   └── transports.ts           # The transport manager for the server (HTTP and STDIO)
+│   └── stdio.ts                # The STDIO transport manager
 ├── mcp/ 
 │   ├── prompts/                             
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
@@ -38,6 +40,7 @@ src/
 │   │   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
 │   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
 │   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
+│   │   │   ├── sanitization.ts             # Input sanitization utilities for knowledge graph data
 │   │   │   └── schemas.ts                  # Zod schemas for knowledge graph tools
 │   │   └── mod.ts                          # Provides a single point of export for all the MCP tools
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals

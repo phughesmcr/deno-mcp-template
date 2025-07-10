@@ -47,7 +47,6 @@
     "compilerOptions": {
         "strict": true,
         "erasableSyntaxOnly": true,
-        "isolatedDeclarations": true,
         "allowUnreachableCode": false,
         "allowUnusedLabels": false,
         "noImplicitAny": true,

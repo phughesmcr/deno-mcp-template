@@ -39,6 +39,12 @@ export interface HttpServerConfig {
 export interface AppConfig extends HttpServerConfig {
   /** The log level */
   log: LogLevelKey;
+
+  /** Whether to disable the HTTP server */
+  noHttp: boolean;
+
+  /** Whether to disable the STDIO server */
+  noStdio: boolean;
 }
 
 /** An event in the MCP event stream */

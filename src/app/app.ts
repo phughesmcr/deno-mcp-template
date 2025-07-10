@@ -4,44 +4,47 @@
  */
 
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import type { Hono } from "hono";
 
 import type { AppConfig } from "../types.ts";
 import { parseConfig } from "./config.ts";
-import { createHttpServer } from "./httpServer.ts";
+import type { HttpServerManager } from "./http/manager.ts";
+import { createHttpServer } from "./http/server.ts";
 import { Logger } from "./logger.ts";
 import { SignalHandler } from "./signals.ts";
-import { TransportManager } from "./transports.ts";
+import { StdioTransportManager } from "./stdio.ts";
 
 class Application extends Logger {
   #running = false;
+  #http: HttpServerManager;
+  #stdio: StdioTransportManager;
 
-  readonly transports: TransportManager;
-  readonly config: AppConfig;
+  readonly config: Readonly<AppConfig>;
 
   constructor(
     mcp: Server,
-    transports: TransportManager,
+    http: HttpServerManager,
+    stdio: StdioTransportManager,
     config: AppConfig,
   ) {
     super(mcp, config.log);
-    this.transports = transports;
     this.config = config;
+    this.#http = http;
+    this.#stdio = stdio;
   }
 
   /** Start all services */
   async start(): Promise<void> {
     if (this.#running) return;
-    await this.transports.stdio.start();
-    await this.transports.http.start();
+    if (!this.config.noStdio) await this.#stdio.start();
+    if (!this.config.noHttp) await this.#http.start();
     this.#running = true;
   }
 
   /** Stop all services gracefully */
   async stop(): Promise<void> {
     if (!this.#running) return;
-    await this.transports.stdio.stop();
-    await this.transports.http.stop();
+    await this.#stdio.stop();
+    await this.#http.stop();
     this.#running = false;
   }
 
@@ -59,19 +62,16 @@ export function createApp(server: Server): Application {
   // Load configuration
   const config: AppConfig = parseConfig();
 
-  // Create STDIO and HTTP transport manager
-  const transports = new TransportManager(server, config);
+  // Create HTTP transport manager
+  const http: HttpServerManager = createHttpServer(server, config);
 
-  // Create Hono HTTP server
-  const http: Hono = createHttpServer(server, transports, config);
-
-  // Set the fetch handler for the HTTP transport manager (called by Deno.serve)
-  transports.http.setFetch(http.fetch.bind(http));
+  // Create STDIO transport manager
+  const stdio = new StdioTransportManager(server, config);
 
   // Create application instance
-  const app = new Application(server, transports, config);
+  const app = new Application(server, http, stdio, config);
 
-  // Create signal handler with app's shutdown method
+  // Handle shutdown signals gracefully
   new SignalHandler(() => app.stop());
 
   return app;
