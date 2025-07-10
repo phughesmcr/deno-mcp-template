@@ -13,10 +13,12 @@
         "editor.defaultFormatter": "vscode.json-language-features"
     },
     "cSpell.words": [
+        "CODEOWNERS",
         "cursorignore",
         "finetune",
         "llms",
         "modelcontextprotocol",
+        "msvc",
         "onsessioninitialized",
         "resumability",
         "Streamable",
