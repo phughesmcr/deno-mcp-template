@@ -176,3 +176,40 @@ export const LOG_LEVEL = {
 } as const;
 
 export const VALID_LOG_LEVELS = Object.keys(LOG_LEVEL) as (keyof typeof LOG_LEVEL)[];
+
+// Help text template function to keep showHelp() simple
+export const helpText: string = (() => {
+  const usage = Deno.build.standalone ? (import.meta.filename || APP_NAME) : "deno task start";
+
+  return `
+Usage: ${usage} [OPTIONS]
+
+Examples: 
+
+$ ${usage} -p 3001 -h localhost -l debug
+
+$ ${usage} --origin "https://example.com" --origin "https://localhost:3001" --host "example.com" --host "localhost"
+
+$ ${usage} --header "Authorization: Bearer <token>" --header "x-api-key: <key>"
+
+Options:
+  -p,  --port <PORT>                Port to listen on (default: ${DEFAULT_PORT})
+  -h,  --hostname <HOSTNAME>        Hostname to bind to (default: ${DEFAULT_HOSTNAME})
+  -l,  --log <LEVEL>                Log level (default: ${DEFAULT_LOG_LEVEL})
+       --header [<HEADERS>]         Custom headers to set
+       --origin [<ORIGIN>]          Allow an origin
+       --host [<HOST>]              Allow a host
+       --help                       Show this help message
+  -V,  --version                    Show version information
+
+Environment Variables:
+  MCP_PORT <number>                  Port to listen on (default: ${DEFAULT_PORT})
+  MCP_HOSTNAME <string>              Hostname to bind to (default: ${DEFAULT_HOSTNAME})
+  MCP_LOG_LEVEL <string>             Log level (default: ${DEFAULT_LOG_LEVEL})
+  MCP_ALLOWED_ORIGINS <string>       Comma-separated list of allowed origins
+  MCP_ALLOWED_HOSTS <string>         Comma-separated list of allowed hosts
+  MCP_HEADERS <string>               Comma-separated list of custom headers to set
+
+Note: CLI flags take precedence over environment variables.
+`;
+})();

@@ -21,10 +21,12 @@ src/
 ├── app/                        
 │   ├── app.ts                  # The main application class
 │   ├── config.ts               # Configuration for the Express and MCP server
-│   ├── express.ts              # The Express server
+│   ├── httpServer.ts           # The HTTP server
 │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
 │   ├── logger.ts               # A simple logger that doesn't interfere with stdout
-│   └── middleware.ts           # Middleware for the server (tool-call validation, etc.)
+│   ├── middleware.ts           # Middleware for the server (tool-call validation, etc.)
+│   ├── signals.ts              # Signal handling for the server
+│   └── transports.ts           # The transport manager for the server (HTTP and STDIO)
 ├── mcp/ 
 │   ├── prompts/                             
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
@@ -43,9 +45,10 @@ src/
 │   │   │   └── schemas.ts                  # Zod schemas for knowledge graph tools
 │   │   └── mod.ts                          # Provides a single point of export for all the MCP tools
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
-├── constants.ts                # Shared constants for the server and application
-├── types.ts                    # Shared types for the MCP server
-└── utils.ts                    # Shared utility functions for the MCP server
+├── constants.ts                # Shared constants
+├── schemas.ts                  # Shared Zod schemas
+├── types.ts                    # Shared types
+└── utils.ts                    # Shared utility
 static/             
 ├── .well-known/    
 │   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
@@ -78,9 +81,3 @@ Error Handling: Provide detailed error messages but avoid exposing sensitive inf
 Tool Implementation: Follow the MCP schema for defining tool schemas and handlers
 
 ## Docs
-
-[MCP llms.txt]: https://modelcontextprotocol.io/llms-full.txt
-
-[MCP Typescript SDK]: https://github.com/modelcontextprotocol/typescript-sdk
-
-[Deno]: https://docs.deno.com/

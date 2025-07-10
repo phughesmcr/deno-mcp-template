@@ -13,7 +13,7 @@ import { Logger } from "./logger.ts";
 import { SignalHandler } from "./signals.ts";
 import { TransportManager } from "./transports.ts";
 
-export class Application extends Logger {
+class Application extends Logger {
   #running = false;
 
   readonly transports: TransportManager;
@@ -76,3 +76,5 @@ export function createApp(server: Server): Application {
 
   return app;
 }
+
+export type { Application };

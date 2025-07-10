@@ -8,7 +8,7 @@ import { InMemoryEventStore } from "./inMemoryEventStore.ts";
 
 class StdioTransportManager {
   #server: Server;
-  #stdioTransport: StdioServerTransport | null = null;
+  #transport: StdioServerTransport | null = null;
   #running = false;
 
   constructor(server: Server) {
@@ -18,21 +18,22 @@ class StdioTransportManager {
   async start(): Promise<void> {
     if (this.#running) return;
 
-    this.#stdioTransport = new StdioServerTransport();
-    await this.#server.connect(this.#stdioTransport);
+    this.#transport = new StdioServerTransport();
+    await this.#server.connect(this.#transport);
     console.error(`${APP_NAME} listening on STDIO`);
     this.#running = true;
   }
 
   async stop(): Promise<void> {
-    if (!this.#running || !this.#stdioTransport) return;
+    if (!this.#running || !this.#transport) return;
+
     try {
-      await this.#stdioTransport.close();
+      await this.#transport.close();
       console.error(`${APP_NAME} STDIO transport closed`);
     } catch (error) {
       console.error(`Error closing ${APP_NAME} STDIO transport:`, error);
     } finally {
-      this.#stdioTransport = null;
+      this.#transport = null;
       this.#running = false;
     }
   }
@@ -53,31 +54,24 @@ class HttpTransportManager {
   }
 
   create(): StreamableHTTPServerTransport {
-    try {
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => crypto.randomUUID(),
-        onsessioninitialized: (actualSessionId) => this.#transports[actualSessionId] = transport,
-        enableJsonResponse: true,
-        eventStore: new InMemoryEventStore(),
-        enableDnsRebindingProtection: true,
-        allowedHosts: this.#allowedHosts, // removable if enableDnsRebindingProtection is false
-        allowedOrigins: this.#allowedOrigins, // removable if enableDnsRebindingProtection is false
-      });
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => crypto.randomUUID(),
+      onsessioninitialized: (sessionId) => this.#transports[sessionId] = transport,
+      enableJsonResponse: true,
+      eventStore: new InMemoryEventStore(),
+      enableDnsRebindingProtection: true,
+      allowedHosts: this.#allowedHosts, // removable if enableDnsRebindingProtection is false
+      allowedOrigins: this.#allowedOrigins, // removable if enableDnsRebindingProtection is false
+    });
 
-      transport.onclose = () => {
-        const sessionId = transport.sessionId;
-        if (sessionId && this.#transports[sessionId] === transport) {
-          delete this.#transports[sessionId];
-        }
-      };
+    transport.onclose = () => {
+      const sessionId = transport.sessionId;
+      if (sessionId && this.#transports[sessionId] === transport) {
+        delete this.#transports[sessionId];
+      }
+    };
 
-      return transport;
-    } catch (error) {
-      console.error("Failed to create HTTP transport:", error);
-      console.error("Allowed hosts:", this.#allowedHosts);
-      console.error("Allowed origins:", this.#allowedOrigins);
-      throw error;
-    }
+    return transport;
   }
 
   async destroy(sessionId: string): Promise<void> {
@@ -96,11 +90,10 @@ class HttpTransportManager {
   }
 
   get(sessionId: string | undefined): StreamableHTTPServerTransport | undefined {
-    if (!sessionId) return undefined;
-    return this.#transports[sessionId];
+    return sessionId ? this.#transports[sessionId] : undefined;
   }
 
-  set(sessionId: string, transport: StreamableHTTPServerTransport) {
+  set(sessionId: string, transport: StreamableHTTPServerTransport): void {
     this.#transports[sessionId] = transport;
   }
 
@@ -119,6 +112,7 @@ class HttpTransportManager {
     };
 
     await Promise.allSettled(Object.values(this.#transports).map(closeTransport));
+    this.#transports = {};
 
     console.error(`Closed ${closed} transports, ${errors} errors`);
     return { closed, errors };
@@ -129,21 +123,38 @@ class HttpTransportManager {
   }
 }
 
-/** Manages the HTTP server lifecycle */
-class HttpServerManager extends HttpTransportManager {
+class HttpServerManager {
+  #transports: HttpTransportManager;
   #fetch: Deno.ServeHandler | null = null;
   #config: AppConfig;
   #server: Deno.HttpServer | null = null;
   #running = false;
 
+  // Delegated transport methods
+  create: () => StreamableHTTPServerTransport;
+  destroy: (sessionId: string) => Promise<void>;
+  has: (sessionId: string) => boolean;
+  get: (sessionId: string | undefined) => StreamableHTTPServerTransport | undefined;
+  set: (sessionId: string, transport: StreamableHTTPServerTransport) => void;
+
   constructor(config: AppConfig) {
-    super(config.allowedHosts, config.allowedOrigins);
     this.#config = config;
+    this.#transports = new HttpTransportManager(config.allowedHosts, config.allowedOrigins);
+    this.create = this.#transports.create.bind(this.#transports);
+    this.destroy = this.#transports.destroy.bind(this.#transports);
+    this.has = this.#transports.has.bind(this.#transports);
+    this.get = this.#transports.get.bind(this.#transports);
+    this.set = this.#transports.set.bind(this.#transports);
   }
 
-  setFetch(fetch: Deno.ServeHandler) {
-    if (this.#running) return;
-    this.#fetch = fetch;
+  get count(): number {
+    return this.#transports.count;
+  }
+
+  setFetch(fetch: Deno.ServeHandler): void {
+    if (!this.#running) {
+      this.#fetch = fetch;
+    }
   }
 
   async start(): Promise<void> {
@@ -159,7 +170,7 @@ class HttpServerManager extends HttpTransportManager {
 
   async stop(): Promise<void> {
     if (!this.#running || !this.#server) return;
-    await this.closeAll();
+    await this.#transports.closeAll();
     await this.#server.shutdown();
     this.#server = null;
     this.#running = false;

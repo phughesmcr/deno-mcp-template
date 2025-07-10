@@ -4,12 +4,12 @@ export class SignalHandler {
   /** Handles shutdown signals gracefully */
   constructor(onShutdown: () => Promise<void> = async () => {}) {
     this.#onShutdown = onShutdown;
-    this.#setupHandlers();
+    this.#init();
   }
 
-  #setupHandlers(): void {
+  #init(): void {
     // Handle beforeunload event
-    globalThis.addEventListener("beforeunload", this.#handleShutdown);
+    globalThis.addEventListener("beforeunload", this.#onShutdown);
 
     // Handle uncaught exceptions
     globalThis.addEventListener("unhandledrejection", this.#handleError);
@@ -23,10 +23,6 @@ export class SignalHandler {
       Deno.addSignalListener("SIGHUP", () => this.#handleSignal("SIGHUP"));
     }
   }
-
-  #handleShutdown = async (): Promise<void> => {
-    await this.#onShutdown();
-  };
 
   #handleError = async (): Promise<void> => {
     console.error("Unhandled rejection, shutting down gracefully...");
