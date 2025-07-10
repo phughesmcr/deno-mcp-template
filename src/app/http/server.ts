@@ -1,16 +1,17 @@
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 import { serveStatic } from "hono/deno";
+import { logger } from "hono/logger";
 import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 
-import type { AppConfig } from "$/types.ts";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import {
   ALLOWED_HEADERS,
   ALLOWED_METHODS,
@@ -19,8 +20,9 @@ import {
   HEADER_KEYS,
   HTTP_STATUS,
   RPC_ERROR_CODES,
-} from "../../constants.ts";
-import { createRPCError } from "../../utils.ts";
+} from "$/constants.ts";
+import type { AppConfig } from "$/types.ts";
+import { createRPCError } from "$/utils.ts";
 import { HttpServerManager } from "./manager.ts";
 
 export function createHttpServer(
@@ -34,6 +36,29 @@ export function createHttpServer(
   const app = new Hono();
 
   app.use("*", secureHeaders());
+
+  if (config.log === "debug") {
+    app.use(logger((message, ...rest) => {
+      console.error(message, ...rest);
+    }));
+  }
+
+  app.use(
+    "*",
+    bodyLimit({
+      maxSize: 1024 * 1024 * 4, // 4MB
+      onError: (c) => {
+        return c.json({
+          isError: true,
+          details: {
+            error: "Request body too large",
+            code: RPC_ERROR_CODES.INVALID_REQUEST,
+            message: "Request body too large",
+          },
+        }, 413);
+      },
+    }),
+  );
 
   app.use("*", timeout(5000));
 
