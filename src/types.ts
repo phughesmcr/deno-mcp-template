@@ -17,7 +17,7 @@ export interface TransportRecord {
   [sessionId: string]: StreamableHTTPServerTransport;
 }
 
-/** Properties for the Express server */
+/** Properties for the HTTP server */
 export interface HttpServerConfig {
   /** The hostname to listen on */
   hostname: string;
@@ -40,9 +40,6 @@ export interface AppConfig extends HttpServerConfig {
   /** The log level */
   log: LogLevelKey;
 }
-
-/** A handler function for Express routes */
-export type RequestHandler = (req: Request, res: Response) => Promise<void>;
 
 /** An event in the MCP event stream */
 export type McpEvent = { streamId: string; message: JSONRPCMessage };

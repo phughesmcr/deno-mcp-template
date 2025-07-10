@@ -66,7 +66,7 @@ export const ALLOWED_ORIGINS: string[] = ["*"];
 /**
  * The allowed methods for the MCP server's CORS protection.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Methods}
- * @note GET/POST are required for the Express server to function correctly.
+ * @note GET/POST are required for the HTTP server to function correctly.
  */
 export const ALLOWED_METHODS = ["GET", "POST", "DELETE", "OPTIONS"];
 

@@ -61,11 +61,11 @@ if (import.meta.main) {
   // server is the MCP server
   const server = createMcpServer();
 
-  // app is a wrapper for Express and STDIO etc.
+  // app is a wrapper for HTTP and STDIO etc.
   const app = createApp(server);
   await app.start();
 
-  // Log som
+  // Log some debug info
   setTimeout(() => {
     app.debug({
       data: {
