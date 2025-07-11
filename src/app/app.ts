@@ -5,10 +5,11 @@
 
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
+import { parseConfig } from "$/app/config.ts";
 import type { AppConfig } from "$/types.ts";
 import type { HttpServerManager } from "./http/manager.ts";
 import { createHttpServer } from "./http/server.ts";
-import type { Logger } from "./logger.ts";
+import { Logger } from "./logger.ts";
 import { SignalHandler } from "./signals.ts";
 import { StdioTransportManager } from "./stdio.ts";
 
@@ -58,7 +59,13 @@ class Application {
  * @param server - The MCP server
  * @returns The Application instance
  */
-export function createApp(server: Server, logger: Logger, config: AppConfig): Application {
+export function createApp(server: Server): Application {
+  // Load configuration
+  const config: AppConfig = parseConfig();
+
+  // logger is a wrapper for console.error
+  const logger = new Logger(server, config.log);
+
   // Create HTTP server manager
   const http: HttpServerManager = createHttpServer(server, config, logger);
 
