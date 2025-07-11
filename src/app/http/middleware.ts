@@ -11,9 +11,11 @@ import { timeout } from "hono/timeout";
 import {
   ALLOWED_HEADERS,
   ALLOWED_METHODS,
+  BODY_LIMIT,
   EXPOSED_HEADERS,
   HEADER_KEYS,
   RPC_ERROR_CODES,
+  TIMEOUT,
 } from "$/constants";
 import type { AppConfig } from "$/types.ts";
 import type { Logger } from "../logger.ts";
@@ -36,7 +38,7 @@ export function configureMiddleware(app: Hono, config: AppConfig, logger: Logger
   app.use(
     "*",
     bodyLimit({
-      maxSize: 1024 * 1024 * 4, // 4MB
+      maxSize: BODY_LIMIT,
       onError: (c) => {
         return c.json({
           isError: true,
@@ -50,7 +52,7 @@ export function configureMiddleware(app: Hono, config: AppConfig, logger: Logger
     }),
   );
 
-  app.use("*", timeout(5000));
+  app.use("*", timeout(TIMEOUT));
   app.use("*", requestId());
 
   app.use(

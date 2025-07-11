@@ -63,6 +63,10 @@ export const EXPOSED_HEADERS = [
 // You should not need to change anything below this line.
 // ********************************************************
 
+export const BODY_LIMIT = 1024 * 1024 * 4; // 4MB
+
+export const TIMEOUT = 10000; // 10 seconds
+
 export const HEADER_KEYS = {
   SESSION_ID: "mcp-session-id",
   LAST_EVENT_ID: "last-event-id",
