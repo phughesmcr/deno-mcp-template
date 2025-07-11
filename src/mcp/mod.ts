@@ -9,7 +9,7 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { SERVER_CAPABILITIES, SERVER_INFO } from "../constants.ts";
+import { SERVER_CAPABILITIES, SERVER_INFO } from "$/constants";
 import { getPrompt, listPrompts } from "./prompts/mod.ts";
 import { listResources, listResourceTemplates, readResource } from "./resources/mod.ts";
 import { callTool, listTools } from "./tools/mod.ts";

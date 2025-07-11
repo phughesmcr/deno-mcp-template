@@ -17,7 +17,7 @@ import {
   ENV_VARS,
   HEADERS,
   helpText,
-} from "../constants.ts";
+} from "$/constants";
 import type { AppConfig, LogLevelKey } from "../types.ts";
 import {
   validateHeaders,

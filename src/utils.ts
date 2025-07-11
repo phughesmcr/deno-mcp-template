@@ -3,8 +3,7 @@
  * @module
  */
 
-import { z } from "zod";
-
+import { DEFAULT_LOG_LEVEL, VALID_LOG_LEVELS } from "$/constants";
 import {
   type CallToolResult,
   JSONRPC_VERSION,
@@ -13,7 +12,6 @@ import {
   type RequestId,
   type Result,
 } from "@vendor/schema";
-import { DEFAULT_LOG_LEVEL, VALID_LOG_LEVELS } from "./constants.ts";
 import type { LogLevelKey } from "./types.ts";
 
 /** Creates a JSON-RPC error response */
@@ -172,27 +170,27 @@ const validateHeader = (header: string): string => {
   // Header value pattern: printable ASCII characters (excluding control chars)
   const headerValuePattern = /^[\x20-\x7E]*$/;
 
-    const colonIndex = header.indexOf(":");
-    if (colonIndex === -1) {
-      throw new Error(`Invalid header: ${header}. Must be in the format "key:value".`);
-    }
+  const colonIndex = header.indexOf(":");
+  if (colonIndex === -1) {
+    throw new Error(`Invalid header: ${header}. Must be in the format "key:value".`);
+  }
 
-    const key = header.substring(0, colonIndex).trim();
-    const value = header.substring(colonIndex + 1).trim();
+  const key = header.substring(0, colonIndex).trim();
+  const value = header.substring(colonIndex + 1).trim();
 
-    if (!key || !headerNamePattern.test(key)) {
-      throw new Error(
-        `Invalid header name: ${key}. Must contain only letters, numbers, hyphens, and underscores.`,
-      );
-    }
+  if (!key || !headerNamePattern.test(key)) {
+    throw new Error(
+      `Invalid header name: ${key}. Must contain only letters, numbers, hyphens, and underscores.`,
+    );
+  }
 
-    if (!headerValuePattern.test(value)) {
-      throw new Error(
-        `Invalid header value: ${value}. Must contain only printable ASCII characters.`,
-      );
-    }
+  if (!headerValuePattern.test(value)) {
+    throw new Error(
+      `Invalid header value: ${value}. Must contain only printable ASCII characters.`,
+    );
+  }
 
-    return `${key}:${value}`;
+  return `${key}:${value}`;
 };
 
 const validateOrigin = (origin: string): string => {
@@ -202,7 +200,7 @@ const validateOrigin = (origin: string): string => {
 
   const trimmedOrigin = origin.trim();
 
-    // Allow wildcard
+  // Allow wildcard
   if (trimmedOrigin === "*") return trimmedOrigin;
 
   // If no protocol, assume http://
@@ -213,37 +211,37 @@ const validateOrigin = (origin: string): string => {
 
   if (pattern.test(originWithProtocol)) return trimmedOrigin;
 
-    throw new Error(
-      `Invalid origin: ${origin}. Must be a valid origin (e.g., https://example.com, http://localhost:3000, or *).`,
-    );
+  throw new Error(
+    `Invalid origin: ${origin}. Must be a valid origin (e.g., https://example.com, http://localhost:3000, or *).`,
+  );
 };
 
 const validateHost = (host: string): string => {
-    let trimmedHost = host.trim().toLowerCase();
+  let trimmedHost = host.trim().toLowerCase();
 
-    // Handle wildcard
-    if (trimmedHost === "*") return trimmedHost;
+  // Handle wildcard
+  if (trimmedHost === "*") return trimmedHost;
 
-    // Strip protocol if present (user might confuse --host with --origin)
-    if (trimmedHost.startsWith("http://") || trimmedHost.startsWith("https://")) {
-      const withoutProtocol = trimmedHost.replace(/^https?:\/\//, "");
-      const withoutPort = withoutProtocol.split(":")[0];
-      if (withoutPort) {
-        trimmedHost = withoutPort;
-      }
+  // Strip protocol if present (user might confuse --host with --origin)
+  if (trimmedHost.startsWith("http://") || trimmedHost.startsWith("https://")) {
+    const withoutProtocol = trimmedHost.replace(/^https?:\/\//, "");
+    const withoutPort = withoutProtocol.split(":")[0];
+    if (withoutPort) {
+      trimmedHost = withoutPort;
     }
+  }
 
-    // Strip port if present
-    if (trimmedHost.includes(":") && !trimmedHost.startsWith("[")) {
-      trimmedHost = trimmedHost.split(":")[0]!;
-    }
+  // Strip port if present
+  if (trimmedHost.includes(":") && !trimmedHost.startsWith("[")) {
+    trimmedHost = trimmedHost.split(":")[0]!;
+  }
 
-    if (!trimmedHost || !isValidHostname(trimmedHost)) {
-      throw new Error(
-        `Invalid host: ${host}. Must be a valid hostname, IP address, localhost, or *. Note: Use --origin for full URLs.`,
-      );
-    }
-    return trimmedHost;
+  if (!trimmedHost || !isValidHostname(trimmedHost)) {
+    throw new Error(
+      `Invalid host: ${host}. Must be a valid hostname, IP address, localhost, or *. Note: Use --origin for full URLs.`,
+    );
+  }
+  return trimmedHost;
 };
 
 export const validateHeaders = createArrayValidator(validateHeader);

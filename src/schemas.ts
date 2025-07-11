@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { VALID_LOG_LEVELS } from "./constants.ts";
+import { VALID_LOG_LEVELS } from "$/constants";
 
 // Define the request schema for setLevels
 export const SetLevelsRequestSchema = z.object({

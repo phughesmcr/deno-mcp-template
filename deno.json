@@ -24,6 +24,7 @@
     },
     "imports": {
         "$/": "./src/",
+        "$/constants": "./src/constants/mod.ts",
         "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.15.1",
         "@std/cli": "jsr:@std/cli@^1.0.20",
         "@std/dotenv/load": "jsr:@std/dotenv@^0.225.5/load",

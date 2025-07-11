@@ -1,7 +1,7 @@
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-import { APP_NAME } from "$/constants.ts";
+import { APP_NAME } from "$/constants";
 import type { AppConfig } from "$/types.ts";
 import type { Logger } from "./logger.ts";
 

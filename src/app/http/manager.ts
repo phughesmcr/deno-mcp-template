@@ -1,7 +1,7 @@
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
-import { APP_NAME } from "../../constants.ts";
-import type { AppConfig } from "../../types.ts";
+import { APP_NAME } from "$/constants";
+import type { AppConfig } from "$/types.ts";
 import { InMemoryEventStore } from "../inMemoryEventStore.ts";
 import type { Logger } from "../logger.ts";
 
