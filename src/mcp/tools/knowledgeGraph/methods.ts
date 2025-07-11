@@ -3,26 +3,23 @@
  * @module
  */
 
-import type { CallToolResult } from "@vendor/schema";
-import { KnowledgeGraphManager } from "./knowledgeGraphManager.ts";
-import type { Deletion, Entity, Observation, Relation } from "./types.ts";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
-// deno-lint-ignore no-explicit-any
-const createResponse = (obj: any): CallToolResult => {
-  return {
-    content: [{
-      type: "text",
-      text: JSON.stringify(obj, null, 2),
-    }],
-  };
-};
+import { createCallToolTextResponse } from "$/utils.ts";
+import type {
+  Deletion,
+  Entity,
+  KnowledgeGraphManager,
+  Observation,
+  Relation,
+} from "./knowledgeGraphManager.ts";
 
 async function createEntities(
   graph: KnowledgeGraphManager,
   entities: Entity[],
 ): Promise<CallToolResult> {
   const createdEntities = await graph.createEntities(entities);
-  return createResponse(createdEntities);
+  return createCallToolTextResponse(createdEntities);
 }
 
 async function createRelations(
@@ -30,7 +27,7 @@ async function createRelations(
   relations: Relation[],
 ): Promise<CallToolResult> {
   const createdRelations = await graph.createRelations(relations);
-  return createResponse(createdRelations);
+  return createCallToolTextResponse(createdRelations);
 }
 
 async function addObservations(
@@ -38,7 +35,7 @@ async function addObservations(
   observations: Observation[],
 ): Promise<CallToolResult> {
   const addedObservations = await graph.addObservations(observations);
-  return createResponse(addedObservations);
+  return createCallToolTextResponse(addedObservations);
 }
 
 async function deleteEntities(
@@ -46,7 +43,7 @@ async function deleteEntities(
   entityNames: string[],
 ): Promise<CallToolResult> {
   await graph.deleteEntities(entityNames);
-  return createResponse("Entities deleted successfully");
+  return createCallToolTextResponse("Entities deleted successfully");
 }
 
 async function deleteObservations(
@@ -54,7 +51,7 @@ async function deleteObservations(
   deletions: Deletion[],
 ): Promise<CallToolResult> {
   await graph.deleteObservations(deletions);
-  return createResponse("Observations deleted successfully");
+  return createCallToolTextResponse("Observations deleted successfully");
 }
 
 async function deleteRelations(
@@ -62,22 +59,22 @@ async function deleteRelations(
   relations: Relation[],
 ): Promise<CallToolResult> {
   await graph.deleteRelations(relations);
-  return createResponse("Relations deleted successfully");
+  return createCallToolTextResponse("Relations deleted successfully");
 }
 
 async function readGraph(graph: KnowledgeGraphManager): Promise<CallToolResult> {
   const response = await graph.readGraph();
-  return createResponse(response);
+  return createCallToolTextResponse(response);
 }
 
 async function searchNodes(graph: KnowledgeGraphManager, query: string): Promise<CallToolResult> {
   const response = await graph.searchNodes(query);
-  return createResponse(response);
+  return createCallToolTextResponse(response);
 }
 
 async function openNodes(graph: KnowledgeGraphManager, names: string[]): Promise<CallToolResult> {
   const response = await graph.openNodes(names);
-  return createResponse(response);
+  return createCallToolTextResponse(response);
 }
 
 export function knowledgeGraphMethodsFactory(graph: KnowledgeGraphManager): {

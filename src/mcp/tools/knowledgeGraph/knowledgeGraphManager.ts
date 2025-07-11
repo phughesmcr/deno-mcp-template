@@ -4,35 +4,58 @@
  * @module
  */
 
-import { isAbsolute, join } from "@std/path";
+import { join } from "@std/path";
 
-import type {
-  AddObservationResult,
-  Deletion,
-  Entity,
-  KnowledgeGraph,
-  Observation,
-  Relation,
-} from "./types.ts";
+export interface Entity {
+  name: string;
+  entityType: string;
+  observations: string[];
+}
+
+export interface Relation {
+  from: string;
+  to: string;
+  relationType: string;
+}
+
+export interface KnowledgeGraph {
+  entities: Entity[];
+  relations: Relation[];
+}
+
+export interface Observation {
+  entityName: string;
+  contents: string[];
+}
+
+export interface Deletion {
+  entityName: string;
+  observations: string[];
+}
+
+export interface AddObservationResult {
+  entityName: string;
+  addedObservations: string[];
+}
 
 async function readGraphFromFile(path: string): Promise<KnowledgeGraph> {
   const data = await Deno.readTextFile(path);
   const lines = data.split("\n").filter((line) => line.trim() !== "");
   return lines.reduce((graph: KnowledgeGraph, line) => {
     const item = JSON.parse(line);
-    if (item.type === "entity") { graph.entities.push(item as Entity); }
-    if (item.type === "relation") { graph.relations.push(item as Relation); }
+    if (item.type === "entity") graph.entities.push(item as Entity);
+    if (item.type === "relation") graph.relations.push(item as Relation);
     return graph;
   }, { entities: [], relations: [] });
 }
 
-function entityExists(graph: KnowledgeGraph) {
+function isNewEntity(graph: KnowledgeGraph) {
   return (entity: Entity) => {
     return !graph.entities.some((e) => e.name === entity.name);
   };
 }
 
-function relationExists(graph: KnowledgeGraph) {
+function isNewRelationship(graph: KnowledgeGraph) {
   return (relation: Relation) => {
     return !graph.relations.some((existingRelation) =>
       existingRelation.from === relation.from &&
@@ -55,11 +78,9 @@ export class KnowledgeGraphManager {
 
   /** Returns the path to the local file that stores the knowledge graph */
   get localPath(): string {
-    const pathEnvValue = Deno.env.get("MEMORY_FILE_PATH");
-    return pathEnvValue ?
-      // If MEMORY_FILE_PATH is just a filename, put it in the same directory as the script
-      isAbsolute(pathEnvValue) ? pathEnvValue : join(import.meta.dirname ?? "", pathEnvValue) :
-      join(import.meta.dirname ?? "", "memory.json");
+    // Use current working directory as fallback if import.meta.dirname is unavailable
+    const baseDir = import.meta.dirname ?? Deno.cwd();
+    return join(baseDir, "memory.json");
   }
 
   /** Returns a copy of the knowledge graph */
@@ -90,7 +111,7 @@ export class KnowledgeGraphManager {
   async createEntities(entities: Entity[]): Promise<Entity[]> {
     // Filter out entities that already exist
     const graph = await this.readGraph();
-    const exists = entityExists(graph);
+    const exists = isNewEntity(graph);
     const newEntities = entities.filter(exists);
 
     // If no new entities, return early
@@ -120,7 +141,7 @@ export class KnowledgeGraphManager {
   async createRelations(relations: Relation[]): Promise<Relation[]> {
     // Filter out relations that already exist
     const graph = await this.readGraph();
-    const exists = relationExists(graph);
+    const exists = isNewRelationship(graph);
     const newRelations = relations.filter(exists);
 
     // If no new relations, return early
@@ -133,7 +154,10 @@ export class KnowledgeGraphManager {
     for (const relation of newRelations) {
       transaction.set(["relations", relation.from, relation.to, relation.relationType], relation);
     }
-    await transaction.commit();
+    const result = await transaction.commit();
+    if (!result.ok) {
+      throw new Error("Failed to commit relation creation transaction");
+    }
 
     return newRelations;
   }
@@ -145,28 +169,36 @@ export class KnowledgeGraphManager {
    */
   async addObservations(observations: Observation[]): Promise<AddObservationResult[]> {
     const results: AddObservationResult[] = [];
-    const transaction = this.#kv.atomic();
 
     for (const obs of observations) {
+      const transaction = this.#kv.atomic();
       const entityResult = await this.#kv.get<Entity>(["entities", obs.entityName]);
 
       if (!entityResult.value) {
         throw new Error(`Entity with name ${obs.entityName} not found`);
       }
 
-      const entity = entityResult.value;
+      const entity = { ...entityResult.value }; // Create a copy to avoid mutations
       const newObservations = obs.contents.filter((content) =>
         !entity.observations.includes(content)
       );
 
       if (newObservations.length > 0) {
         entity.observations.push(...newObservations);
+        transaction.check(entityResult); // Ensure entity hasn't changed since we read it
         transaction.set(["entities", obs.entityName], entity);
+
+        const commitResult = await transaction.commit();
+        if (!commitResult.ok) {
+          throw new Error(
+            `Failed to add observations to entity ${obs.entityName}: concurrent modification`,
+          );
+        }
+
         results.push({ entityName: obs.entityName, addedObservations: newObservations });
       }
     }
 
-    await transaction.commit();
     return results;
   }
 
@@ -175,7 +207,7 @@ export class KnowledgeGraphManager {
    * @param entityNames - The names of the entities to delete
    */
   async deleteEntities(entityNames: string[]): Promise<void> {
-    if (entityNames.length === 0) { return; }
+    if (entityNames.length === 0) return;
 
     const transaction = this.#kv.atomic();
 
@@ -225,19 +257,25 @@ export class KnowledgeGraphManager {
    * @param deletions - The observations to delete
    */
   async deleteObservations(deletions: Deletion[]): Promise<void> {
-    const transaction = this.#kv.atomic();
-
     for (const d of deletions) {
+      const transaction = this.#kv.atomic();
       const entityResult = await this.#kv.get<Entity>(["entities", d.entityName]);
 
       if (entityResult.value) {
-        const entity = entityResult.value;
+        const entity = { ...entityResult.value }; // Create a copy to avoid mutations
         entity.observations = entity.observations.filter((o) => !d.observations.includes(o));
+
+        transaction.check(entityResult); // Ensure entity hasn't changed since we read it
         transaction.set(["entities", d.entityName], entity);
+
+        const commitResult = await transaction.commit();
+        if (!commitResult.ok) {
+          throw new Error(
+            `Failed to delete observations from entity ${d.entityName}: concurrent modification`,
+          );
+        }
       }
     }
-
-    await transaction.commit();
   }
 
   /**
@@ -320,12 +358,10 @@ export class KnowledgeGraphManager {
         ...graph.relations.map((r) => JSON.stringify({ type: "relation", ...r })),
       ];
       await Deno.writeTextFile(this.localPath, lines.join("\n"));
-      console.error(`Successfully exported knowledge graph to ${this.localPath}`);
     } catch (error) {
       const message = `Error exporting graph to file: ${
         error instanceof Error ? error.message : String(error)
       }`;
-      console.error(message);
       throw new Error(message);
     }
   }
@@ -343,13 +379,11 @@ export class KnowledgeGraphManager {
         error instanceof Error && "code" in error &&
         error.code === "ENOENT"
       ) {
-        console.error(`No existing file found at ${this.localPath}, starting with empty graph`);
         graph = { entities: [], relations: [] };
       } else {
         const message = `Error reading graph from file: ${
           error instanceof Error ? error.message : String(error)
         }`;
-        console.error(message);
         throw new Error(message);
       }
     }

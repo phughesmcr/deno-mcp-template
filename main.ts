@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run -A
 
 /**
- * @description A simple MCP server using Deno
+ * @description An example MCP server using Deno
  *
  * @example claude-desktop-config.json using the published MCP server from JSR
  * ```json
@@ -20,7 +20,8 @@
  * {
  *   "mcpServers": {
  *     "my-mcp-server": {
- *       "url": "http://127.0.0.1:3001/mcp"
+ *       "command": "npx",
+ *       "args": ["mcp-remote", "http://localhost:3001/mcp"]
  *     },
  *   }
  * }
@@ -42,21 +43,35 @@
  * # Compiled binary:
  * claude mcp add my-mcp-server "absolute/path/to/binary"
  *
- * # or with SSE (use `deno task start` first)
- * claude mcp add --transport sse my-mcp-server http://127.0.0.1:3001/mcp
+ * # or with HTTP (use `deno task start` first)
+ * claude mcp add --transport http my-mcp-server http://localhost:3001/mcp
  * ```
  *
  * @module
  */
 
+import { createApp } from "$/app/app.ts";
+import { createMcpServer } from "$/mcp/mod.ts";
+
 // Load environment variables
 import "@std/dotenv/load";
 
-import { createApp } from "./src/app/App.ts";
-import { createMcpServer } from "./src/server.ts";
-
+// If the script is run directly, start the MCP server
 if (import.meta.main) {
+  // server is the MCP server
   const server = createMcpServer();
+
+  // app is a wrapper for HTTP and STDIO etc.
   const app = createApp(server);
   await app.start();
+
+  // Log some debug info
+  setTimeout(() => {
+    app.log.debug({
+      data: {
+        debug: "App config",
+        details: app.config,
+      },
+    });
+  }, 200);
 }

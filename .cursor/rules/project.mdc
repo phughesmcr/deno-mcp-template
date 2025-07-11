@@ -1,75 +1,93 @@
 ---
-description: High-level project structure
-globs: 
-alwaysApply: false
+description: Top-level rules and information for the project
+alwaysApply: true
 ---
+# Deno MCP Template Development Guide
+
+Deno version: ^2.4.0
+
 ## Build/Development Commands
 
-- **Start the application**: `deno task start`
-- **Development mode**: `deno task dev`
-- **Format, lint, and check code**: `deno task prep`
-- **Format code**: `deno fmt`
-- **Lint code**: `deno lint --fix`
-- **Type-check code**: `deno check main.ts`
+Start: `deno task start`
+Dev mode: `deno task dev`
+Format, lint, and check code: `deno task prep`
 
 ## Project Structure
 
 ```markdown
-deno.json         # Project configuration
-main.ts           # The main entry point
+deno.json     # Project configuration
+main.ts       # The main entry point
 src/              
-├── app/                        
-│   ├── App.ts                  # The main application class
-│   ├── config.ts               # Configuration for the server
-│   ├── express.ts              # Express server code
-│   ├── inMemoryEventStore.ts   # In-memory event store for for session resumability
-│   └── utils.ts                # Utility functions for the application
-├── tools/                             
-│   ├── knowledgeGraph/                 # The knowledge graph MCP tool
-│   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
-│   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls
-│   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
-│   │   ├── schema.ts                   # The input schema for the knowledge graph tool
-│   │   └── types.ts                    # Shared types for the knowledge graph tool
-│   └── mod.ts      # Provides a single point of export for all the MCP tools
-├── constants.ts    # Shared constants for the server and application
-├── server.ts       # The MCP server
-├── types.ts        # Shared types for the MCP server
-└── utils.ts        # Shared utility functions for the MCP server
+├── app/    
+│   ├── http/
+│   │   ├── manager.ts            # The HTTP transport & state manager
+│   │   ├── middleware.ts         # Middleware for the HTTP server
+│   │   └── server.ts             # The Hono HTTP server
+│   ├── app.ts                  # The main application class
+│   ├── config.ts               # Parses CLI args and env vars into an AppConfig object
+│   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
+│   ├── logger.ts               # A simple logger that doesn't interfere with stdout
+│   ├── signals.ts              # Global signal handling for handling SIGINT, SIGTERM, etc.
+│   └── stdio.ts                # The STDIO transport & state manager
+├── constants/  
+│   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
+│   ├── cli.ts                  # Constants for the CLI (e.g., help text, args, etc.)
+│   ├── env.ts                  # Constants for the ENV variables 
+│   ├── http.ts                 # Constants for the HTTP server (e.g., headers, ports, etc.)
+│   ├── mcp.ts                  # Constants for the MCP server (e.g., capabilities, etc.)
+│   ├── mod.ts                  # Single point of export for all constants (`$/constants`)
+│   └── validation.ts           # Constants for the various validation functions (e.g., log level)
+├── mcp/ 
+│   ├── prompts/                             
+│   │   ├── codeReview.ts                   # A simple code-review prompt example
+│   │   ├── mod.ts                          # Provides a single point of export for all the MCP prompts
+│   │   └── schemas.ts                      # Zod schemas for MCP prompts
+│   ├── resources/                             
+│   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
+│   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
+│   │   ├── mod.ts                          # Provides a single point of export for all the MCP resources
+│   │   └── schemas.ts                      # Zod schemas for MCP resources
+│   ├── tools/                             
+│   │   ├── knowledgeGraph/                 # The knowledge graph example tool
+│   │   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
+│   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
+│   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
+│   │   │   ├── sanitization.ts             # Input sanitization utilities for knowledge graph data
+│   │   │   └── schemas.ts                  # Zod schemas for knowledge graph tools
+│   │   └── mod.ts                          # Provides a single point of export for all the MCP tools
+│   ├── middleware.ts           # Middleware for the MCP server (tool-call validation, etc.)
+│   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
+├── schemas.ts                  # Shared Zod schemas
+├── types.ts                    # Shared types
+└── utils.ts                    # Shared utility
 static/             
 ├── .well-known/    
-│   ├── llms.txt        # An example llms.txt giving LLMs information about the server    
-│   └── openapi.yaml    # An example OpenAPI specification for the server 
-vendor/
-└── schema.ts   # The 2025-06-18 MCP schema from Anthropic
+│   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
+│   └── openapi.yaml            # An example OpenAPI specification for the server 
+└── dxt-manifest.json           # The manifest for the DXT package
 ```
 
 ## Code Style Guidelines
 
-- **Formatting**: 100 character line width, 2-space indentation, semicolons required, single quotes preferred
-- **Imports**: Use JSR imports (`jsr:`) or npm imports (`npm:`) with explicit paths. ES module style, include `.ts` extension, group imports logically
-- **Types**: Define interfaces for data structures, use explicit return types
-- **Naming**: camelCase for variables/functions, PascalCase for classes/types
-- **Documentation**: JSDoc comments for functions/interfaces with @author, @description tags. JSDoc for public APIs, inline comments for complex logic
-- **Error Handling**: Use try/catch blocks with descriptive error messages. Use TypeScript's strict mode, explicit error checking in tests
-- **TypeScript**: Enable strict mode, noImplicitAny, verbatimModuleSyntax, Strict type checking, ES modules, explicit return types
-- **Structure**: Place core functionality in src/, route handlers in routes/
-- **Deno Standards**: Use Deno KV for storage, follow Deno's security practices
+Deno: This project uses Deno exclusively. Follow Deno standards and best practice.
+Imports: Use JSR imports (`jsr:`) or npm imports (`npm:`) with explicit paths. ES module style, include `.ts` extension. Group imports logically.
+Structure: The entrypoint is `main.ts`. Core functionality is in `src/`. `src/app` wraps the MCP server from `src/mcp` in some convenience functions for serving HTTP, logging, etc.
+TypeScript: Strict type checking, ES modules, explicit return types
+Naming: PascalCase for classes/types, camelCase for functions/variables
+Files: Lowercase with hyphens, test files with .test.ts suffix
+Error Handling: Use TypeScript's strict mode, explicit error checking in tests
+Formatting: 2-space indentation, semicolons required, single quotes preferred
+Testing: Locate tests in `test/`, use descriptive test names. We use `deno test` for testing.
+Comments: JSDoc for public APIs, inline comments for complex logic
 
 ## Best Practices
 
-- **Environment Variables**: Load using `@std/dotenv/load` in the top-level and access with `Deno.env.get()`
-- **File Paths**: Use `@std/path` for cross-platform file path handling
-- **Data Validation**: Use zod schemas for data validation
-- **HTTP Responses**: Return proper status codes and structured JSON responses
-- **Transactions**: Use `kv.atomic()` for Deno KV transactions when updating multiple records
-- **Error Handling**: Provide detailed error messages but avoid exposing sensitive information
-- **Tool Implementation**: Follow the MCP schema for defining tool schemas and handlers
+Environment Variables: env vars are loading in `main.ts` using `@std/dotenv/load` in the top-level
+File Paths: Use `@std/path` for cross-platform file path handling
+Data Validation: Use `zod` schemas for data validation
+HTTP Responses: Return proper status codes and structured JSON responses, including JSONRPC when necessary.
+Transactions: Use `kv.atomic()` for Deno KV transactions when updating multiple records
+Error Handling: Provide detailed error messages but avoid exposing sensitive information
+Tool Implementation: Follow the MCP schema for defining tool schemas and handlers
 
 ## Docs
-
-[MCP Typescript SDK]: https://github.com/modelcontextprotocol/typescript-sdk
-
-[MCP llms.txt]: https://modelcontextprotocol.io/llms-full.txt
-
-[Deno KV]: https://docs.deno.com/api/deno/~/Deno.Kv

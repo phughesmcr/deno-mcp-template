@@ -1,0 +1,31 @@
+{
+  "dxt_version": "0.1", 
+  "name": "deno-mcp-template", 
+  "version": "1.0.0", 
+  "description": "A template for MCP servers in Deno", 
+  "author": {
+    "name": "" 
+  },
+  "server": {
+    "type": "binary", 
+    "entry_point": "server/", 
+    "mcp_config": {
+      "command": "server/mac/arm/server",
+      "args": ["--no-http"],
+      "platform_overrides": {
+        "win32": {
+          "command": "server/server.exe",
+          "args": ["--no-http"]
+        },
+        "darwin": {
+          "command": "server/server_mac_arm64",
+          "args": ["--no-http"]
+        },
+        "linux": {
+          "command": "server/server_linux_x64",
+          "args": ["--no-http"]
+        }
+      }
+    }
+  }
+}
