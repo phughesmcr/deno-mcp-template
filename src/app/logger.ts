@@ -49,7 +49,7 @@ export class Logger {
         message: "Logging level set to " + level,
       },
     }).catch((error) => {
-      this.error({
+      console.error({
         data: {
           error: `Failed to send logging message: ${
             error instanceof Error ? error.message : String(error)
