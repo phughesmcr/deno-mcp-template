@@ -152,7 +152,10 @@ export class KnowledgeGraphManager {
     for (const relation of newRelations) {
       transaction.set(["relations", relation.from, relation.to, relation.relationType], relation);
     }
-    await transaction.commit();
+    const result = await transaction.commit();
+    if (!result.ok) {
+      throw new Error("Failed to commit relation creation transaction");
+    }
 
     return newRelations;
   }
