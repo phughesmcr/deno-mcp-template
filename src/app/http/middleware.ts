@@ -81,10 +81,15 @@ export function configureMiddleware(app: Hono, config: AppConfig, logger: Logger
 
   app.use(cors({
     origin: (origin: string) => {
+      // If wildcard is allowed, accept any origin
+      if (config.allowedOrigins.includes("*")) {
+        return origin;
+      }
+      // Only return the origin if it's in the allowed list
       if (config.allowedOrigins.includes(origin)) {
         return origin;
       }
-      return "*";
+      return null;
     },
     credentials: true,
     maxAge: 86400,
