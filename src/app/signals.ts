@@ -1,8 +1,12 @@
+import type { Logger } from "./logger.ts";
+
 export class SignalHandler {
   #onShutdown: () => Promise<void>;
+  #logger: Logger;
 
   /** Handles shutdown signals gracefully */
-  constructor(onShutdown: () => Promise<void> = async () => {}) {
+  constructor(logger: Logger, onShutdown: () => Promise<void> = async () => {}) {
+    this.#logger = logger;
     this.#onShutdown = onShutdown;
     this.#init();
   }
@@ -25,13 +29,13 @@ export class SignalHandler {
   }
 
   #handleError = async (): Promise<void> => {
-    console.error("Unhandled rejection, shutting down gracefully...");
+    this.#logger.error("Unhandled rejection, shutting down gracefully...");
     await this.#onShutdown();
     Deno.exit(1);
   };
 
   #handleSignal = async (signal: string): Promise<void> => {
-    console.error(`Received ${signal}, shutting down gracefully...`);
+    this.#logger.info(`Received ${signal}, shutting down gracefully...`);
     await this.#onShutdown();
     Deno.exit(0);
   };

@@ -50,24 +50,33 @@
  * @module
  */
 
-import { createApp } from "./src/app/app.ts";
-import { createMcpServer } from "./src/mcp/mod.ts";
+import { createApp } from "$/app/app.ts";
+import { parseConfig } from "$/app/config.ts";
+import { Logger } from "$/app/logger.ts";
+import { createMcpServer } from "$/mcp/mod.ts";
+import type { AppConfig } from "$/types.ts";
 
 // Load environment variables
 import "@std/dotenv/load";
 
 // If the script is run directly, start the MCP server
 if (import.meta.main) {
+  // Load configuration
+  const config: AppConfig = parseConfig();
+
   // server is the MCP server
   const server = createMcpServer();
 
+  // logger is a wrapper for console.error
+  const logger = new Logger(server, config.log);
+
   // app is a wrapper for HTTP and STDIO etc.
-  const app = createApp(server);
+  const app = createApp(server, logger, config);
   await app.start();
 
   // Log some debug info
   setTimeout(() => {
-    app.debug({
+    app.log.debug({
       data: {
         debug: "App config",
         details: app.config,

@@ -3,21 +3,54 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { APP_NAME } from "../../constants.ts";
 import type { AppConfig } from "../../types.ts";
 import { InMemoryEventStore } from "../inMemoryEventStore.ts";
+import type { Logger } from "../logger.ts";
 
+/**
+ * Manages HTTP transport instances for MCP server sessions.
+ * Handles creation, tracking, and cleanup of transport connections with DNS rebinding protection.
+ */
 class HttpTransportManager {
+  /** Map of session IDs to their corresponding transport instances */
   #transports: Record<string, StreamableHTTPServerTransport> = {};
+
+  /**
+   * List of allowed host header values for DNS rebinding protection.
+   * If not specified, host validation is disabled.
+   */
   #allowedHosts: string[];
+
+  /**
+   * List of allowed origin header values for DNS rebinding protection.
+   * If not specified, origin validation is disabled.
+   */
   #allowedOrigins: string[];
 
-  constructor(allowedHosts: string[], allowedOrigins: string[]) {
+  #logger: Logger;
+
+  /**
+   * Creates a new HttpTransportManager instance.
+   * @param allowedHosts - Array of allowed host names for DNS rebinding protection
+   * @param allowedOrigins - Array of allowed origins for CORS protection
+   */
+  constructor(allowedHosts: string[], allowedOrigins: string[], logger: Logger) {
     this.#allowedHosts = allowedHosts;
     this.#allowedOrigins = allowedOrigins;
+    this.#logger = logger;
   }
 
+  /**
+   * Creates a new StreamableHTTPServerTransport instance with configured security settings.
+   *
+   * Automatically registers the transport when a session is initialized,
+   * and removes the transport when the session is closed.
+   * @returns A new StreamableHTTPServerTransport instance
+   */
   create(): StreamableHTTPServerTransport {
-    const transport = new StreamableHTTPServerTransport({
+    const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => crypto.randomUUID(),
-      onsessioninitialized: (sessionId) => this.#transports[sessionId] = transport,
+      onsessioninitialized: (sessionId) => {
+        this.#transports[sessionId] = transport;
+      },
       enableJsonResponse: true,
       eventStore: new InMemoryEventStore(),
       enableDnsRebindingProtection: true,
@@ -35,39 +68,46 @@ class HttpTransportManager {
     return transport;
   }
 
+  /**
+   * Destroys a transport by session ID, properly closing the connection.
+   * @param sessionId - The session ID of the transport to destroy
+   */
   async destroy(sessionId: string): Promise<void> {
     const transport = this.#transports[sessionId];
-    if (transport) {
-      try {
-        await transport.close();
-      } finally {
-        delete this.#transports[sessionId];
-      }
+    if (!transport) return;
+
+    try {
+      await transport.close();
+    } finally {
+      delete this.#transports[sessionId];
     }
   }
 
+  /** Checks if a transport exists for the given session ID. */
   has(sessionId: string): boolean {
     return sessionId in this.#transports;
   }
 
+  /** Retrieves a transport by session ID. */
   get(sessionId: string | undefined): StreamableHTTPServerTransport | undefined {
     return sessionId ? this.#transports[sessionId] : undefined;
   }
 
-  set(sessionId: string, transport: StreamableHTTPServerTransport): void {
-    this.#transports[sessionId] = transport;
-  }
-
-  async closeAll(): Promise<{ closed: number; errors: number }> {
+  protected async closeAll(): Promise<{ closed: number; errors: number }> {
     let closed = 0;
     let errors = 0;
 
     const closeTransport = async (transport: StreamableHTTPServerTransport) => {
       try {
-        await transport?.close();
+        await transport.close();
         closed++;
       } catch (error) {
-        console.error("Error closing transport:", error);
+        this.#logger.error({
+          data: {
+            error: "Error closing transport:",
+            details: error,
+          },
+        });
         errors++;
       }
     };
@@ -75,71 +115,82 @@ class HttpTransportManager {
     await Promise.allSettled(Object.values(this.#transports).map(closeTransport));
     this.#transports = {};
 
-    console.error(`Closed ${closed} transports, ${errors} errors`);
+    this.#logger.info(`Closed ${closed} transports, ${errors} errors`);
     return { closed, errors };
   }
 
+  /**
+   * Gets the current number of active transports.
+   * @returns The count of active transport connections
+   */
   get count(): number {
     return Object.keys(this.#transports).length;
   }
 }
 
-export class HttpServerManager {
-  #transports: HttpTransportManager;
+/**
+ * High-level HTTP server manager that orchestrates the Deno HTTP server and transport management.
+ * Provides a unified interface for managing both the server lifecycle and transport connections.
+ */
+export class HttpServerManager extends HttpTransportManager {
   #fetch: Deno.ServeHandler | null = null;
   #config: AppConfig;
   #server: Deno.HttpServer | null = null;
   #running = false;
-
+  #logger: Logger;
   readonly enabled: boolean;
 
-  // Delegated transport methods
-  create: () => StreamableHTTPServerTransport;
-  destroy: (sessionId: string) => Promise<void>;
-  has: (sessionId: string) => boolean;
-  get: (sessionId: string | undefined) => StreamableHTTPServerTransport | undefined;
-  set: (sessionId: string, transport: StreamableHTTPServerTransport) => void;
-
-  constructor(config: AppConfig) {
+  constructor(config: AppConfig, logger: Logger) {
+    super(config.allowedHosts, config.allowedOrigins, logger);
     this.#config = config;
-    this.#transports = new HttpTransportManager(config.allowedHosts, config.allowedOrigins);
     this.enabled = !config.noHttp;
-    this.create = this.#transports.create.bind(this.#transports);
-    this.destroy = this.#transports.destroy.bind(this.#transports);
-    this.has = this.#transports.has.bind(this.#transports);
-    this.get = this.#transports.get.bind(this.#transports);
-    this.set = this.#transports.set.bind(this.#transports);
+    this.#logger = logger;
   }
 
-  get count(): number {
-    return this.#transports.count;
-  }
-
+  /**
+   * Sets the fetch handler for the HTTP server.
+   * Can only be set when the server is not running.
+   * @param fetch - The Deno serve handler function to handle HTTP requests
+   * @example `setFetch(app.fetch)`
+   */
   setFetch(fetch: Deno.ServeHandler): void {
     if (!this.#running) {
       this.#fetch = fetch;
     }
   }
 
+  /**
+   * Starts the HTTP server if enabled and not already running.
+   *
+   * Requires a fetch handler to be set before starting. @see setFetch
+   * @note Will not throw but will silently return if conditions aren't met
+   */
   async start(): Promise<void> {
-    if (this.#running || !this.#fetch || !this.enabled) return;
+    if (!this.enabled || this.#running || !this.#fetch) return;
+
     const { hostname, port } = this.#config;
     this.#server = Deno.serve({
       hostname,
       port,
-      onListen: () => console.error(`${APP_NAME} listening on ${hostname}:${port}`),
+      onListen: () => this.#logger.info(`${APP_NAME} listening on ${hostname}:${port}`),
     }, this.#fetch);
     this.#running = true;
   }
 
+  /** Stops the HTTP server and closes all active transports. */
   async stop(): Promise<void> {
-    if (!this.#running || !this.#server) return;
-    await this.#transports.closeAll();
-    await this.#server.shutdown();
+    if (!this.#running) return;
+
+    await this.closeAll();
+    await this.#server?.shutdown();
     this.#server = null;
     this.#running = false;
   }
 
+  /**
+   * Checks if the HTTP server is currently running.
+   * @returns True if the server is running, false otherwise
+   */
   get isRunning(): boolean {
     return this.#running;
   }

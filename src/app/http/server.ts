@@ -2,79 +2,26 @@ import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { Hono } from "hono";
-import { rateLimiter } from "hono-rate-limiter";
-import { bodyLimit } from "hono/body-limit";
-import { cors } from "hono/cors";
-import { csrf } from "hono/csrf";
 import { serveStatic } from "hono/deno";
-import { logger } from "hono/logger";
-import { requestId } from "hono/request-id";
-import { secureHeaders } from "hono/secure-headers";
-import { timeout } from "hono/timeout";
 
-import {
-  ALLOWED_HEADERS,
-  ALLOWED_METHODS,
-  APP_NAME,
-  EXPOSED_HEADERS,
-  HEADER_KEYS,
-  HTTP_STATUS,
-  RPC_ERROR_CODES,
-} from "$/constants.ts";
+import { APP_NAME, HEADER_KEYS, HTTP_STATUS, RPC_ERROR_CODES } from "$/constants";
 import type { AppConfig } from "$/types.ts";
 import { createRPCError } from "$/utils.ts";
+import type { Logger } from "../logger.ts";
 import { HttpServerManager } from "./manager.ts";
+import { configureMiddleware } from "./middleware.ts";
 
 export function createHttpServer(
   mcp: Server,
   config: AppConfig,
+  logger: Logger,
 ): HttpServerManager {
-  const transports = new HttpServerManager(config);
-
-  const { allowedOrigins } = config;
+  const transports = new HttpServerManager(config, logger);
 
   const app = new Hono();
 
-  app.use("*", secureHeaders());
-
-  if (config.log === "debug") {
-    app.use(logger((message, ...rest) => {
-      console.error(message, ...rest);
-    }));
-  }
-
-  app.use(
-    "*",
-    bodyLimit({
-      maxSize: 1024 * 1024 * 4, // 4MB
-      onError: (c) => {
-        return c.json({
-          isError: true,
-          details: {
-            error: "Request body too large",
-            code: RPC_ERROR_CODES.INVALID_REQUEST,
-            message: "Request body too large",
-          },
-        }, 413);
-      },
-    }),
-  );
-
-  app.use("*", timeout(5000));
-
-  app.use("*", requestId());
-
-  app.use(
-    "*",
-    // @ts-expect-error - rateLimiter is not typed correctly for Deno Hono
-    rateLimiter({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      limit: 100, // Limit each IP to 100 requests per `window.
-      standardHeaders: "draft-7", // draft-6: `RateLimit-*` headers; draft-7: combined `RateLimit` header
-      keyGenerator: (_c) => crypto.randomUUID(), // Method to generate custom identifiers for clients.
-      // store: ... , // ⚠️ Use Redis, MemoryStore, etc. in production.
-    }),
-  );
+  // Configure all middleware
+  configureMiddleware(app, config, logger);
 
   // Helper function to add Origin header if missing
   const addOriginHeader = (rawRequest: Request): Request => {
@@ -90,33 +37,6 @@ export function createHttpServer(
     }
     return rawRequest;
   };
-
-  // Only apply CSRF protection if not allowing all origins
-  if (!allowedOrigins.includes("*")) {
-    app.use(csrf({
-      origin: allowedOrigins,
-    }));
-  }
-
-  app.use(cors({
-    origin: (origin: string) => {
-      if (allowedOrigins.includes(origin)) {
-        return origin;
-      }
-      return "*";
-    },
-    credentials: true,
-    maxAge: 86400,
-    allowMethods: ALLOWED_METHODS,
-    allowHeaders: [
-      ...ALLOWED_HEADERS,
-      ...Object.values(HEADER_KEYS),
-    ],
-    exposeHeaders: [
-      ...EXPOSED_HEADERS,
-      ...Object.values(HEADER_KEYS),
-    ],
-  }));
 
   // MCP POST route
   app.post("/mcp", async (c) => {
@@ -172,9 +92,12 @@ export function createHttpServer(
         return toFetchResponse(res);
       }
     } catch (error) {
-      console.error("MCP HTTP handler error:", error);
-      console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
-
+      logger.error({
+        data: {
+          error: "MCP HTTP handler error:",
+          details: error,
+        },
+      });
       return c.json(
         createRPCError(
           0,
@@ -216,9 +139,12 @@ export function createHttpServer(
       await transport.handleRequest(req, res, jsonBody);
       return toFetchResponse(res);
     } catch (error) {
-      console.error("MCP HTTP GET/DELETE handler error:", error);
-      console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
-
+      logger.error({
+        data: {
+          error: "MCP HTTP GET/DELETE handler error:",
+          details: error,
+        },
+      });
       return c.json(
         createRPCError(
           0,

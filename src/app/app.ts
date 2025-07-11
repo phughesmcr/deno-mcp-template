@@ -5,29 +5,29 @@
 
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
-import type { AppConfig } from "../types.ts";
-import { parseConfig } from "./config.ts";
+import type { AppConfig } from "$/types.ts";
 import type { HttpServerManager } from "./http/manager.ts";
 import { createHttpServer } from "./http/server.ts";
-import { Logger } from "./logger.ts";
+import type { Logger } from "./logger.ts";
 import { SignalHandler } from "./signals.ts";
 import { StdioTransportManager } from "./stdio.ts";
 
-class Application extends Logger {
+class Application {
   #running = false;
   #http: HttpServerManager;
   #stdio: StdioTransportManager;
 
   readonly config: Readonly<AppConfig>;
+  readonly log: Logger;
 
   constructor(
-    mcp: Server,
+    logger: Logger,
     http: HttpServerManager,
     stdio: StdioTransportManager,
     config: AppConfig,
   ) {
-    super(mcp, config.log);
     this.config = config;
+    this.log = logger;
     this.#http = http;
     this.#stdio = stdio;
   }
@@ -58,21 +58,18 @@ class Application extends Logger {
  * @param server - The MCP server
  * @returns The Application instance
  */
-export function createApp(server: Server): Application {
-  // Load configuration
-  const config: AppConfig = parseConfig();
-
-  // Create HTTP transport manager
-  const http: HttpServerManager = createHttpServer(server, config);
+export function createApp(server: Server, logger: Logger, config: AppConfig): Application {
+  // Create HTTP server manager
+  const http: HttpServerManager = createHttpServer(server, config, logger);
 
   // Create STDIO transport manager
-  const stdio = new StdioTransportManager(server, config);
+  const stdio = new StdioTransportManager(server, config, logger);
 
   // Create application instance
-  const app = new Application(server, http, stdio, config);
+  const app = new Application(logger, http, stdio, config);
 
   // Handle shutdown signals gracefully
-  new SignalHandler(() => app.stop());
+  new SignalHandler(logger, () => app.stop());
 
   return app;
 }

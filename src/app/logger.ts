@@ -68,7 +68,12 @@ export class Logger {
     this.#server.sendLoggingMessage({ level, data, logger }).catch((error) => {
       const notConnected = error instanceof Error && error.message.includes("Not connected");
       if (!notConnected) {
-        console.error("Failed to send logging message:", error);
+        this.error({
+          data: {
+            error: "Failed to send logging message:",
+            details: error,
+          },
+        });
       }
     });
   }

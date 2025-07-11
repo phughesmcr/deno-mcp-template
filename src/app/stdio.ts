@@ -3,15 +3,18 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
 import { APP_NAME } from "$/constants.ts";
 import type { AppConfig } from "$/types.ts";
+import type { Logger } from "./logger.ts";
 
 export class StdioTransportManager {
   #mcp: Server;
   #transport: StdioServerTransport | null = null;
   #enabled: boolean;
+  #logger: Logger;
 
-  constructor(mcp: Server, config: AppConfig) {
+  constructor(mcp: Server, config: AppConfig, logger: Logger) {
     this.#mcp = mcp;
     this.#enabled = !config.noStdio;
+    this.#logger = logger;
   }
 
   get isRunning(): boolean {
@@ -27,9 +30,14 @@ export class StdioTransportManager {
     try {
       this.#transport = new StdioServerTransport();
       await this.#mcp.connect(this.#transport);
-      console.error(`${APP_NAME} listening on STDIO`);
+      this.#logger.info(`${APP_NAME} listening on STDIO`);
     } catch (error) {
-      console.error(`Error starting ${APP_NAME} STDIO transport:`, error);
+      this.#logger.error({
+        data: {
+          error: `Error starting ${APP_NAME} STDIO transport:`,
+          details: error,
+        },
+      });
     }
   }
 
@@ -37,9 +45,14 @@ export class StdioTransportManager {
     if (!this.isRunning) return;
     try {
       await this.#transport?.close();
-      console.error(`${APP_NAME} STDIO transport closed`);
+      this.#logger.info(`${APP_NAME} STDIO transport closed`);
     } catch (error) {
-      console.error(`Error closing ${APP_NAME} STDIO transport:`, error);
+      this.#logger.error({
+        data: {
+          error: `Error closing ${APP_NAME} STDIO transport:`,
+          details: error,
+        },
+      });
     } finally {
       this.#transport = null;
     }
