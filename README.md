@@ -19,7 +19,7 @@
 
 This is a simple but comprehensive template for writing MCP servers using [Deno](https://deno.com/).
 
-Using Deno allows you to publish your MCP server using [JSR.io](https://jsr.io), compile it to a standalone binary, or host it on [Deno Deploy](https://deno.com/deploy).
+Using Deno allows you to publish your MCP server using [JSR.io](https://jsr.io), compile it to a standalone binary, desktop extension (DXT), or host it on [Deno Deploy](https://deno.com/deploy) and other platforms.
 
 ## What's Inside?
 
@@ -148,6 +148,8 @@ You can replace `dxt:all` with `dxt:win`, `dxt:mac:arm64`, `dxt:mac:x64`, `dxt:l
 
 This will create a `dist/server.dxt` file you can share with others - they won't need to install Deno or any other dependencies.
 
+ℹ️ Ensure `static/dxt-manifest.json` is updated with correct information for your server.
+
 ### Claude Code
 
 ```bash
@@ -208,6 +210,7 @@ static/
 ├── .well-known/    
 │   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
 │   └── openapi.yaml            # An example OpenAPI specification for the server 
+├── dxt-manifest.json           # The manifest for the DXT package
 vendor/
 └── schema.ts                   # The 2025-06-18 MCP schema from Anthropic
 ```
@@ -235,15 +238,15 @@ Run `deno task setup` to setup the project for your own use.
 
 ⚠️ You must grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information. (The setup task will do this for you.)
 
-⚠️ Remember to set any environment variables in both your Github repo settings and your Deno Deploy project settings (if applicable).
-
-⚠️ Remember to check all files in `static/` as some of these files (e.g. `openapi.yaml`) will need modifying to match your MCP server's capabilities / endpoints.
-
 ⚠️ If using `enableDnsRebindingProtection`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `src/constants.ts`. If not, you can disable `enableDnsRebindingProtection` in `src/app/httpServer.ts` (it is enabled by default).
 
 ⚠️ `src/app/inMemoryEventStore.ts` is a simple utility for session resumability. It is **not** suitable for production use.
 
 ⚠️ The example server runs with `deno run -A` which enables all of Deno's permissions. You should [finetune the permissions](https://docs.deno.com/runtime/fundamentals/security/) before deploying to production.
+
+ℹ️ Remember to check all files in `static/` as some of these files (e.g. `openapi.yaml`, `dxt-manifest.json`) will need modifying to match your MCP server's capabilities / endpoints.
+
+ℹ️  Remember to set any environment variables in both your Github repo settings and your Deno Deploy project settings (if applicable).
 
 ℹ️ Run `deno task prep` to run the formatter, linter, and code checker.
 
