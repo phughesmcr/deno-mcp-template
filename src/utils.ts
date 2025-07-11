@@ -3,7 +3,6 @@
  * @module
  */
 
-import { DEFAULT_LOG_LEVEL, VALID_LOG_LEVELS } from "$/constants";
 import {
   type CallToolResult,
   JSONRPC_VERSION,
@@ -12,6 +11,8 @@ import {
   type RequestId,
   type Result,
 } from "@modelcontextprotocol/sdk/types.js";
+
+import { DEFAULT_LOG_LEVEL, VALID_LOG_LEVELS } from "$/constants";
 import type { LogLevelKey } from "./types.ts";
 
 /** Creates a JSON-RPC error response */

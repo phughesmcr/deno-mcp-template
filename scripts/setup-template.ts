@@ -38,7 +38,7 @@ const FILES_TO_UPDATE = [
   ".github/workflows/deploy.yml",
   ".github/CODEOWNERS",
   ".github/FUNDING.yml",
-  "src/constants.ts",
+  "src/constants/app.ts",
   "static/.well-known/llms.txt",
   "static/.well-known/openapi.yaml",
   "static/dxt-manifest.json",

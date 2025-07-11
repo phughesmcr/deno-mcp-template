@@ -1,6 +1,4 @@
 import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-
-import type { LOG_LEVEL } from "$/constants";
 import type {
   CallToolResult,
   GetPromptResult,
@@ -12,6 +10,7 @@ import type {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 
+import type { LOG_LEVEL } from "$/constants";
 
 /** An object that maps session IDs to transports */
 export interface TransportRecord {
