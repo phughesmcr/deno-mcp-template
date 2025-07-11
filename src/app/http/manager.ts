@@ -111,8 +111,9 @@ class HttpTransportManager {
       }
     };
 
-    await Promise.allSettled(Object.values(this.#transports).map(closeTransport));
+    const transports = Object.values(this.#transports);
     this.#transports = {};
+    await Promise.allSettled(transports.map(closeTransport));
 
     this.logger.info(`Closed ${closed} transports, ${errors} errors`);
     return { closed, errors };
