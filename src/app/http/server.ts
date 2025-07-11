@@ -1,4 +1,5 @@
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { Hono } from "hono";
@@ -38,12 +39,137 @@ function prepareHeaders(originalRequest: Request): Headers {
   return newHeaders;
 }
 
+/**
+ * Creates a new Request object with prepared headers and consistent content type
+ */
+function createMCPRequest(originalRequest: Request, bodyText?: string): Request {
+  const newHeaders = prepareHeaders(originalRequest);
+  newHeaders.set("Content-Type", "application/json");
+
+  return new Request(originalRequest.url, {
+    method: originalRequest.method,
+    headers: newHeaders,
+    body: bodyText,
+  });
+}
+
+/**
+ * Handles MCP request processing
+ */
+async function handleMCPRequest(
+  transport: StreamableHTTPServerTransport,
+  originalRequest: Request,
+  bodyText?: string,
+): Promise<Response> {
+  const mcpRequest = createMCPRequest(originalRequest, bodyText);
+  const { req, res } = toReqRes(mcpRequest);
+  await transport.handleRequest(req, res);
+  return toFetchResponse(res);
+}
+
+/**
+ * Handles errors and returns appropriate JSON-RPC error responses
+ */
+function handleMCPError(
+  error: unknown,
+  sessionId: string | undefined,
+  logger: Logger,
+  context: string,
+): Response {
+  logger.error({
+    data: {
+      error: `MCP ${context} error:`,
+      details: error,
+    },
+  });
+
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const rpcError = createRPCError(
+    sessionId || 0,
+    RPC_ERROR_CODES.INTERNAL_ERROR,
+    `Internal server error: ${errorMessage}`,
+  );
+
+  return new Response(JSON.stringify(rpcError), {
+    status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+/**
+ * Handles session creation for new MCP connections
+ * Uses a Map to track pending sessions to prevent race conditions
+ */
+class SessionManager {
+  private pendingSessions = new Map<string, Promise<StreamableHTTPServerTransport>>();
+
+  async getOrCreateSession(
+    sessionId: string | undefined,
+    transports: HttpServerManager,
+    mcp: Server,
+    requestBody: string,
+  ): Promise<{ transport: StreamableHTTPServerTransport; sessionId: string }> {
+    const existingTransport = transports.get(sessionId);
+    if (existingTransport) {
+      return { transport: existingTransport, sessionId: sessionId! };
+    }
+
+    // Parse request body to check if it's an initialize request
+    let jsonBody;
+    try {
+      jsonBody = JSON.parse(requestBody);
+    } catch {
+      throw new Error("Invalid JSON in request body");
+    }
+
+    if (!isInitializeRequest(jsonBody)) {
+      const msg = !sessionId ?
+        "No valid session ID provided" :
+        `No transport found for session ID: ${sessionId}`;
+      throw new Error(msg);
+    }
+
+    // Use a unique key for session creation to prevent race conditions
+    const sessionKey = sessionId || `new_session_${Date.now()}_${Math.random()}`;
+
+    // Check if we're already creating this session
+    if (this.pendingSessions.has(sessionKey)) {
+      const transport = await this.pendingSessions.get(sessionKey)!;
+      return { transport, sessionId: sessionKey };
+    }
+
+    // Create new session
+    const sessionPromise = this.createNewSession(transports, mcp);
+    this.pendingSessions.set(sessionKey, sessionPromise);
+
+    try {
+      const transport = await sessionPromise;
+      const result = { transport, sessionId: sessionKey };
+      this.pendingSessions.delete(sessionKey);
+      return result;
+    } catch (error) {
+      this.pendingSessions.delete(sessionKey);
+      throw error;
+    }
+  }
+
+  private async createNewSession(
+    transports: HttpServerManager,
+    mcp: Server,
+  ): Promise<StreamableHTTPServerTransport> {
+    const transport = transports.create();
+    await mcp.connect(transport);
+    return transport;
+  }
+}
+
 export function createHttpServer(
   mcp: Server,
   config: AppConfig,
   logger: Logger,
 ): HttpServerManager {
   const transports = new HttpServerManager(config, logger);
+  const sessionManager = new SessionManager();
 
   const app = new Hono();
 
@@ -54,92 +180,44 @@ export function createHttpServer(
   app.post("/mcp", async (c) => {
     try {
       const sessionId = c.req.header(HEADER_KEYS.SESSION_ID);
+      const originalRequest = c.req.raw;
+      const bodyText = await originalRequest.text();
 
-      // Check if we have a valid initialize request before reading the body
-      let transport = transports.get(sessionId);
-
-      if (!transport) {
-        // For new sessions, we need to check if this is an initialize request
-        // Read the raw body first to avoid stream consumption issues
-        const originalRequest = c.req.raw;
-        const bodyText = await originalRequest.text();
-        let jsonBody;
-
-        try {
-          jsonBody = JSON.parse(bodyText);
-        } catch {
-          return c.json(
-            createRPCError(
-              sessionId || 0,
-              RPC_ERROR_CODES.INVALID_REQUEST,
-              "Invalid JSON in request body",
-            ),
-            HTTP_STATUS.BAD_REQUEST,
-          );
-        }
-
-        if (isInitializeRequest(jsonBody)) {
-          transport = transports.create();
-        } else {
-          const msg = !sessionId ?
-            "No valid session ID provided" :
-            `No transport found for session ID: ${sessionId}`;
-          return c.json(
-            createRPCError(
-              sessionId || 0,
-              RPC_ERROR_CODES.INVALID_REQUEST,
-              msg,
-            ),
-            HTTP_STATUS.BAD_REQUEST,
-          );
-        }
-
-        await mcp.connect(transport);
-
-        // Create a new request with the parsed body
-        const newHeaders = prepareHeaders(originalRequest);
-        newHeaders.set("Content-Type", "application/json");
-
-        const newRequest = new Request(originalRequest.url, {
-          method: originalRequest.method,
-          headers: newHeaders,
-          body: bodyText, // Use the original body text
-        });
-
-        const { req, res } = toReqRes(newRequest);
-        await transport.handleRequest(req, res);
-        return toFetchResponse(res);
-      } else {
-        // For existing sessions, read the body safely to avoid stream consumption issues
-        const originalRequest = c.req.raw;
-        const bodyText = await originalRequest.text();
-        const newHeaders = prepareHeaders(originalRequest);
-
-        const freshRequest = new Request(originalRequest.url, {
-          method: originalRequest.method,
-          headers: newHeaders,
-          body: bodyText,
-        });
-
-        const { req, res } = toReqRes(freshRequest);
-        await transport.handleRequest(req, res);
-        return toFetchResponse(res);
-      }
-    } catch (error) {
-      logger.error({
-        data: {
-          error: "MCP HTTP handler error:",
-          details: error,
-        },
-      });
-      return c.json(
-        createRPCError(
-          0,
-          RPC_ERROR_CODES.INTERNAL_ERROR,
-          `Internal server error: ${error instanceof Error ? error.message : String(error)}`,
-        ),
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      const { transport } = await sessionManager.getOrCreateSession(
+        sessionId,
+        transports,
+        mcp,
+        bodyText,
       );
+
+      return await handleMCPRequest(transport, originalRequest, bodyText);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("Invalid JSON")) {
+        return c.json(
+          createRPCError(
+            c.req.header(HEADER_KEYS.SESSION_ID) || 0,
+            RPC_ERROR_CODES.INVALID_REQUEST,
+            "Invalid JSON in request body",
+          ),
+          HTTP_STATUS.BAD_REQUEST,
+        );
+      }
+
+      if (
+        error instanceof Error &&
+        (error.message.includes("No valid session") || error.message.includes("No transport found"))
+      ) {
+        return c.json(
+          createRPCError(
+            c.req.header(HEADER_KEYS.SESSION_ID) || 0,
+            RPC_ERROR_CODES.INVALID_REQUEST,
+            error.message,
+          ),
+          HTTP_STATUS.BAD_REQUEST,
+        );
+      }
+
+      return handleMCPError(error, c.req.header(HEADER_KEYS.SESSION_ID), logger, "POST handler");
     }
   });
 
@@ -158,7 +236,7 @@ export function createHttpServer(
       if (!transport) {
         return c.json(
           createRPCError(
-            sessionId || 0,
+            sessionId,
             RPC_ERROR_CODES.INTERNAL_ERROR,
             "Session not found or expired",
           ),
@@ -166,32 +244,13 @@ export function createHttpServer(
         );
       }
 
-      // GET and DELETE requests typically don't have a body, create fresh request with proper headers
-      const originalRequest = c.req.raw;
-      const newHeaders = prepareHeaders(originalRequest);
-
-      const freshRequest = new Request(originalRequest.url, {
-        method: originalRequest.method,
-        headers: newHeaders,
-      });
-
-      const { req, res } = toReqRes(freshRequest);
-      await transport.handleRequest(req, res);
-      return toFetchResponse(res);
+      return await handleMCPRequest(transport, c.req.raw);
     } catch (error) {
-      logger.error({
-        data: {
-          error: "MCP HTTP GET/DELETE handler error:",
-          details: error,
-        },
-      });
-      return c.json(
-        createRPCError(
-          0,
-          RPC_ERROR_CODES.INTERNAL_ERROR,
-          `Internal server error: ${error instanceof Error ? error.message : String(error)}`,
-        ),
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      return handleMCPError(
+        error,
+        c.req.header(HEADER_KEYS.SESSION_ID),
+        logger,
+        "GET/DELETE handler",
       );
     }
   });
