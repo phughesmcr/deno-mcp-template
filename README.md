@@ -8,16 +8,16 @@
 ![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
 ![Version](https://img.shields.io/badge/version-0.3.0-blue)
 ![Repo Size](https://img.shields.io/github/languages/code-size/phughesmcr/deno-mcp-template)
+![License](https://img.shields.io/github/license/phughesmcr/deno-mcp-template)
 
 ![Sponsor](https://img.shields.io/github/sponsors/phughesmcr)
-![License](https://img.shields.io/github/license/phughesmcr/deno-mcp-template)
 
 
 <div align="center">
     <img src="static/banner_480.png" alt="Repo Logo - a long-necked orange dinosaur walks in-front of a cliff-face with the letters M C P carved into it" width="320" />
 </div>
 
-This is a simple but comprehensive template for writing MCP servers using [Deno](https://deno.com/).
+This is a comprehensive template for writing MCP servers using [Deno](https://deno.com/).
 
 Using Deno allows you to publish your MCP server using [JSR.io](https://jsr.io), compile it to a standalone binary, desktop extension (DXT), or host it on [Deno Deploy](https://deno.com/deploy) and other platforms.
 
@@ -31,9 +31,7 @@ The main tool example is the [knowledge graph memory server](https://github.com/
 
 ### App
 
-The "app" component, found in `src/app/`, wraps the MCP server in some convenience functions for serving HTTP and STDIO routes, as well as transport management, logging, etc. 
-
-So you don't have to worry about setting up best practices every time you start a new project, the "app" is designed to need only a few changes to get your MCP server up and running (see ⚠️ below).
+The "app" component, found in `src/app/`, wraps the MCP server in some convenience functions for serving HTTP routes, transport management, logging, etc. It is designed to need only a few changes to get your MCP server up and running, so you don't have to worry about setting up best practices every time you start a new project, (see ⚠️ below).
 
 ℹ️ You can control the log level using the `MCP_LOG_LEVEL` environment variable or by passing `--log-level` to the server. E.g. `--log-level debug`.
 
@@ -41,7 +39,7 @@ So you don't have to worry about setting up best practices every time you start 
 
 The app uses `Deno.serve` to start an HTTP server built with [Hono](https://hono.dev/). The server features comprehensive middleware including rate limiting, CORS protection, CSRF protection, security headers, request timeouts, and session management. DNS rebinding protection is also built in and enabled by default.
 
-ℹ️ For DNS rebinding protection, you can set the `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` variables in `src/constants.ts`. 
+ℹ️ For DNS rebinding protection, you can set the `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` variables (see [Config](#config))
 
 ⚠️ If no allowed hosts or origins are set, the server will allow all origins and hosts.
 
@@ -210,7 +208,7 @@ static/
 ├── .well-known/    
 │   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
 │   └── openapi.yaml            # An example OpenAPI specification for the server 
-├── dxt-manifest.json           # The manifest for the DXT package
+└── dxt-manifest.json           # The manifest for the DXT package
 vendor/
 └── schema.ts                   # The 2025-06-18 MCP schema from Anthropic
 ```

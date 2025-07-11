@@ -52,7 +52,7 @@ static/
 ├── .well-known/    
 │   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
 │   └── openapi.yaml            # An example OpenAPI specification for the server 
-├── dxt-manifest.json           # The manifest for the DXT package
+└── dxt-manifest.json           # The manifest for the DXT package
 vendor/
 └── schema.ts                   # The 2025-06-18 MCP schema from Anthropic
 ```
