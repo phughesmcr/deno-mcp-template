@@ -78,7 +78,9 @@ export class KnowledgeGraphManager {
 
   /** Returns the path to the local file that stores the knowledge graph */
   get localPath(): string {
-    return join(import.meta.dirname ?? "", "memory.json");
+    // Use current working directory as fallback if import.meta.dirname is unavailable
+    const baseDir = import.meta.dirname ?? Deno.cwd();
+    return join(baseDir, "memory.json");
   }
 
   /** Returns a copy of the knowledge graph */
@@ -167,28 +169,36 @@ export class KnowledgeGraphManager {
    */
   async addObservations(observations: Observation[]): Promise<AddObservationResult[]> {
     const results: AddObservationResult[] = [];
-    const transaction = this.#kv.atomic();
 
     for (const obs of observations) {
+      const transaction = this.#kv.atomic();
       const entityResult = await this.#kv.get<Entity>(["entities", obs.entityName]);
 
       if (!entityResult.value) {
         throw new Error(`Entity with name ${obs.entityName} not found`);
       }
 
-      const entity = entityResult.value;
+      const entity = { ...entityResult.value }; // Create a copy to avoid mutations
       const newObservations = obs.contents.filter((content) =>
         !entity.observations.includes(content)
       );
 
       if (newObservations.length > 0) {
         entity.observations.push(...newObservations);
+        transaction.check(entityResult); // Ensure entity hasn't changed since we read it
         transaction.set(["entities", obs.entityName], entity);
+
+        const commitResult = await transaction.commit();
+        if (!commitResult.ok) {
+          throw new Error(
+            `Failed to add observations to entity ${obs.entityName}: concurrent modification`,
+          );
+        }
+
         results.push({ entityName: obs.entityName, addedObservations: newObservations });
       }
     }
 
-    await transaction.commit();
     return results;
   }
 
@@ -247,19 +257,25 @@ export class KnowledgeGraphManager {
    * @param deletions - The observations to delete
    */
   async deleteObservations(deletions: Deletion[]): Promise<void> {
-    const transaction = this.#kv.atomic();
-
     for (const d of deletions) {
+      const transaction = this.#kv.atomic();
       const entityResult = await this.#kv.get<Entity>(["entities", d.entityName]);
 
       if (entityResult.value) {
-        const entity = entityResult.value;
+        const entity = { ...entityResult.value }; // Create a copy to avoid mutations
         entity.observations = entity.observations.filter((o) => !d.observations.includes(o));
+
+        transaction.check(entityResult); // Ensure entity hasn't changed since we read it
         transaction.set(["entities", d.entityName], entity);
+
+        const commitResult = await transaction.commit();
+        if (!commitResult.ok) {
+          throw new Error(
+            `Failed to delete observations from entity ${d.entityName}: concurrent modification`,
+          );
+        }
       }
     }
-
-    await transaction.commit();
   }
 
   /**
