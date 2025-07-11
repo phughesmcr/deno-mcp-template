@@ -23,21 +23,6 @@ export function createHttpServer(
   // Configure all middleware
   configureMiddleware(app, config, logger);
 
-  // Helper function to add Origin header if missing
-  const addOriginHeader = (rawRequest: Request): Request => {
-    const origin = rawRequest.headers.get("Origin");
-    if (!origin) {
-      const newHeaders = new Headers(rawRequest.headers);
-      newHeaders.set("Origin", `http://${config.hostname}:${config.port}`);
-      return new Request(rawRequest.url, {
-        method: rawRequest.method,
-        headers: newHeaders,
-        body: rawRequest.body,
-      });
-    }
-    return rawRequest;
-  };
-
   // MCP POST route
   app.post("/mcp", async (c) => {
     try {
@@ -48,8 +33,23 @@ export function createHttpServer(
 
       if (!transport) {
         // For new sessions, we need to check if this is an initialize request
-        // Read the body once to check the method
-        const jsonBody = await c.req.json();
+        // Read the raw body first to avoid stream consumption issues
+        const originalRequest = c.req.raw;
+        const bodyText = await originalRequest.text();
+        let jsonBody;
+
+        try {
+          jsonBody = JSON.parse(bodyText);
+        } catch {
+          return c.json(
+            createRPCError(
+              sessionId || 0,
+              RPC_ERROR_CODES.INVALID_REQUEST,
+              "Invalid JSON in request body",
+            ),
+            HTTP_STATUS.BAD_REQUEST,
+          );
+        }
 
         if (isInitializeRequest(jsonBody)) {
           transport = transports.create();
@@ -69,25 +69,66 @@ export function createHttpServer(
 
         await mcp.connect(transport);
 
-        // For initialize requests, create a fresh request with the parsed body
-        const origin = c.req.header("Origin") || `http://${config.hostname}:${config.port}`;
-        const freshRequest = new Request(c.req.url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Origin": origin,
-            ...Object.fromEntries(c.req.raw.headers.entries()),
-          },
-          body: JSON.stringify(jsonBody),
+        // Create a new request with the parsed body
+        const newHeaders = new Headers(originalRequest.headers);
+        newHeaders.set("Content-Type", "application/json");
+
+        // Strip port from Host header if present
+        const host = newHeaders.get("Host");
+        if (host) {
+          newHeaders.set("Host", host.split(":")[0]!);
+        }
+
+        // Ensure Origin header is set for DNS rebinding protection
+        if (!newHeaders.get("Origin")) {
+          try {
+            const requestUrl = new URL(originalRequest.url);
+            newHeaders.set("Origin", requestUrl.origin);
+          } catch {
+            // If we can't parse the URL, don't set a default Origin
+            // The MCP transport will handle the missing Origin header
+          }
+        }
+
+        const newRequest = new Request(originalRequest.url, {
+          method: originalRequest.method,
+          headers: newHeaders,
+          body: bodyText, // Use the original body text
+        });
+
+        const { req, res } = toReqRes(newRequest);
+        await transport.handleRequest(req, res);
+        return toFetchResponse(res);
+      } else {
+        // For existing sessions, read the body safely to avoid stream consumption issues
+        const originalRequest = c.req.raw;
+        const bodyText = await originalRequest.text();
+        const newHeaders = new Headers(originalRequest.headers);
+
+        // Strip port from Host header if present
+        const host = newHeaders.get("Host");
+        if (host) {
+          newHeaders.set("Host", host.split(":")[0]!);
+        }
+
+        // Ensure Origin header is set for DNS rebinding protection
+        if (!newHeaders.get("Origin")) {
+          try {
+            const requestUrl = new URL(originalRequest.url);
+            newHeaders.set("Origin", requestUrl.origin);
+          } catch {
+            // If we can't parse the URL, don't set a default Origin
+            // The MCP transport will handle the missing Origin header
+          }
+        }
+
+        const freshRequest = new Request(originalRequest.url, {
+          method: originalRequest.method,
+          headers: newHeaders,
+          body: bodyText,
         });
 
         const { req, res } = toReqRes(freshRequest);
-        await transport.handleRequest(req, res, jsonBody);
-        return toFetchResponse(res);
-      } else {
-        // For existing sessions, pass the request directly
-        const requestWithOrigin = addOriginHeader(c.req.raw);
-        const { req, res } = toReqRes(requestWithOrigin);
         await transport.handleRequest(req, res);
         return toFetchResponse(res);
       }
@@ -132,11 +173,34 @@ export function createHttpServer(
         );
       }
 
-      // Parse JSON body if present, otherwise use empty object
-      const jsonBody = c.req.method === "POST" ? await c.req.json() : {};
-      const requestWithOrigin = addOriginHeader(c.req.raw);
-      const { req, res } = toReqRes(requestWithOrigin);
-      await transport.handleRequest(req, res, jsonBody);
+      // GET and DELETE requests typically don't have a body, create fresh request with proper headers
+      const originalRequest = c.req.raw;
+      const newHeaders = new Headers(originalRequest.headers);
+
+      // Strip port from Host header if present
+      const host = newHeaders.get("Host");
+      if (host) {
+        newHeaders.set("Host", host.split(":")[0]!);
+      }
+
+      // Ensure Origin header is set for DNS rebinding protection
+      if (!newHeaders.get("Origin")) {
+        try {
+          const requestUrl = new URL(originalRequest.url);
+          newHeaders.set("Origin", requestUrl.origin);
+        } catch {
+          // If we can't parse the URL, don't set a default Origin
+          // The MCP transport will handle the missing Origin header
+        }
+      }
+
+      const freshRequest = new Request(originalRequest.url, {
+        method: originalRequest.method,
+        headers: newHeaders,
+      });
+
+      const { req, res } = toReqRes(freshRequest);
+      await transport.handleRequest(req, res);
       return toFetchResponse(res);
     } catch (error) {
       logger.error({

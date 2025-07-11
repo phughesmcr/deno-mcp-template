@@ -33,6 +33,9 @@ export interface HttpServerConfig {
 
   /** The allowed hosts */
   allowedHosts: string[];
+
+  /** Whether to disable DNS rebinding protection */
+  noDnsRebinding: boolean;
 }
 
 /** Public app config */

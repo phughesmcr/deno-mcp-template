@@ -23,10 +23,11 @@ export function configureMiddleware(app: Hono, config: AppConfig, logger: Logger
 
   if (config.log === "debug") {
     app.use(honoLogger((message, ...rest) => {
-      logger.error({
+      logger.debug({
         data: {
           message,
           details: rest,
+          origin: "Hono HTTP server",
         },
       });
     }));

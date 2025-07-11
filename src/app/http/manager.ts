@@ -13,29 +13,20 @@ class HttpTransportManager {
   /** Map of session IDs to their corresponding transport instances */
   #transports: Record<string, StreamableHTTPServerTransport> = {};
 
-  /**
-   * List of allowed host header values for DNS rebinding protection.
-   * If not specified, host validation is disabled.
-   */
-  #allowedHosts: string[];
+  /** The app config */
+  protected config: AppConfig;
 
-  /**
-   * List of allowed origin header values for DNS rebinding protection.
-   * If not specified, origin validation is disabled.
-   */
-  #allowedOrigins: string[];
-
-  #logger: Logger;
+  /** The logger instance */
+  protected logger: Logger;
 
   /**
    * Creates a new HttpTransportManager instance.
    * @param allowedHosts - Array of allowed host names for DNS rebinding protection
    * @param allowedOrigins - Array of allowed origins for CORS protection
    */
-  constructor(allowedHosts: string[], allowedOrigins: string[], logger: Logger) {
-    this.#allowedHosts = allowedHosts;
-    this.#allowedOrigins = allowedOrigins;
-    this.#logger = logger;
+  constructor(logger: Logger, config: AppConfig) {
+    this.config = config;
+    this.logger = logger;
   }
 
   /**
@@ -46,6 +37,18 @@ class HttpTransportManager {
    * @returns A new StreamableHTTPServerTransport instance
    */
   create(): StreamableHTTPServerTransport {
+    // Build dynamic allowed origins that include the server's own origin
+    const serverHttpOrigin = `http://${this.config.hostname}:${this.config.port}`;
+    const serverHttpsOrigin = `https://${this.config.hostname}:${this.config.port}`;
+
+    const dynamicAllowedOrigins = [
+      ...new Set([
+        ...this.config.allowedOrigins,
+        serverHttpOrigin,
+        serverHttpsOrigin,
+      ]),
+    ];
+
     const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => crypto.randomUUID(),
       onsessioninitialized: (sessionId) => {
@@ -56,9 +59,9 @@ class HttpTransportManager {
       },
       enableJsonResponse: true,
       eventStore: new InMemoryEventStore(),
-      enableDnsRebindingProtection: true,
-      allowedHosts: this.#allowedHosts, // removable if enableDnsRebindingProtection is false
-      allowedOrigins: this.#allowedOrigins, // removable if enableDnsRebindingProtection is false
+      enableDnsRebindingProtection: !this.config.noDnsRebinding,
+      allowedHosts: [...new Set(this.config.allowedHosts)],
+      allowedOrigins: dynamicAllowedOrigins,
     });
 
     return transport;
@@ -98,7 +101,7 @@ class HttpTransportManager {
         await transport.close();
         closed++;
       } catch (error) {
-        this.#logger.error({
+        this.logger.error({
           data: {
             error: "Error closing transport:",
             details: error,
@@ -111,7 +114,7 @@ class HttpTransportManager {
     await Promise.allSettled(Object.values(this.#transports).map(closeTransport));
     this.#transports = {};
 
-    this.#logger.info(`Closed ${closed} transports, ${errors} errors`);
+    this.logger.info(`Closed ${closed} transports, ${errors} errors`);
     return { closed, errors };
   }
 
@@ -130,17 +133,14 @@ class HttpTransportManager {
  */
 export class HttpServerManager extends HttpTransportManager {
   #fetch: Deno.ServeHandler | null = null;
-  #config: AppConfig;
   #server: Deno.HttpServer | null = null;
   #running = false;
-  #logger: Logger;
+
   readonly enabled: boolean;
 
   constructor(config: AppConfig, logger: Logger) {
-    super(config.allowedHosts, config.allowedOrigins, logger);
-    this.#config = config;
+    super(logger, config);
     this.enabled = !config.noHttp;
-    this.#logger = logger;
   }
 
   /**
@@ -163,12 +163,11 @@ export class HttpServerManager extends HttpTransportManager {
    */
   async start(): Promise<void> {
     if (!this.enabled || this.#running || !this.#fetch) return;
-
-    const { hostname, port } = this.#config;
+    const { hostname, port } = this.config;
     this.#server = Deno.serve({
       hostname,
       port,
-      onListen: () => this.#logger.info(`${APP_NAME} listening on ${hostname}:${port}`),
+      onListen: () => this.logger.info(`${APP_NAME} listening on ${hostname}:${port}`),
     }, this.#fetch);
     this.#running = true;
   }
@@ -176,7 +175,6 @@ export class HttpServerManager extends HttpTransportManager {
   /** Stops the HTTP server and closes all active transports. */
   async stop(): Promise<void> {
     if (!this.#running) return;
-
     await this.closeAll();
     await this.#server?.shutdown();
     this.#server = null;

@@ -7,4 +7,5 @@ export const ENV_VARS = {
   HEADERS: "MCP_HEADERS",
   NO_HTTP: "MCP_NO_HTTP",
   NO_STDIO: "MCP_NO_STDIO",
+  NO_DNS_REBINDING: "MCP_NO_DNS_REBINDING",
 } as const;

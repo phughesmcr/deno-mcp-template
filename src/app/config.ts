@@ -89,7 +89,7 @@ export function parseConfig(): AppConfig {
     Deno.exit(0);
   }
 
-  const res = {
+  return {
     allowedOrigins: parseArrayConfig(
       args.origin,
       ENV_VARS.ALLOWED_ORIGINS,
@@ -120,6 +120,12 @@ export function parseConfig(): AppConfig {
       DEFAULT_LOG_LEVEL,
       (value) => validateLogLevel(String(value)),
     ) as LogLevelKey,
+    noDnsRebinding: parseConfigValue(
+      args["no-dns-rebinding"],
+      ENV_VARS.NO_DNS_REBINDING,
+      false,
+      (value) => Boolean(value),
+    ),
     noHttp: parseConfigValue(
       args["no-http"],
       ENV_VARS.NO_HTTP,
@@ -144,32 +150,5 @@ export function parseConfig(): AppConfig {
         return validatePort(parsed);
       },
     ),
-  };
-
-  // Setup allowed hosts and origins for MCP DNS rebinding protection
-  const allowedHosts = [
-    ...new Set([
-      ...ALLOWED_HOSTS,
-      res.hostname,
-      `${res.hostname}:${res.port}`,
-    ]),
-  ];
-
-  const allowedOrigins = [
-    ...new Set([
-      ...ALLOWED_ORIGINS,
-      res.hostname,
-      `${res.hostname}:${res.port}`,
-      `http://${res.hostname}`,
-      `https://${res.hostname}`,
-      `http://${res.hostname}:${res.port}`,
-      `https://${res.hostname}:${res.port}`,
-    ]),
-  ];
-
-  return {
-    ...res,
-    allowedHosts,
-    allowedOrigins,
   };
 }

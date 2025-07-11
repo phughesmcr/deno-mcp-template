@@ -8,7 +8,7 @@ import { DEFAULT_HOSTNAME, DEFAULT_PORT } from "./http.ts";
 
 export const CLI_ARGS = {
   string: ["port", "hostname", "log", "header", "origin", "host"],
-  boolean: ["help", "version", "no-http", "no-stdio"],
+  boolean: ["help", "version", "no-http", "no-stdio", "no-dns-rebinding"],
   collect: ["origin", "host", "header"],
   alias: {
     "help": "h",
@@ -26,6 +26,7 @@ export const CLI_ARGS = {
     "version": false,
     "no-http": false,
     "no-stdio": false,
+    "no-dns-rebinding": false,
   },
 } as const;
 
@@ -51,6 +52,7 @@ Options:
   -H,  --header [<HEADER>]         Custom headers to set
        --origin [<ORIGIN>]          Allow an origin
        --host [<HOST>]              Allow a host
+       --no-dns-rebinding           Disable DNS rebinding protection
        --no-http                    Disable the HTTP server
        --no-stdio                   Disable the STDIO server
   -h,  --help                       Show this help message
@@ -65,6 +67,7 @@ Environment Variables:
   MCP_HEADERS <string>               Comma-separated list of custom headers to set
   MCP_NO_HTTP <boolean>              Disable the HTTP server
   MCP_NO_STDIO <boolean>             Disable the STDIO server
+  MCP_NO_DNS_REBINDING <boolean>     Disable DNS rebinding protection
 
 Note: CLI flags take precedence over environment variables.
 `;
