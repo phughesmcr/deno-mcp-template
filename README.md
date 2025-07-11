@@ -122,7 +122,7 @@ Start the server using `deno task start`.
 
 ### Compiling to a binary
 
-Run `deno task compile`. See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) for more information.
+Run `deno task compile:all` (or `compile:win`, `compile:mac:arm64`, etc. for a specific platform).
 
 You can then use your binary like any other MCP server, for example:
 
@@ -135,6 +135,18 @@ You can then use your binary like any other MCP server, for example:
     }
 }
 ```
+
+ See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) for more information.
+
+### Compile to a Claude Desktop Extension (DXT)
+
+Anthropic's [desktop extensions](https://www.anthropic.com/engineering/desktop-extensions) tool packages MCP servers into a single-click install for Claude Desktop.
+
+Run `deno task dxt:all` to compile the server to a DXT package for all platforms (Windows, Mac, Linux).
+
+You can replace `dxt:all` with `dxt:win`, `dxt:mac:arm64`, `dxt:mac:x64`, `dxt:linux:x64`, or `dxt:linux:arm64` to compile for a specific platform.
+
+This will create a `dist/server.dxt` file you can share with others - they won't need to install Deno or any other dependencies.
 
 ### Claude Code
 

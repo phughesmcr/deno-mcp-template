@@ -7,12 +7,15 @@
  * 
  * This script helps users quickly customize the template by replacing
  * placeholder values with their own project information.
+ * 
+ * @module
  */
 
 interface ProjectInfo {
   authorName: string;
   authorEmail: string;
   projectName: string;
+  projectDisplayName: string;
   projectDescription: string;
   githubUsername: string;
   jsrScope?: string;
@@ -25,6 +28,7 @@ const REPLACEMENTS = [
   { find: "github@phugh.es", replace: (info: ProjectInfo) => info.authorEmail },
   { find: "phughesmcr", replace: (info: ProjectInfo) => info.githubUsername },
   { find: "deno-mcp-template", replace: (info: ProjectInfo) => info.projectName },
+  { find: "Deno MCP Template", replace: (info: ProjectInfo) => info.projectDisplayName },
   { find: "A demo package for MCP servers in Deno", replace: (info: ProjectInfo) => info.projectDescription },
   { find: "@phughesmcr/deno-mcp-template", replace: (info: ProjectInfo) => `@${info.jsrScope || info.githubUsername}/${info.projectName}` },
   { find: "https://www.phugh.es", replace: (info: ProjectInfo) => info.url || "" },
@@ -37,6 +41,7 @@ const FILES_TO_UPDATE = [
   "src/constants.ts",
   "static/.well-known/llms.txt",
   "static/.well-known/openapi.yaml",
+  "static/dxt-manifest.json",
   "AUTHORS.md",
   "CODE_OF_CONDUCT.md",
   "CONTRIBUTING.md",
@@ -59,6 +64,7 @@ function collectProjectInfo(): ProjectInfo {
   const authorEmail = promptUser("Your email address", "you@example.com");
   const githubUsername = promptUser("Your GitHub username");
   const projectName = promptUser("Project name (kebab-case)", "my-mcp-server");
+  const projectDisplayName = promptUser("Project display name", "My MCP Server");
   const projectDescription = promptUser("Project description", "My custom MCP server");
   const jsrScope = promptUser("JSR scope (optional, will use GitHub username if empty)");
   const url = promptUser("Project URL (optional)", "");
@@ -68,6 +74,7 @@ function collectProjectInfo(): ProjectInfo {
     authorEmail,
     githubUsername,
     projectName,
+    projectDisplayName,
     projectDescription,
     jsrScope,
     url,
@@ -149,7 +156,7 @@ async function cleanup(): Promise<void> {
   await Deno.writeTextFile("deno.json", denoJsonUpdated);
   
   // delete this script and scripts folder
-  await Deno.remove("scripts", { recursive: true });
+  await Deno.remove("scripts/setup-template.ts");
 }
 
 if (import.meta.main) {

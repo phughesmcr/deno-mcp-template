@@ -39,8 +39,61 @@
         "start": "deno run -A main.ts",
         "dev": "ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run -A --watch main.ts -l=debug",
         "ci": "deno task prep",
-        "compile": "deno compile -A main.ts",
-        "setup": "deno run -A scripts/setup-template.ts"
+        "clean:dist": "deno run -A scripts/clean-dist.ts",
+        "compile:win": {
+            "description": "Create a binary for Windows",
+            "dependencies": ["clean:dist"],
+            "command": "deno compile -A -o ./dist/server/server.exe main.ts --target x86_64-pc-windows-msvc --icon=./static/icon.ico"
+        },
+        "compile:mac:arm64": {
+            "description": "Create a binary for Apple silicon macs (M1, M2, etc.)",
+            "dependencies": ["clean:dist"],
+            "command": "deno compile -A -o ./dist/server/server_mac_arm64 main.ts --target aarch64-apple-darwin"
+        },
+        "compile:mac:x64": {
+            "description": "Create a binary for Intel macs",
+            "dependencies": ["clean:dist"],
+            "command": "deno compile -A -o ./dist/server/server_mac_x64 main.ts --target x86_64-apple-darwin"
+        },
+        "compile:linux:x64": {
+            "description": "Create a binary for Linux (x64)",
+            "dependencies": ["clean:dist"],
+            "command": "deno compile -A -o ./dist/server/server_linux_x64 main.ts --target x86_64-unknown-linux-gnu"
+        },
+        "compile:linux:arm64": {
+            "description": "Create a binary for Linux (arm64)",
+            "dependencies": ["clean:dist"],
+            "command": "deno compile -A -o ./dist/server/server_linux_arm64 main.ts --target aarch64-unknown-linux-gnu"
+        },
+        "compile:all": {
+            "description": "Create binaries for all available platforms",
+            "dependencies": ["clean:dist", "compile:win", "compile:mac:arm64", "compile:mac:x64", "compile:linux:x64", "compile:linux:arm64"]
+        },
+        "dxt:pack":  "deno run -A scripts/dxt.ts",
+        "dxt:win": {
+            "description": "Create a DXT package for windows",
+            "dependencies": ["compile:win", "dxt:pack"]
+        },
+        "dxt:mac:arm64": {
+            "description": "Create a DXT package for mac (arm64)",
+            "dependencies": ["compile:mac:arm64", "dxt:pack"]
+        },
+        "dxt:mac:x64": {
+            "description": "Create a DXT package for mac (x64)",
+            "dependencies": ["compile:mac:x64", "dxt:pack"]
+        },
+        "dxt:linux:x64": {
+            "description": "Create a DXT package for linux (x64)",
+            "dependencies": ["compile:linux:x64", "dxt:pack"]
+        },
+        "dxt:linux:arm64": {
+            "description": "Create a DXT package for linux (arm64)",
+            "dependencies": ["compile:linux:arm64", "dxt:pack"]
+        },
+        "dxt:all": {
+            "description": "Create a DXT package for all platforms",
+            "dependencies": ["compile:all", "dxt:pack"]
+        }
     },
     "compilerOptions": {
         "strict": true,
