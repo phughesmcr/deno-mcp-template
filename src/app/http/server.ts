@@ -11,6 +11,33 @@ import type { Logger } from "../logger.ts";
 import { HttpServerManager } from "./manager.ts";
 import { configureMiddleware } from "./middleware.ts";
 
+/**
+ * Prepares headers for MCP transport by stripping port from Host header
+ * and ensuring Origin header is set for DNS rebinding protection
+ */
+function prepareHeaders(originalRequest: Request): Headers {
+  const newHeaders = new Headers(originalRequest.headers);
+
+  // Strip port from Host header if present
+  const host = newHeaders.get("Host");
+  if (host) {
+    newHeaders.set("Host", host.split(":")[0]!);
+  }
+
+  // Ensure Origin header is set for DNS rebinding protection
+  if (!newHeaders.get("Origin")) {
+    try {
+      const requestUrl = new URL(originalRequest.url);
+      newHeaders.set("Origin", requestUrl.origin);
+    } catch {
+      // If we can't parse the URL, don't set a default Origin
+      // The MCP transport will handle the missing Origin header
+    }
+  }
+
+  return newHeaders;
+}
+
 export function createHttpServer(
   mcp: Server,
   config: AppConfig,
@@ -70,25 +97,8 @@ export function createHttpServer(
         await mcp.connect(transport);
 
         // Create a new request with the parsed body
-        const newHeaders = new Headers(originalRequest.headers);
+        const newHeaders = prepareHeaders(originalRequest);
         newHeaders.set("Content-Type", "application/json");
-
-        // Strip port from Host header if present
-        const host = newHeaders.get("Host");
-        if (host) {
-          newHeaders.set("Host", host.split(":")[0]!);
-        }
-
-        // Ensure Origin header is set for DNS rebinding protection
-        if (!newHeaders.get("Origin")) {
-          try {
-            const requestUrl = new URL(originalRequest.url);
-            newHeaders.set("Origin", requestUrl.origin);
-          } catch {
-            // If we can't parse the URL, don't set a default Origin
-            // The MCP transport will handle the missing Origin header
-          }
-        }
 
         const newRequest = new Request(originalRequest.url, {
           method: originalRequest.method,
@@ -103,24 +113,7 @@ export function createHttpServer(
         // For existing sessions, read the body safely to avoid stream consumption issues
         const originalRequest = c.req.raw;
         const bodyText = await originalRequest.text();
-        const newHeaders = new Headers(originalRequest.headers);
-
-        // Strip port from Host header if present
-        const host = newHeaders.get("Host");
-        if (host) {
-          newHeaders.set("Host", host.split(":")[0]!);
-        }
-
-        // Ensure Origin header is set for DNS rebinding protection
-        if (!newHeaders.get("Origin")) {
-          try {
-            const requestUrl = new URL(originalRequest.url);
-            newHeaders.set("Origin", requestUrl.origin);
-          } catch {
-            // If we can't parse the URL, don't set a default Origin
-            // The MCP transport will handle the missing Origin header
-          }
-        }
+        const newHeaders = prepareHeaders(originalRequest);
 
         const freshRequest = new Request(originalRequest.url, {
           method: originalRequest.method,
@@ -175,24 +168,7 @@ export function createHttpServer(
 
       // GET and DELETE requests typically don't have a body, create fresh request with proper headers
       const originalRequest = c.req.raw;
-      const newHeaders = new Headers(originalRequest.headers);
-
-      // Strip port from Host header if present
-      const host = newHeaders.get("Host");
-      if (host) {
-        newHeaders.set("Host", host.split(":")[0]!);
-      }
-
-      // Ensure Origin header is set for DNS rebinding protection
-      if (!newHeaders.get("Origin")) {
-        try {
-          const requestUrl = new URL(originalRequest.url);
-          newHeaders.set("Origin", requestUrl.origin);
-        } catch {
-          // If we can't parse the URL, don't set a default Origin
-          // The MCP transport will handle the missing Origin header
-        }
-      }
+      const newHeaders = prepareHeaders(originalRequest);
 
       const freshRequest = new Request(originalRequest.url, {
         method: originalRequest.method,
