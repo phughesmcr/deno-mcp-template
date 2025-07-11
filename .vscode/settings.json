@@ -19,6 +19,7 @@
         "llms",
         "modelcontextprotocol",
         "msvc",
+        "onsessionclosed",
         "onsessioninitialized",
         "resumability",
         "Streamable",

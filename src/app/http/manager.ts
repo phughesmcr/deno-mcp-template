@@ -51,19 +51,15 @@ class HttpTransportManager {
       onsessioninitialized: (sessionId) => {
         this.#transports[sessionId] = transport;
       },
+      onsessionclosed: (sessionId) => {
+        delete this.#transports[sessionId];
+      },
       enableJsonResponse: true,
       eventStore: new InMemoryEventStore(),
       enableDnsRebindingProtection: true,
       allowedHosts: this.#allowedHosts, // removable if enableDnsRebindingProtection is false
       allowedOrigins: this.#allowedOrigins, // removable if enableDnsRebindingProtection is false
     });
-
-    transport.onclose = () => {
-      const sessionId = transport.sessionId;
-      if (sessionId && this.#transports[sessionId] === transport) {
-        delete this.#transports[sessionId];
-      }
-    };
 
     return transport;
   }
