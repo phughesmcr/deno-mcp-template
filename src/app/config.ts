@@ -28,6 +28,15 @@ import {
   validatePort,
 } from "../utils.ts";
 
+function showVersion(): void {
+  console.error(`${APP_NAME} v${APP_VERSION}`);
+}
+
+function showHelp(): void {
+  showVersion();
+  console.error(helpText);
+}
+
 /**
  * Generic configuration parser that handles CLI args, env vars, and defaults
  */
@@ -163,13 +172,4 @@ export function parseConfig(): AppConfig {
     allowedHosts,
     allowedOrigins,
   };
-}
-
-function showVersion(): void {
-  console.error(`${APP_NAME} v${APP_VERSION}`);
-}
-
-function showHelp(): void {
-  showVersion();
-  console.error(helpText);
 }

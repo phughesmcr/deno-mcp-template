@@ -59,6 +59,10 @@ export const EXPOSED_HEADERS = [
   "x-api-key",
 ];
 
+// ********************************************************
+// You should not need to change anything below this line.
+// ********************************************************
+
 export const HEADER_KEYS = {
   SESSION_ID: "mcp-session-id",
   LAST_EVENT_ID: "last-event-id",

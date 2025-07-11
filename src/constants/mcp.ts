@@ -23,6 +23,10 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
   // experimental: {},
 };
 
+// ********************************************************
+// You should not need to change anything below this line.
+// ********************************************************
+
 export const SERVER_INFO = {
   name: APP_NAME,
   title: APP_TITLE,

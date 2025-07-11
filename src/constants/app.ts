@@ -1,6 +1,5 @@
-import DenoJson from "../../deno.json" with { type: "json" };
-
 import type { LogLevelKey } from "$/types.ts";
+import DenoJson from "../../deno.json" with { type: "json" };
 
 /** The MCP server's machine-facing name. */
 export const APP_NAME = "deno-mcp-template";
@@ -13,6 +12,10 @@ export const APP_DESCRIPTION = "A template for building MCP servers with Deno.";
 
 /** The app's default log level. */
 export const DEFAULT_LOG_LEVEL: LogLevelKey = "info";
+
+// ********************************************************
+// You should not need to change anything below this line.
+// ********************************************************
 
 /** The app's version. */
 export const APP_VERSION = DenoJson.version;
