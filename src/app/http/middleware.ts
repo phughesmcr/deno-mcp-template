@@ -58,9 +58,15 @@ export function configureMiddleware(app: Hono, config: AppConfig, logger: Logger
     // @ts-expect-error - rateLimiter is not typed correctly for Deno Hono
     rateLimiter({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      limit: 100, // Limit each IP to 100 requests per `window.
+      limit: 100, // Limit each IP to 100 requests per window
       standardHeaders: "draft-7",
-      keyGenerator: (_c) => crypto.randomUUID(),
+      keyGenerator: (c) => {
+        // Try to get real IP from common headers, fallback to "unknown"
+        return c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+          c.req.header("x-real-ip") ||
+          c.req.header("cf-connecting-ip") ||
+          "unknown";
+      },
     }),
   );
 
