@@ -4,8 +4,9 @@
  * @module
  */
 
-import type { CallToolRequest } from "@vendor/schema";
-import type { ToolModule } from "../../types.ts";
+import type { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
+
+import type { ToolModule } from "$/types.ts";
 import { knowledgeGraph } from "./knowledgeGraph/mod.ts";
 
 // deno-lint-ignore no-explicit-any

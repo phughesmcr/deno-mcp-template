@@ -11,7 +11,7 @@ import {
   type JSONRPCResponse,
   type RequestId,
   type Result,
-} from "@vendor/schema";
+} from "@modelcontextprotocol/sdk/types.js";
 import type { LogLevelKey } from "./types.ts";
 
 /** Creates a JSON-RPC error response */

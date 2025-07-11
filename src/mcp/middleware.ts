@@ -3,7 +3,7 @@
  * @module
  */
 
-import type { CallToolResult } from "@vendor/schema";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 /**

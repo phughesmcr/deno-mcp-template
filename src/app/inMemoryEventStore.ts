@@ -5,7 +5,7 @@
  */
 
 import type { EventStore } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { JSONRPCMessage } from "@vendor/schema";
+import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import type { McpEvent, McpEventSender } from "../types.ts";
 
 export class InMemoryEventStore implements EventStore {

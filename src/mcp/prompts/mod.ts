@@ -3,8 +3,13 @@
  * @module
  */
 
-import type { GetPromptRequest, GetPromptResult, ListPromptsResult } from "@vendor/schema";
-import type { PromptModule } from "../../types.ts";
+import type {
+  GetPromptRequest,
+  GetPromptResult,
+  ListPromptsResult,
+} from "@modelcontextprotocol/sdk/types.js";
+
+import type { PromptModule } from "$/types.ts";
 import { codeReview } from "./codeReview.ts";
 
 // deno-lint-ignore no-explicit-any

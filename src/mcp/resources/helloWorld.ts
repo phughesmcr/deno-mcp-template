@@ -3,8 +3,9 @@
  * @module
  */
 
-import type { ReadResourceResult, Resource } from "@vendor/schema";
-import type { ResourceModule } from "../../types.ts";
+import type { ReadResourceResult, Resource } from "@modelcontextprotocol/sdk/types.js";
+
+import type { ResourceModule } from "$/types.ts";
 
 const resource: Resource = {
   uri: "hello://world",

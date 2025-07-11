@@ -209,8 +209,6 @@ static/
 │   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
 │   └── openapi.yaml            # An example OpenAPI specification for the server 
 └── dxt-manifest.json           # The manifest for the DXT package
-vendor/
-└── schema.ts                   # The 2025-06-18 MCP schema from Anthropic
 ```
 
 ## Config
@@ -285,9 +283,8 @@ The repo includes the following quality-of-life files which aren't necessary for
 - `.cursor/rules/` agent rules for Cursor.
 - `.github/` adds Github sponsors info to your repo, and other Github features such as workflows.
 - `.vscode/` has some recommended extensions and makes Deno the default formatter.
-- `vendor/schema.ts` is the [2025-06-18 MCP schema from Anthropic](https://github.com/modelcontextprotocol/specification/blob/main/schema/2025-06-18/schema.ts).
-- `CLAUDE.md` is a starter file for Claude Code. Run `claude init` after your first changes to keep it up-to-date.
 - `.cursorignore` tells Cursor to exclude files in addition to `.gitignore`.
+- `CLAUDE.md` is a starter file for Claude Code. Run `claude init` after your first changes to keep it up-to-date.
 - `*.md`. These markdown files, e.g. "CODE_OF_CONDUCT.md", add various tabs and tags to you Github repo and help with community management.
 
 ## More Information
@@ -297,8 +294,6 @@ The repo includes the following quality-of-life files which aren't necessary for
 [The ModelContextProtocol Github](https://github.com/modelcontextprotocol).
 
 ## Acknowledgements
-
-`vendor/schema.ts` is the [2025-06-18 MCP schema from Anthropic](https://github.com/modelcontextprotocol/specification/blob/main/schema/2025-06-18/schema.ts) (MIT License).
 
 If you use this template, please contribute fixes and features, star the repo, and consider sponsoring.
 

@@ -10,7 +10,8 @@ import type {
   Resource,
   ResourceTemplate,
   Tool,
-} from "@vendor/schema";
+} from "@modelcontextprotocol/sdk/types.js";
+
 
 /** An object that maps session IDs to transports */
 export interface TransportRecord {

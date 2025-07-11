@@ -29,7 +29,6 @@
         "@std/cli": "jsr:@std/cli@^1.0.20",
         "@std/dotenv/load": "jsr:@std/dotenv@^0.225.5/load",
         "@std/path": "jsr:@std/path@^1.1.1",
-        "@vendor/schema": "./vendor/schema.ts",
         "fetch-to-node": "npm:fetch-to-node@^2.1.0",
         "hono": "jsr:@hono/hono@^4.8.4",
         "hono-rate-limiter": "npm:hono-rate-limiter@^0.4.2",

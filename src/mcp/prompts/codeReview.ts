@@ -3,8 +3,9 @@
  * @module
  */
 
-import type { GetPromptResult, Prompt } from "@vendor/schema";
-import type { PromptModule } from "../../types.ts";
+import type { GetPromptResult, Prompt } from "@modelcontextprotocol/sdk/types.js";
+
+import type { PromptModule } from "$/types.ts";
 
 const prompt: Prompt = {
   name: "review-code",

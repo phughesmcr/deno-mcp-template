@@ -3,8 +3,9 @@
  * @module
  */
 
-import type { CallToolResult } from "@vendor/schema";
-import { createCallToolTextResponse } from "../../../utils.ts";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+
+import { createCallToolTextResponse } from "$/utils.ts";
 import type {
   Deletion,
   Entity,
