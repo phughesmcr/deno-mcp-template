@@ -12,7 +12,6 @@
 
 ![Sponsor](https://img.shields.io/github/sponsors/phughesmcr)
 
-
 <div align="center">
     <img src="static/banner_480.png" alt="Repo Logo - a long-necked orange dinosaur walks in-front of a cliff-face with the letters M C P carved into it" width="320" />
 </div>
@@ -71,7 +70,7 @@ deno task start
 deno task dev
 ```
 
-Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/constants.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/httpServer.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
+Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/constants/**.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/http/middleware.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
 
 ## Using your MCP server
 
@@ -172,15 +171,23 @@ main.ts       # The main entry point
 src/              
 ├── app/    
 │   ├── http/
-│   │   ├── manager.ts            # The HTTP transport manager
-│   │   └── server.ts             # The HTTP server
+│   │   ├── manager.ts            # The HTTP transport & state manager
+│   │   ├── middleware.ts         # Middleware for the HTTP server
+│   │   └── server.ts             # The Hono HTTP server
 │   ├── app.ts                  # The main application class
-│   ├── config.ts               # Configuration for the App and MCP server
+│   ├── config.ts               # Parses CLI args and env vars into an AppConfig object
 │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
 │   ├── logger.ts               # A simple logger that doesn't interfere with stdout
-│   ├── middleware.ts           # Middleware for the server (tool-call validation, etc.)
-│   ├── signals.ts              # Signal handling for the server
-│   └── stdio.ts                # The STDIO transport manager
+│   ├── signals.ts              # Global signal handling for handling SIGINT, SIGTERM, etc.
+│   └── stdio.ts                # The STDIO transport & state manager
+├── constants/  
+│   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
+│   ├── cli.ts                  # Constants for the CLI (e.g., help text, args, etc.)
+│   ├── env.ts                  # Constants for the ENV variables 
+│   ├── http.ts                 # Constants for the HTTP server (e.g., headers, ports, etc.)
+│   ├── mcp.ts                  # Constants for the MCP server (e.g., capabilities, etc.)
+│   ├── mod.ts                  # Single point of export for all constants (`$/constants`)
+│   └── validation.ts           # Constants for the various validation functions (e.g., log level)
 ├── mcp/ 
 │   ├── prompts/                             
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
@@ -199,8 +206,8 @@ src/
 │   │   │   ├── sanitization.ts             # Input sanitization utilities for knowledge graph data
 │   │   │   └── schemas.ts                  # Zod schemas for knowledge graph tools
 │   │   └── mod.ts                          # Provides a single point of export for all the MCP tools
+│   ├── middleware.ts           # Middleware for the MCP server (tool-call validation, etc.)
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
-├── constants.ts                # Shared constants
 ├── schemas.ts                  # Shared Zod schemas
 ├── types.ts                    # Shared types
 └── utils.ts                    # Shared utility
@@ -223,6 +230,7 @@ static/
 | MCP_ALLOW_HOSTS      | --host      | "localhost" | The allowed hosts for the HTTP server (CLI flag is a collection) |
 | MCP_NO_HTTP          | --no-http   | `false`     | Disable the HTTP server |
 | MCP_NO_STDIO         | --no-stdio  | `false`     | Disable the STDIO server |
+| MCP_NO_DNS_REBINDING | --no-dns-rebinding | `false` | Disable DNS rebinding protection |
 
 ⚠️ CLI flags take precedence over environment variables, except in collections (e.g. `--H`, `--origin` and `--host`), where the two are combined.
 
@@ -234,7 +242,7 @@ Run `deno task setup` to setup the project for your own use.
 
 ⚠️ You must grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information. (The setup task will do this for you.)
 
-⚠️ If using `enableDnsRebindingProtection`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `src/constants.ts`. If not, you can disable `enableDnsRebindingProtection` in `src/app/httpServer.ts` (it is enabled by default).
+⚠️ If using `enableDnsRebindingProtection`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `src/constants/http.ts`. If not, you can disable `enableDnsRebindingProtection` in `src/app/http/manager.ts` (it is enabled by default).
 
 ⚠️ `src/app/inMemoryEventStore.ts` is a simple utility for session resumability. It is **not** suitable for production use.
 
