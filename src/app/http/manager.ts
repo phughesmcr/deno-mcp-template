@@ -2,8 +2,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 
 import { APP_NAME } from "$/constants";
 import type { AppConfig } from "$/types.ts";
-import { InMemoryEventStore } from "../inMemoryEventStore.ts";
 import type { Logger } from "../logger.ts";
+import { InMemoryEventStore } from "./inMemoryEventStore.ts";
 
 /**
  * Manages HTTP transport instances for MCP server sessions.

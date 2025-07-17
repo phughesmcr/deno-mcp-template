@@ -171,12 +171,12 @@ main.ts       # The main entry point
 src/              
 ├── app/    
 │   ├── http/
-│   │   ├── manager.ts            # The HTTP transport & state manager
-│   │   ├── middleware.ts         # Middleware for the HTTP server
-│   │   └── server.ts             # The Hono HTTP server
+│   │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
+│   │   ├── manager.ts              # The HTTP transport & state manager
+│   │   ├── middleware.ts           # Middleware for the HTTP server
+│   │   └── server.ts               # The Hono HTTP server (the MCP server)
 │   ├── app.ts                  # The main application class
 │   ├── config.ts               # Parses CLI args and env vars into an AppConfig object
-│   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
 │   ├── logger.ts               # A simple logger that doesn't interfere with stdout
 │   ├── signals.ts              # Global signal handling for handling SIGINT, SIGTERM, etc.
 │   └── stdio.ts                # The STDIO transport & state manager
