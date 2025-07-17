@@ -3,6 +3,7 @@ import type {
   CallToolResult,
   GetPromptResult,
   JSONRPCMessage,
+  LoggingMessageNotification,
   Prompt,
   ReadResourceResult,
   Resource,
@@ -93,9 +94,4 @@ export interface ToolModule<T extends Record<string, unknown>> {
 
 export type LogLevelKey = keyof typeof LOG_LEVEL;
 export type LogLevelValue = typeof LOG_LEVEL[LogLevelKey];
-export type LogParams = Parameters<typeof console.error>;
-
-export type LogData = {
-  logger?: string;
-  data: Record<string, unknown>;
-};
+export type LogData = LoggingMessageNotification["params"];

@@ -29,13 +29,19 @@ export class SignalHandler {
   }
 
   #handleError = async (): Promise<void> => {
-    this.#logger.error("Unhandled rejection, shutting down gracefully...");
+    this.#logger.error({
+      logger: "SignalHandler",
+      data: "Unhandled rejection, shutting down gracefully...",
+    });
     await this.#onShutdown();
     Deno.exit(1);
   };
 
   #handleSignal = async (signal: string): Promise<void> => {
-    this.#logger.info(`Received ${signal}, shutting down gracefully...`);
+    this.#logger.info({
+      logger: "SignalHandler",
+      data: `Received ${signal}, shutting down gracefully...`,
+    });
     await this.#onShutdown();
     Deno.exit(0);
   };

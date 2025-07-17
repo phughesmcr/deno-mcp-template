@@ -39,7 +39,7 @@ Usage: ${usage} [OPTIONS]
 
 Examples: 
 
-$ ${usage} -p 3001 -n localhost -l debug
+$ ${usage} -p ${DEFAULT_PORT} -n ${DEFAULT_HOSTNAME} -l ${DEFAULT_LOG_LEVEL}
 
 $ ${usage} --origin "https://example.com" --origin "https://localhost:3001" --host "example.com" --host "localhost"
 
@@ -49,7 +49,7 @@ Options:
   -p,  --port <PORT>                Port to listen on (default: ${DEFAULT_PORT})
   -n,  --hostname <HOSTNAME>        Hostname to bind to (default: ${DEFAULT_HOSTNAME})
   -l,  --log <LEVEL>                Log level (default: ${DEFAULT_LOG_LEVEL})
-  -H,  --header [<HEADER>]         Custom headers to set
+  -H,  --header [<HEADER>]          Custom headers to set
        --origin [<ORIGIN>]          Allow an origin
        --host [<HOST>]              Allow a host
        --no-dns-rebinding           Disable DNS rebinding protection
@@ -69,6 +69,6 @@ Environment Variables:
   MCP_NO_STDIO <boolean>             Disable the STDIO server
   MCP_NO_DNS_REBINDING <boolean>     Disable DNS rebinding protection
 
-Note: CLI flags take precedence over environment variables.
+Note: CLI flags take precedence over environment variables, except collections which are merged.
 `;
 })();

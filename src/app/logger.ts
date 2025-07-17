@@ -5,15 +5,19 @@ import { APP_NAME, DEFAULT_LOG_LEVEL, LOG_LEVEL, VALID_LOG_LEVELS } from "$/cons
 import type { LogData, LogLevelKey, LogLevelValue } from "../types.ts";
 
 export class Logger {
-  /** The current log level (lower is more severe) */
-  #level: LogLevelValue;
+  /** The current log level (lower (0) is more severe) */
+  #severity: LogLevelValue;
+
+  /** The current log level name (e.g., "debug", "info", "notice", etc.) */
+  #level: LogLevelKey;
 
   /** The MCP server */
   #server: Server;
 
   /** A simple MCP-safe logger, routing messages to stderr to avoid STDIO bugs */
   constructor(server: Server, level: LogLevelKey = DEFAULT_LOG_LEVEL) {
-    this.#level = LOG_LEVEL[level];
+    this.#level = level;
+    this.#severity = LOG_LEVEL[level];
     this.#server = server;
 
     // Register handler for `logging/setLevel`
@@ -22,12 +26,10 @@ export class Logger {
       async (request) => {
         const levelName = request.params.level.trim().toLowerCase();
         if (VALID_LOG_LEVELS.includes(levelName as LogLevelKey)) {
-          this.#setLoggingLevel(levelName as LogLevelKey);
+          await this.#setLoggingLevel(levelName as LogLevelKey);
         } else {
           this.error({
-            data: {
-              error: `Invalid log level "${levelName}" received.`,
-            },
+            data: `Invalid log level "${levelName}" received.`,
           });
         }
         return {};
@@ -40,20 +42,21 @@ export class Logger {
     return this.#level;
   }
 
+  /** The current log level severity (lower is more severe) */
+  get severity() {
+    return this.#severity;
+  }
+
   /** Sets the log level */
   async #setLoggingLevel(level: LogLevelKey): Promise<void> {
-    this.#level = LOG_LEVEL[level];
+    this.#severity = LOG_LEVEL[level];
     return this.#server.sendLoggingMessage({
       level: "info",
-      data: {
-        message: "Logging level set to " + level,
-      },
+      data: `Logging level set to "${level}".`,
     }).catch((error) => {
-      console.error({
+      this.error({
         data: {
-          error: `Failed to send logging message: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          message: `Failed to send logging message`,
           details: error,
         },
       });
@@ -61,14 +64,15 @@ export class Logger {
   }
 
   /** Notify the server and print to stderr */
-  #log(level: LogLevelKey, log: LogData | string): void {
-    if (this.#level < LOG_LEVEL[level]) return;
-    const logData: LogData = typeof log === "string" ? { data: { [level]: log } } : log;
-    const { logger = APP_NAME, data } = logData;
-    this.#server.sendLoggingMessage({ level, data, logger }).catch((error) => {
+  #log(level: LogLevelKey, data: Omit<LogData, "level"> & { logger?: string }): void {
+    if (this.#severity < LOG_LEVEL[level]) return;
+    const result: LogData = { ...data, level, logger: data.logger ?? APP_NAME };
+    this.#server.sendLoggingMessage(result).catch((error) => {
       const notConnected = error instanceof Error && error.message.includes("Not connected");
       if (!notConnected) {
-        this.error({
+        console.error({
+          level: "error",
+          logger: APP_NAME,
           data: {
             error: "Failed to send logging message:",
             details: error,

@@ -30,7 +30,10 @@ export class StdioTransportManager {
     try {
       this.#transport = new StdioServerTransport();
       await this.#mcp.connect(this.#transport);
-      this.#logger.info(`${APP_NAME} listening on STDIO`);
+      this.#logger.info({
+        logger: "StdioTransportManager",
+        data: `${APP_NAME} listening on STDIO`,
+      });
     } catch (error) {
       this.#logger.error({
         data: {
@@ -45,7 +48,10 @@ export class StdioTransportManager {
     if (!this.isRunning) return;
     try {
       await this.#transport?.close();
-      this.#logger.info(`${APP_NAME} STDIO transport closed`);
+      this.#logger.info({
+        logger: "StdioTransportManager",
+        data: `${APP_NAME} STDIO transport closed`,
+      });
     } catch (error) {
       this.#logger.error({
         data: {

@@ -102,6 +102,7 @@ class HttpTransportManager {
         closed++;
       } catch (error) {
         this.logger.error({
+          logger: "HttpTransportManager",
           data: {
             error: "Error closing transport:",
             details: error,
@@ -115,7 +116,10 @@ class HttpTransportManager {
     this.#transports = {};
     await Promise.allSettled(transports.map(closeTransport));
 
-    this.logger.info(`Closed ${closed} transports, ${errors} errors`);
+    this.logger.info({
+      logger: "HttpTransportManager",
+      data: `Closed ${closed} transports, ${errors} errors`,
+    });
     return { closed, errors };
   }
 
@@ -168,7 +172,11 @@ export class HttpServerManager extends HttpTransportManager {
     this.#server = Deno.serve({
       hostname,
       port,
-      onListen: () => this.logger.info(`${APP_NAME} listening on ${hostname}:${port}`),
+      onListen: () =>
+        this.logger.info({
+          logger: "HttpServerManager",
+          data: `${APP_NAME} listening on ${hostname}:${port}`,
+        }),
     }, this.#fetch);
     this.#running = true;
   }

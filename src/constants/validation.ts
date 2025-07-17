@@ -15,4 +15,8 @@ export const LOG_LEVEL = {
   debug: 7,
 } as const;
 
+export const LOG_LEVEL_BY_SEVERITY = Object.fromEntries(
+  Object.entries(LOG_LEVEL).map(([key, value]) => [value, key]),
+) as Record<number, keyof typeof LOG_LEVEL>;
+
 export const VALID_LOG_LEVELS = Object.keys(LOG_LEVEL) as (keyof typeof LOG_LEVEL)[];

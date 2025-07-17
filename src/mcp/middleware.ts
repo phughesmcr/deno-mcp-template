@@ -4,26 +4,14 @@
  */
 
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
+import { createErrorMap, fromError } from "zod-validation-error/v4";
+import { z } from "zod/v4";
 
-/**
- * Custom error class for Zod validation errors
- */
-export class ValidationError extends Error {
-  readonly field: string;
-  readonly code: string;
-
-  constructor(
-    message: string,
-    field: string,
-    code: string = "VALIDATION_ERROR",
-  ) {
-    super(message);
-    this.name = "ValidationError";
-    this.field = field;
-    this.code = code;
-  }
-}
+z.config({
+  customError: createErrorMap({
+    includePath: true,
+  }),
+});
 
 /**
  * Middleware to validate arguments against a Zod schema
@@ -36,15 +24,8 @@ export function createValidationMiddleware<T>(schema: z.ZodSchema<T>) {
     try {
       return schema.parse(args);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
-        throw new ValidationError(
-          firstError?.message || "Validation failed",
-          firstError?.path.join(".") || "unknown",
-          firstError?.code || "VALIDATION_ERROR",
-        );
-      }
-      throw error;
+      const validationError = fromError(error);
+      throw validationError;
     }
   };
 }
@@ -70,19 +51,16 @@ export function safeToolCall<T, R>(
         structuredContent: { result },
       };
     } catch (error) {
-      if (error instanceof ValidationError) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromError(error);
         return {
           content: [{
             type: "text",
-            text: `Validation error in field '${error.field}': ${error.message}`,
+            text: validationError.message,
           }],
           isError: true,
           structuredContent: {
-            error: {
-              type: "validation_error",
-              field: error.field,
-              message: error.message,
-            },
+            error: validationError,
           },
         };
       }
