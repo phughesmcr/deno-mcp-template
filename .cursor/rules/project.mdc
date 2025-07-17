@@ -57,7 +57,6 @@ src/
 │   │   └── mod.ts                          # Provides a single point of export for all the MCP tools
 │   ├── middleware.ts           # Middleware for the MCP server (tool-call validation, etc.)
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
-├── schemas.ts                  # Shared Zod schemas
 ├── types.ts                    # Shared types
 └── utils.ts                    # Shared utility
 static/             

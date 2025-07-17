@@ -1,7 +1,7 @@
 import type { Server } from "@modelcontextprotocol/sdk/server";
+import { SetLevelRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import { APP_NAME, DEFAULT_LOG_LEVEL, LOG_LEVEL, VALID_LOG_LEVELS } from "$/constants";
-import { SetLevelRequestSchema } from "../schemas.ts";
 import type { LogData, LogLevelKey, LogLevelValue } from "../types.ts";
 
 export class Logger {
