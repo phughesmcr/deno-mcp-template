@@ -3,8 +3,8 @@
  * @module
  */
 
-import { APP_NAME, DEFAULT_LOG_LEVEL } from "./app.ts";
-import { DEFAULT_HOSTNAME, DEFAULT_PORT } from "./http.ts";
+import { APP_NAME, APP_VERSION_STR } from "./app.ts";
+import { DEFAULT_CONFIG } from "./config.ts";
 
 export const CLI_ARGS = {
   string: ["port", "hostname", "log", "header", "origin", "host"],
@@ -19,14 +19,14 @@ export const CLI_ARGS = {
     "version": "v",
   },
   default: {
-    "help": false,
-    "hostname": DEFAULT_HOSTNAME,
-    "log": DEFAULT_LOG_LEVEL,
-    "port": DEFAULT_PORT,
-    "version": false,
-    "no-http": false,
-    "no-stdio": false,
-    "no-dns-rebinding": false,
+    "help": DEFAULT_CONFIG.help,
+    "hostname": DEFAULT_CONFIG.hostname,
+    "log": DEFAULT_CONFIG.log,
+    "port": DEFAULT_CONFIG.port,
+    "version": DEFAULT_CONFIG.version,
+    "no-http": DEFAULT_CONFIG.noHttp,
+    "no-stdio": DEFAULT_CONFIG.noStdio,
+    "no-dns-rebinding": DEFAULT_CONFIG.noDnsRebinding,
   },
 } as const;
 
@@ -35,20 +35,22 @@ export const helpText: string = (() => {
   const usage = Deno.build.standalone ? (import.meta.filename || APP_NAME) : "deno task start";
 
   return `
+${APP_VERSION_STR}
+
 Usage: ${usage} [OPTIONS]
 
 Examples: 
 
-$ ${usage} -p ${DEFAULT_PORT} -n ${DEFAULT_HOSTNAME} -l ${DEFAULT_LOG_LEVEL}
+$ ${usage} -p ${DEFAULT_CONFIG.port} -n ${DEFAULT_CONFIG.hostname} -l ${DEFAULT_CONFIG.log}
 
 $ ${usage} --origin "https://example.com" --origin "https://localhost:3001" --host "example.com" --host "localhost"
 
 $ ${usage} --header "Authorization: Bearer <token>" -H "x-api-key: <key>"
 
 Options:
-  -p,  --port <PORT>                Port to listen on (default: ${DEFAULT_PORT})
-  -n,  --hostname <HOSTNAME>        Hostname to bind to (default: ${DEFAULT_HOSTNAME})
-  -l,  --log <LEVEL>                Log level (default: ${DEFAULT_LOG_LEVEL})
+  -p,  --port <PORT>                Port to listen on (default: ${DEFAULT_CONFIG.port})
+  -n,  --hostname <HOSTNAME>        Hostname to bind to (default: ${DEFAULT_CONFIG.hostname})
+  -l,  --log <LEVEL>                Log level (default: ${DEFAULT_CONFIG.log})
   -H,  --header [<HEADER>]          Custom headers to set
        --origin [<ORIGIN>]          Allow an origin
        --host [<HOST>]              Allow a host
@@ -59,9 +61,9 @@ Options:
   -v,  --version                    Show version information
 
 Environment Variables:
-  MCP_PORT <number>                  Port to listen on (default: ${DEFAULT_PORT})
-  MCP_HOSTNAME <string>              Hostname to bind to (default: ${DEFAULT_HOSTNAME})
-  MCP_LOG_LEVEL <string>             Log level (default: ${DEFAULT_LOG_LEVEL})
+  MCP_PORT <number>                  Port to listen on (default: ${DEFAULT_CONFIG.port})
+  MCP_HOSTNAME <string>              Hostname to bind to (default: ${DEFAULT_CONFIG.hostname})
+  MCP_LOG_LEVEL <string>             Log level (default: ${DEFAULT_CONFIG.log})
   MCP_ALLOWED_ORIGINS <string>       Comma-separated list of allowed origins
   MCP_ALLOWED_HOSTS <string>         Comma-separated list of allowed hosts
   MCP_HEADERS <string>               Comma-separated list of custom headers to set

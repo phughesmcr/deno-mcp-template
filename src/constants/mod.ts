@@ -5,6 +5,7 @@
 
 export * from "./app.ts";
 export * from "./cli.ts";
+export * from "./config.ts";
 export * from "./env.ts";
 export * from "./http.ts";
 export * from "./mcp.ts";

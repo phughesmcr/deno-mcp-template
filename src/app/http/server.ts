@@ -6,50 +6,52 @@ import { Hono } from "hono";
 import { serveStatic } from "hono/deno";
 
 import { APP_NAME, HEADER_KEYS, HTTP_STATUS, RPC_ERROR_CODES } from "$/constants";
-import type { AppConfig } from "$/types.ts";
 import { createRPCError } from "$/utils.ts";
+import type { Config } from "../config.ts";
 import type { Logger } from "../logger.ts";
 import { HttpServerManager } from "./manager.ts";
 import { configureMiddleware } from "./middleware.ts";
 
 /**
- * Prepares headers for MCP transport by stripping port from Host header
- * and ensuring Origin header is set for DNS rebinding protection
+ * Prepares headers for MCP transport with security considerations
+ * Only performs necessary header modifications for MCP compatibility
  */
-function prepareHeaders(originalRequest: Request): Headers {
+function prepareHeaders(originalRequest: Request, allowedHosts: string[]): Headers {
   const newHeaders = new Headers(originalRequest.headers);
 
-  // Strip port from Host header if present
+  // Validate Host header before any modification
   const host = newHeaders.get("Host");
   if (host) {
-    newHeaders.set("Host", host.split(":")[0]!);
-  }
+    const hostWithoutPort = host.split(":")[0]!;
 
-  // Ensure Origin header is set for DNS rebinding protection
-  if (!newHeaders.get("Origin")) {
-    try {
-      const requestUrl = new URL(originalRequest.url);
-      newHeaders.set("Origin", requestUrl.origin);
-    } catch {
-      // If we can't parse the URL, don't set a default Origin
-      // The MCP transport will handle the missing Origin header
+    // Only modify if host is in allowed list (security check)
+    if (allowedHosts.includes(hostWithoutPort) || allowedHosts.includes("*")) {
+      newHeaders.set("Host", hostWithoutPort);
+    } else {
+      // Don't modify Host header for untrusted hosts
+      // Let the MCP transport handle validation
     }
   }
+
+  // Do NOT automatically set Origin header - this can bypass CORS
+  // Let the MCP transport validate missing Origin headers appropriately
 
   return newHeaders;
 }
 
 /**
- * Creates a new Request object with prepared headers and consistent content type
+ * Creates a new request with modified headers for MCP transport
  */
-function createMCPRequest(originalRequest: Request, bodyText?: string): Request {
-  const newHeaders = prepareHeaders(originalRequest);
-  newHeaders.set("Content-Type", "application/json");
-
+function createMCPRequest(
+  originalRequest: Request,
+  allowedHosts: string[],
+  bodyText?: string,
+): Request {
+  const newHeaders = prepareHeaders(originalRequest, allowedHosts);
   return new Request(originalRequest.url, {
     method: originalRequest.method,
     headers: newHeaders,
-    body: bodyText,
+    body: bodyText || null,
   });
 }
 
@@ -59,16 +61,17 @@ function createMCPRequest(originalRequest: Request, bodyText?: string): Request 
 async function handleMCPRequest(
   transport: StreamableHTTPServerTransport,
   originalRequest: Request,
+  allowedHosts: string[],
   bodyText?: string,
 ): Promise<Response> {
-  const mcpRequest = createMCPRequest(originalRequest, bodyText);
+  const mcpRequest = createMCPRequest(originalRequest, allowedHosts, bodyText);
   const { req, res } = toReqRes(mcpRequest);
   await transport.handleRequest(req, res);
   return toFetchResponse(res);
 }
 
 /**
- * Handles errors and returns appropriate JSON-RPC error responses
+ * Handles MCP errors and returns appropriate JSON-RPC error responses
  */
 function handleMCPError(
   error: unknown,
@@ -77,23 +80,27 @@ function handleMCPError(
   context: string,
 ): Response {
   logger.error({
+    logger: "MCPServer",
     data: {
-      error: `MCP ${context} error:`,
+      error: `Error in ${context}:`,
       details: error,
+      sessionId,
     },
   });
 
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const rpcError = createRPCError(
-    sessionId || 0,
-    RPC_ERROR_CODES.INTERNAL_ERROR,
-    `Internal server error: ${errorMessage}`,
+  return new Response(
+    JSON.stringify(
+      createRPCError(
+        sessionId || 0,
+        RPC_ERROR_CODES.INTERNAL_ERROR,
+        "Internal server error",
+      ),
+    ),
+    {
+      status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      headers: { "Content-Type": "application/json" },
+    },
   );
-
-  return new Response(JSON.stringify(rpcError), {
-    status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-    headers: { "Content-Type": "application/json" },
-  });
 }
 
 /**
@@ -114,11 +121,24 @@ class SessionManager {
       return { transport: existingTransport, sessionId: sessionId! };
     }
 
+    // Validate request body size before parsing
+    if (requestBody.length === 0) {
+      throw new Error("Empty request body");
+    }
+
     // Parse request body to check if it's an initialize request
     let jsonBody;
     try {
       jsonBody = JSON.parse(requestBody);
-    } catch {
+
+      // Basic structure validation
+      if (!jsonBody || typeof jsonBody !== "object") {
+        throw new Error("Invalid JSON structure");
+      }
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        throw new Error("Invalid JSON syntax in request body");
+      }
       throw new Error("Invalid JSON in request body");
     }
 
@@ -129,8 +149,8 @@ class SessionManager {
       throw new Error(msg);
     }
 
-    // Use a unique key for session creation to prevent race conditions
-    const sessionKey = sessionId || `new_session_${Date.now()}_${Math.random()}`;
+    // Use cryptographically secure session key generation
+    const sessionKey = sessionId || crypto.randomUUID();
 
     // Check if we're already creating this session
     if (this.pendingSessions.has(sessionKey)) {
@@ -165,12 +185,14 @@ class SessionManager {
 
 export function createHttpServer(
   mcp: Server,
-  config: AppConfig,
+  config: Config,
   logger: Logger,
 ): HttpServerManager {
+  // Create managers
   const transports = new HttpServerManager(config, logger);
   const sessionManager = new SessionManager();
 
+  // Create the Hono app
   const app = new Hono();
 
   // Configure all middleware
@@ -190,7 +212,12 @@ export function createHttpServer(
         bodyText,
       );
 
-      return await handleMCPRequest(transport, originalRequest, bodyText);
+      return await handleMCPRequest(
+        transport,
+        originalRequest,
+        config.http.allowedHosts,
+        bodyText,
+      );
     } catch (error) {
       if (error instanceof Error && error.message.includes("Invalid JSON")) {
         return c.json(
@@ -244,7 +271,11 @@ export function createHttpServer(
         );
       }
 
-      return await handleMCPRequest(transport, c.req.raw);
+      return await handleMCPRequest(
+        transport,
+        c.req.raw,
+        config.http.allowedHosts,
+      );
     } catch (error) {
       return handleMCPError(
         error,

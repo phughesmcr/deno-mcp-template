@@ -50,28 +50,28 @@
  * @module
  */
 
-import { createApp } from "$/app/app.ts";
+import { App } from "$/app/app.ts";
+import { handleCliArgs } from "$/app/cli.ts";
+import { Config } from "$/app/config.ts";
 import { createMcpServer } from "$/mcp/mod.ts";
+import type { AppConfig } from "$/types.ts";
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
-// Load environment variables
+// read env vars from .env file
 import "@std/dotenv/load";
 
 // If the script is run directly, start the MCP server
 if (import.meta.main) {
-  // server is the MCP server
-  const server = createMcpServer();
+  // Parse CLI arguments and env vars
+  const args: AppConfig = handleCliArgs();
 
-  // app is a wrapper for HTTP and STDIO etc.
-  const app = createApp(server);
+  // Convert args to a Config object
+  const config = new Config(args);
+
+  // Create the MCP server
+  const mcp: Server = createMcpServer();
+
+  // The app is a wrapper for HTTP and STDIO etc.
+  const app = new App(mcp, config);
   await app.start();
-
-  // Log some debug info
-  setTimeout(() => {
-    app.log.debug({
-      data: {
-        debug: "App config",
-        details: app.config,
-      },
-    });
-  }, 200);
 }

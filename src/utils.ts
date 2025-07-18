@@ -13,7 +13,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { DEFAULT_LOG_LEVEL, VALID_LOG_LEVELS } from "$/constants";
-import type { LogLevelKey } from "./types.ts";
+import type { LogLevelKey } from "$/types.ts";
 
 /** Creates a JSON-RPC error response */
 export function createRPCError(

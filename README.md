@@ -172,17 +172,20 @@ src/
 ├── app/    
 │   ├── http/
 │   │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
-│   │   ├── manager.ts              # The HTTP transport & state manager
+│   │   ├── manager.ts              # The HTTP state manager
 │   │   ├── middleware.ts           # Middleware for the HTTP server
-│   │   └── server.ts               # The Hono HTTP server (the MCP server)
+│   │   ├── server.ts               # The Hono HTTP server (the MCP server)
+│   │   └── transport.ts            # The HTTP MCP transport manager
 │   ├── app.ts                  # The main application class
-│   ├── config.ts               # Parses CLI args and env vars into an AppConfig object
+│   ├── cli.ts                  # Parses CLI args and env vars into an AppConfig object
+│   ├── config.ts               # Handles the parsing and validation of the AppConfig object
 │   ├── logger.ts               # A simple logger that doesn't interfere with stdout
-│   ├── signals.ts              # Global signal handling for handling SIGINT, SIGTERM, etc.
+│   ├── signals.ts              # Signal handling for SIGINT, SIGTERM, etc.
 │   └── stdio.ts                # The STDIO transport & state manager
 ├── constants/  
 │   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
 │   ├── cli.ts                  # Constants for the CLI (e.g., help text, args, etc.)
+│   ├── config.ts               # Constants for the config (e.g., defaults, etc.)
 │   ├── env.ts                  # Constants for the ENV variables 
 │   ├── http.ts                 # Constants for the HTTP server (e.g., headers, ports, etc.)
 │   ├── mcp.ts                  # Constants for the MCP server (e.g., capabilities, etc.)

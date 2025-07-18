@@ -1,4 +1,6 @@
-import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type {
+  StreamableHTTPServerTransport,
+} from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type {
   CallToolResult,
   GetPromptResult,
@@ -39,8 +41,11 @@ export interface HttpServerConfig {
   noDnsRebinding: boolean;
 }
 
-/** Public app config */
-export interface AppConfig extends HttpServerConfig {
+/** CLI configuration */
+export interface CLIConfig {
+  /** Whether to show the help text (exits early) */
+  help: boolean;
+
   /** The log level */
   log: LogLevelKey;
 
@@ -49,7 +54,13 @@ export interface AppConfig extends HttpServerConfig {
 
   /** Whether to disable the STDIO server */
   noStdio: boolean;
+
+  /** Whether to show the version (exits early) */
+  version: boolean;
 }
+
+/** Public app config */
+export interface AppConfig extends HttpServerConfig, CLIConfig {}
 
 /** An event in the MCP event stream */
 export type McpEvent = { streamId: string; message: JSONRPCMessage };

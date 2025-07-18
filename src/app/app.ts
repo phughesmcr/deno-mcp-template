@@ -5,39 +5,41 @@
 
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
-import { parseConfig } from "$/app/config.ts";
-import type { AppConfig } from "$/types.ts";
+import type { Config } from "./config.ts";
 import type { HttpServerManager } from "./http/manager.ts";
 import { createHttpServer } from "./http/server.ts";
 import { Logger } from "./logger.ts";
 import { SignalHandler } from "./signals.ts";
 import { StdioTransportManager } from "./stdio.ts";
 
-class Application {
+export class App {
   #running = false;
+
   #http: HttpServerManager;
   #stdio: StdioTransportManager;
 
-  readonly config: Readonly<AppConfig>;
+  readonly config: Config;
   readonly log: Logger;
 
-  constructor(
-    logger: Logger,
-    http: HttpServerManager,
-    stdio: StdioTransportManager,
-    config: AppConfig,
-  ) {
+  constructor(mcp: Server, config: Config) {
     this.config = config;
-    this.log = logger;
-    this.#http = http;
-    this.#stdio = stdio;
+    this.log = new Logger(mcp, config.log.level);
+    this.#http = createHttpServer(mcp, config, this.log);
+    this.#stdio = new StdioTransportManager(mcp, config, this.log);
+
+    // Handle shutdown signals gracefully
+    new SignalHandler(this.log, () => this.stop());
+  }
+
+  get running(): boolean {
+    return this.#running;
   }
 
   /** Start all services */
   async start(): Promise<void> {
     if (this.#running) return;
-    if (!this.config.noStdio) await this.#stdio.start();
-    if (!this.config.noHttp) await this.#http.start();
+    if (this.#stdio.enabled) await this.#stdio.start();
+    if (this.#http.enabled) await this.#http.start();
     this.#running = true;
   }
 
@@ -48,37 +50,4 @@ class Application {
     await this.#http.stop();
     this.#running = false;
   }
-
-  get isRunning(): boolean {
-    return this.#running;
-  }
 }
-
-/**
- * Factory function for creating an Application instance with dependency injection
- * @param server - The MCP server
- * @returns The Application instance
- */
-export function createApp(server: Server): Application {
-  // Load configuration
-  const config: AppConfig = parseConfig();
-
-  // logger is a wrapper for console.error
-  const logger = new Logger(server, config.log);
-
-  // Create HTTP server manager
-  const http: HttpServerManager = createHttpServer(server, config, logger);
-
-  // Create STDIO transport manager
-  const stdio = new StdioTransportManager(server, config, logger);
-
-  // Create application instance
-  const app = new Application(logger, http, stdio, config);
-
-  // Handle shutdown signals gracefully
-  new SignalHandler(logger, () => app.stop());
-
-  return app;
-}
-
-export type { Application };

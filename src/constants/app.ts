@@ -19,3 +19,6 @@ export const DEFAULT_LOG_LEVEL: LogLevelKey = "info";
 
 /** The app's version. */
 export const APP_VERSION = DenoJson.version;
+
+/** The app's version string. */
+export const APP_VERSION_STR = `${APP_NAME} v${APP_VERSION}`;

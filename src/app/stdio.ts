@@ -2,22 +2,32 @@ import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { APP_NAME } from "$/constants";
-import type { AppConfig } from "$/types.ts";
+import type { Config } from "./config.ts";
 import type { Logger } from "./logger.ts";
 
 export class StdioTransportManager {
+  #config: Config;
+  #logger: Logger;
   #mcp: Server;
   #transport: StdioServerTransport | null = null;
-  #enabled: boolean;
-  #logger: Logger;
 
-  constructor(mcp: Server, config: AppConfig, logger: Logger) {
-    this.#mcp = mcp;
-    this.#enabled = !config.noStdio;
+  /**
+   * Creates a new StdioTransportManager instance.
+   * @param mcp - The MCP server instance
+   * @param config - The application configuration
+   * @param logger - The logger instance
+   */
+  constructor(mcp: Server, config: Config, logger: Logger) {
+    this.#config = config;
     this.#logger = logger;
+    this.#mcp = mcp;
   }
 
-  get isRunning(): boolean {
+  get enabled(): boolean {
+    return this.#config.stdio.enabled;
+  }
+
+  get running(): boolean {
     return !!this.#transport;
   }
 
@@ -26,7 +36,7 @@ export class StdioTransportManager {
   }
 
   async start(): Promise<void> {
-    if (!this.#enabled || this.isRunning) return;
+    if (!this.enabled || this.running) return;
     try {
       this.#transport = new StdioServerTransport();
       await this.#mcp.connect(this.#transport);
@@ -36,6 +46,7 @@ export class StdioTransportManager {
       });
     } catch (error) {
       this.#logger.error({
+        logger: "StdioTransportManager",
         data: {
           error: `Error starting ${APP_NAME} STDIO transport:`,
           details: error,
@@ -45,7 +56,7 @@ export class StdioTransportManager {
   }
 
   async stop(): Promise<void> {
-    if (!this.isRunning) return;
+    if (!this.running) return;
     try {
       await this.#transport?.close();
       this.#logger.info({
@@ -54,6 +65,7 @@ export class StdioTransportManager {
       });
     } catch (error) {
       this.#logger.error({
+        logger: "StdioTransportManager",
         data: {
           error: `Error closing ${APP_NAME} STDIO transport:`,
           details: error,

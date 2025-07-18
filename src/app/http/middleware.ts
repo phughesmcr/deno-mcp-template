@@ -2,7 +2,6 @@ import type { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
-import { csrf } from "hono/csrf";
 import { logger as honoLogger } from "hono/logger";
 import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
@@ -17,19 +16,19 @@ import {
   RPC_ERROR_CODES,
   TIMEOUT,
 } from "$/constants";
-import type { AppConfig } from "$/types.ts";
+import type { Config } from "../config.ts";
 import type { Logger } from "../logger.ts";
 
-export function configureMiddleware(app: Hono, config: AppConfig, logger: Logger): void {
+export function configureMiddleware(app: Hono, config: Config, logger: Logger): void {
   app.use("*", secureHeaders());
 
-  if (config.log === "debug") {
+  if (config.log.level === "debug") {
     app.use(honoLogger((message, ...rest) => {
       logger.debug({
+        logger: "Hono HTTP server",
         data: {
           message,
           details: rest,
-          origin: "Hono HTTP server",
         },
       });
     }));
@@ -72,21 +71,14 @@ export function configureMiddleware(app: Hono, config: AppConfig, logger: Logger
     }),
   );
 
-  // Only apply CSRF protection if not allowing all origins
-  if (!config.allowedOrigins.includes("*")) {
-    app.use(csrf({
-      origin: config.allowedOrigins,
-    }));
-  }
-
   app.use(cors({
     origin: (origin: string) => {
       // If wildcard is allowed, accept any origin
-      if (config.allowedOrigins.includes("*")) {
+      if (config.http.allowedOrigins.includes("*")) {
         return origin;
       }
       // Only return the origin if it's in the allowed list
-      if (config.allowedOrigins.includes(origin)) {
+      if (config.http.allowedOrigins.includes(origin)) {
         return origin;
       }
       return null;
