@@ -3,7 +3,7 @@
  * @module
  */
 
-import { z } from "zod";
+import { z } from "zod/v4";
 
 // Core entity schemas
 export const EntitySchema = z.object({
