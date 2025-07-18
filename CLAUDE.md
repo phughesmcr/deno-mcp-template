@@ -1,4 +1,6 @@
-# CLAUDE.md - Deno MCP Template Development Guide
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Deno version: ^2.4.0
 
@@ -89,3 +91,11 @@ Error Handling: Provide detailed error messages but avoid exposing sensitive inf
 Tool Implementation: Follow the MCP schema for defining tool schemas and handlers
 
 ## Docs
+
+[MCP Spec](https://modelcontextprotocol.io/specification/2025-06-18)
+[MCP Concepts](https://modelcontextprotocol.io/docs/concepts/)
+[MCP Server Features](https://modelcontextprotocol.io/specification/2025-06-18/server/index)
+[Hono Docs](https://hono.dev/docs/)
+[Deno Docs](https://docs.deno.com/)
+[Zod Docs](https://zod.dev/)
+

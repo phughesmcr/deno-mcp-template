@@ -73,6 +73,7 @@ export const TIMEOUT = 60000; // 60 seconds
 export const HEADER_KEYS = {
   SESSION_ID: "mcp-session-id",
   LAST_EVENT_ID: "last-event-id",
+  MCP_PROTOCOL_VERSION: "mcp-protocol-version",
 } as const;
 
 export const HTTP_STATUS = {

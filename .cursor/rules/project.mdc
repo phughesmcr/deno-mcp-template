@@ -93,3 +93,10 @@ Error Handling: Provide detailed error messages but avoid exposing sensitive inf
 Tool Implementation: Follow the MCP schema for defining tool schemas and handlers
 
 ## Docs
+
+[MCP Spec](https://modelcontextprotocol.io/specification/2025-06-18)
+[MCP Concepts](https://modelcontextprotocol.io/docs/concepts/)
+[MCP Server Features](https://modelcontextprotocol.io/specification/2025-06-18/server/index)
+[Hono Docs](https://hono.dev/docs/)
+[Deno Docs](https://docs.deno.com/)
+[Zod Docs](https://zod.dev/)
