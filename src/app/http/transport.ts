@@ -1,134 +1,155 @@
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
 import { InMemoryEventStore } from "$/app/http/inMemoryEventStore.ts";
 import type { Logger } from "$/app/logger.ts";
-import type { Config } from "../config.ts";
+import { APP_NAME } from "$/shared/constants.ts";
+import type { AppConfig } from "$/shared/types.ts";
 
-/**
- * Manages transport lifecycle with proper error handling.
- * Single Responsibility: Transport registration, tracking, and cleanup.
- */
-export class TransportRegistry {
-  #transports = new Map<string, StreamableHTTPServerTransport>();
-  #logger: Logger;
-  #config: Config;
+export class HttpServerManager {
+  readonly transports: HttpTransportManager;
 
-  constructor(config: Config, logger: Logger) {
-    this.#logger = logger;
+  readonly config: Readonly<AppConfig["http"]>;
+  #running: boolean;
+
+  #logger: Logger | null = null;
+
+  #server: Deno.HttpServer | null = null;
+  #fetch: Deno.ServeHandler<Deno.NetAddr> | null = null;
+
+  constructor(config: AppConfig["http"], logger?: Logger) {
+    this.transports = new HttpTransportManager(config);
+    this.config = config;
+    this.#running = false;
+    this.#logger = logger ?? null;
+    this.#fetch = null;
+  }
+
+  get isEnabled(): boolean {
+    return this.config.enabled;
+  }
+
+  set fetch(fetch: Deno.ServeHandler<Deno.NetAddr>) {
+    if (this.#running) {
+      throw new Error("Cannot set fetch after server is running");
+    }
+    this.#fetch = fetch;
+  }
+
+  /** Starts the HTTP server */
+  async start(): Promise<void> {
+    if (!this.isEnabled || this.#running || !this.#fetch) return;
+    const { hostname, port } = this.config;
+    this.#server = Deno.serve({
+      hostname,
+      port,
+      onListen: () => {
+        this.#logger?.info({
+          logger: "HttpServerManager",
+          data: `${APP_NAME} listening on ${hostname}:${port}`,
+        });
+      },
+    }, this.#fetch);
+    this.#running = true;
+  }
+
+  /** Stops the HTTP server and cleans up all transports */
+  async stop(): Promise<void> {
+    if (!this.#running) return;
+    await this.transports.releaseAll();
+    await this.#server?.shutdown();
+    this.#server = null;
+    this.#running = false;
+  }
+}
+
+export class HttpTransportManager {
+  #config: AppConfig["http"];
+  #transports: Map<string, StreamableHTTPServerTransport>;
+
+  constructor(config: AppConfig["http"]) {
     this.#config = config;
+    this.#transports = new Map();
   }
 
-  create(): StreamableHTTPServerTransport {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => crypto.randomUUID(),
-      onsessioninitialized: (sessionId) => {
-        this.register(sessionId, transport);
-      },
-      onsessionclosed: (sessionId) => {
-        this.unregister(sessionId);
-      },
-      enableJsonResponse: true,
-      eventStore: new InMemoryEventStore(),
-      enableDnsRebindingProtection: !this.#config.http.noDnsRebinding,
-      allowedHosts: this.#config.http.allowedHosts,
-      allowedOrigins: this.#config.http.allowedOrigins,
-    });
-
-    return transport;
-  }
-
-  register(sessionId: string, transport: StreamableHTTPServerTransport): void {
-    if (this.#transports.has(sessionId)) {
-      if (this.#transports.get(sessionId) === transport) {
-        this.#logger.debug({
-          logger: "TransportRegistry",
-          data: `Transport for session ${sessionId} already registered`,
-        });
-        return;
-      } else {
-        this.#logger.error({
-          logger: "TransportRegistry",
-          data: `Transport for session ${sessionId} already registered with different transport`,
-        });
-        throw new Error(
-          `Transport for session ${sessionId} already registered with different transport`,
-        );
-      }
-    }
-    this.#transports.set(sessionId, transport);
-    this.#logger.debug({
-      logger: "TransportRegistry",
-      data: `Registered transport for session ${sessionId}`,
-    });
-  }
-
-  unregister(sessionId: string): void {
-    if (this.#transports.delete(sessionId)) {
-      this.#logger.debug({
-        logger: "TransportRegistry",
-        data: `Unregistered transport for session ${sessionId}`,
-      });
-    }
+  get count(): number {
+    return this.#transports.size;
   }
 
   get(sessionId: string): StreamableHTTPServerTransport | undefined {
     return this.#transports.get(sessionId);
   }
 
-  has(sessionId: string): boolean {
-    return this.#transports.has(sessionId);
-  }
-
-  getCount(): number {
-    return this.#transports.size;
-  }
-
-  getAllSessionIds(): string[] {
-    return Array.from(this.#transports.keys());
-  }
-
-  async destroyTransport(sessionId: string): Promise<void> {
-    const transport = this.#transports.get(sessionId);
-    if (!transport) return;
-
-    try {
-      await transport.close();
-    } catch (error) {
-      this.#logger.error({
-        logger: "TransportRegistry",
-        data: {
-          error: `Error closing transport for session ${sessionId}:`,
-          details: error,
-        },
-      });
-    } finally {
-      this.unregister(sessionId);
-    }
-  }
-
-  async destroyAll(): Promise<{ closed: number; errors: Error[] }> {
-    let closed = 0;
-    const errors: Error[] = [];
-
-    const destroyPromises = Array.from(this.#transports.entries()).map(
-      async ([, transport]) => {
-        try {
-          await transport.close();
-          closed++;
-        } catch (error) {
-          errors.push(error instanceof Error ? error : new Error(String(error)));
+  #create(sessionId?: string): StreamableHTTPServerTransport {
+    const sessionKey = sessionId ?? crypto.randomUUID();
+    console.log(this.#config);
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => sessionKey,
+      onsessioninitialized: (id) => {
+        if (!this.#transports.has(id)) {
+          this.#transports.set(id, transport);
         }
       },
-    );
-
-    this.#transports.clear();
-    await Promise.allSettled(destroyPromises);
-
-    this.#logger.debug({
-      logger: "TransportRegistry",
-      data: `Cleanup completed: ${closed} closed, ${errors.length} errors`,
+      onsessionclosed: (id) => {
+        this.#transports.delete(id);
+      },
+      enableJsonResponse: true,
+      eventStore: new InMemoryEventStore(),
+      enableDnsRebindingProtection: !!this.#config.enableDnsRebinding,
+      allowedHosts: this.#config.allowedHosts ?? [],
+      allowedOrigins: this.#config.allowedOrigins ?? [],
     });
 
-    return { closed, errors };
+    // Store the transport immediately with the session key for quick lookup
+    if (sessionKey) {
+      this.#transports.set(sessionKey, transport);
+    }
+
+    return transport;
+  }
+
+  #validateInitRequest(sessionId: string | undefined, requestBody: string): unknown {
+    if (requestBody.length === 0) throw new Error("Empty request body");
+
+    let jsonBody;
+    try {
+      jsonBody = JSON.parse(requestBody);
+    } catch {
+      throw new Error("Invalid JSON in request body");
+    }
+
+    if (!isInitializeRequest(jsonBody)) {
+      if (!sessionId) {
+        throw new Error("No valid session ID provided");
+      }
+      throw new Error(`No transport found for session ID: ${sessionId}`);
+    }
+
+    return jsonBody;
+  }
+
+  acquire(sessionId: string | undefined, requestBody: string): StreamableHTTPServerTransport {
+    if (sessionId) {
+      const transport = this.#transports.get(sessionId);
+      if (transport) return transport;
+    }
+    this.#validateInitRequest(sessionId, requestBody);
+    const sessionKey = sessionId ?? crypto.randomUUID();
+    return this.#create(sessionKey);
+  }
+
+  async release(sessionId: string): Promise<void> {
+    const transport = this.#transports.get(sessionId);
+    if (!transport) {
+      throw new Error(`Transport not found for session ${sessionId}`);
+    }
+    await transport.close();
+    this.#transports.delete(sessionId);
+  }
+
+  async releaseAll(): Promise<void> {
+    const promises = Array.from(this.#transports.values()).map((transport) => transport.close());
+    await Promise.allSettled(promises);
+    this.#transports.clear();
   }
 }

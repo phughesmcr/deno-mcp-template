@@ -10,14 +10,14 @@ export const DEFAULT_PORT = 3001;
 export const DEFAULT_HOSTNAME = "localhost";
 
 /** The default headers for the MCP server. */
-export const HEADERS: string[] = [];
+export const DEFAULT_HEADERS: string[] = [];
 
 /**
  * The expected hosts for the MCP server's DNS rebinding protection to accept.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Host}
  * @note This is ignored if env.MCP_ALLOWED_HOSTS is set or CLI --host is provided.
  */
-export const ALLOWED_HOSTS: string[] = [DEFAULT_HOSTNAME];
+export const DEFAULT_ALLOWED_HOSTS: string[] = [];
 
 /**
  * The expected origins for the MCP server's DNS rebinding protection to accept.
@@ -25,21 +25,21 @@ export const ALLOWED_HOSTS: string[] = [DEFAULT_HOSTNAME];
  * @note The presence of "*" will allow all origins.
  * @note This is ignored if env.MCP_ALLOWED_ORIGINS is set or CLI --origin is provided.
  */
-export const ALLOWED_ORIGINS: string[] = ["*"];
+export const DEFAULT_ALLOWED_ORIGINS: string[] = ["*"];
 
 /**
  * The allowed methods for the MCP server's CORS protection.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Methods}
  * @note GET/POST are required for the HTTP server to function correctly.
  */
-export const ALLOWED_METHODS = ["GET", "POST", "DELETE", "OPTIONS"];
+export const DEFAULT_ALLOWED_METHODS = ["GET", "POST", "DELETE"];
 
 /**
  * The allowed headers for the MCP server's CORS protection.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers}
  * @note Headers required by the MCP spec are automatically added.
  */
-export const ALLOWED_HEADERS = [
+export const DEFAULT_ALLOWED_HEADERS = [
   "Origin",
   "Content-Type",
   "Accept",
@@ -53,7 +53,7 @@ export const ALLOWED_HEADERS = [
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Expose-Headers}
  * @note Headers required by the MCP spec are automatically added.
  */
-export const EXPOSED_HEADERS = [
+export const DEFAULT_EXPOSED_HEADERS = [
   "Content-Type",
   "Authorization",
   "x-api-key",
@@ -86,6 +86,7 @@ export const HTTP_STATUS = {
   NOT_FOUND: 404,
   METHOD_NOT_ALLOWED: 405,
   NOT_ACCEPTABLE: 406,
+  CONTENT_TOO_LARGE: 413,
   INTERNAL_SERVER_ERROR: 500,
 } as const;
 

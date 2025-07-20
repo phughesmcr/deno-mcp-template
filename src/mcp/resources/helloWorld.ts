@@ -1,11 +1,11 @@
 /**
- * @type {import("../types.ts").ResourceModule}
+ * @type {import("$/shared/types.ts").ResourceModule}
  * @module
  */
 
 import type { ReadResourceResult, Resource } from "@modelcontextprotocol/sdk/types.js";
 
-import type { ResourceModule } from "$/types.ts";
+import type { ResourceModule } from "$/shared/types.ts";
 
 const resource: Resource = {
   uri: "hello://world",

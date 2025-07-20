@@ -6,7 +6,7 @@
 
 import type { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
 
-import type { ToolModule } from "$/types.ts";
+import type { ToolModule } from "$/shared/types.ts";
 import { knowledgeGraph } from "./knowledgeGraph/mod.ts";
 
 // deno-lint-ignore no-explicit-any

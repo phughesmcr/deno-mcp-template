@@ -1,5 +1,5 @@
-import type { LogLevelKey } from "$/types.ts";
-import DenoJson from "../../deno.json" with { type: "json" };
+import type { LogLevelKey } from "$/shared/types.ts";
+import DenoJson from "../../../deno.json" with { type: "json" };
 
 /** The MCP server's machine-facing name. */
 export const APP_NAME = "deno-mcp-template";
@@ -22,3 +22,8 @@ export const APP_VERSION = DenoJson.version;
 
 /** The app's version string. */
 export const APP_VERSION_STR = `${APP_NAME} v${APP_VERSION}`;
+
+/** The app's usage string. */
+export const APP_USAGE = Deno.build.standalone ?
+  (import.meta.filename || APP_NAME) :
+  "deno task start";

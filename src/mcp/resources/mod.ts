@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { ResourceModule, ResourceTemplateModule } from "$/types.ts";
+import type { ResourceModule, ResourceTemplateModule } from "$/shared/types.ts";
 import { greetings } from "./greetings.ts";
 import { helloWorld } from "./helloWorld.ts";
 

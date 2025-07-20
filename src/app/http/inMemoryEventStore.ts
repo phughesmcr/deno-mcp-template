@@ -1,13 +1,20 @@
 /**
  * @description A simple in-memory implementation of the EventStore interface for resumability
- * @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/2cf4f0ca86ff841aca53ac8ef5f3227ba3789386/src/examples/shared/inMemoryEventStore.ts#L9}
+ * @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/2cf4f0ca86ff841aca53ac8ef5f3227ba3789386/src/examples/shared/inMemoryEventStore.ts}
  * @module
  */
 
 import type { EventStore } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 
-import type { McpEvent, McpEventSender } from "$/types.ts";
+/** An event in the MCP event stream */
+type McpEvent = { streamId: string; message: JSONRPCMessage };
+
+/** A function to send an event to the MCP event stream */
+type McpEventSender = (
+  eventId: string,
+  message: JSONRPCMessage,
+) => Promise<void>;
 
 export class InMemoryEventStore implements EventStore {
   #events: Map<string, McpEvent>;
@@ -21,10 +28,7 @@ export class InMemoryEventStore implements EventStore {
     this.#events = new Map();
   }
 
-  /**
-   * Stores an event with a generated event ID
-   * Implements EventStore.storeEvent
-   */
+  /** Stores an event with a generated event ID */
   async storeEvent(streamId: string, message: JSONRPCMessage): Promise<string> {
     const eventId = `${streamId}_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     this.#events.set(eventId, { streamId, message });

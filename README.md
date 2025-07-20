@@ -94,12 +94,29 @@ These example are for Anthropic's products, but will work with other services th
 
 Start the server using `deno task start`.
 
+You can use the `mcp-remote` tool to connect to the HTTP server easily.
+
 ```json
 {
     "mcpServers": {
         "my-mcp-server": {
             "command": "npx",
             "args": ["mcp-remote", "http://localhost:3001/mcp"]
+        },
+    }
+}
+```
+
+otherwise, if you are using DNS rebinding protection, you must set an origin header because Cursor/VSCode/etc, do not provide one:
+
+```json
+{
+    "mcpServers": {
+        "my-mcp-server": {
+            "url": "http://localhost:3001/mcp",
+            "headers": {
+                "origin": "localhost"
+            }
         },
     }
 }
@@ -159,6 +176,8 @@ claude mcp add --transport http my-mcp-server http://localhost:3001/mcp
 
 ## Project Structure
 
+The code is structured to be easily parsable by an AI agent. Files are grouped by feature, and ideally less than 200 lines of code.
+
 `src/app/` is a simple wrapper around the MCP server, providing STDIO and HTTP transports, and HTTP routes for static files.
 
 `src/mcp/` contains the MCP server and all the example tools, prompts, and resources.
@@ -171,26 +190,16 @@ main.ts       # The main entry point
 src/              
 ├── app/    
 │   ├── http/
+│   │   ├── handlers.ts             # HTTP handlers for the MCP server (GET, POST, etc.)
 │   │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
-│   │   ├── manager.ts              # The HTTP state manager
-│   │   ├── middleware.ts           # Middleware for the HTTP server
-│   │   ├── server.ts               # The Hono HTTP server (the MCP server)
-│   │   └── transport.ts            # The HTTP MCP transport manager
+│   │   ├── middleware.ts           # Middleware for the HTTP server (CORS, rate limiting, etc.)
+│   │   ├── server.ts               # The Hono HTTP server manager
+│   │   └── transport.ts            # The HTTP to MCP transport manager
 │   ├── app.ts                  # The main application class
 │   ├── cli.ts                  # Parses CLI args and env vars into an AppConfig object
-│   ├── config.ts               # Handles the parsing and validation of the AppConfig object
 │   ├── logger.ts               # A simple logger that doesn't interfere with stdout
 │   ├── signals.ts              # Signal handling for SIGINT, SIGTERM, etc.
 │   └── stdio.ts                # The STDIO transport & state manager
-├── constants/  
-│   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
-│   ├── cli.ts                  # Constants for the CLI (e.g., help text, args, etc.)
-│   ├── config.ts               # Constants for the config (e.g., defaults, etc.)
-│   ├── env.ts                  # Constants for the ENV variables 
-│   ├── http.ts                 # Constants for the HTTP server (e.g., headers, ports, etc.)
-│   ├── mcp.ts                  # Constants for the MCP server (e.g., capabilities, etc.)
-│   ├── mod.ts                  # Single point of export for all constants (`$/constants`)
-│   └── validation.ts           # Constants for the various validation functions (e.g., log level)
 ├── mcp/ 
 │   ├── prompts/                             
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
@@ -211,8 +220,24 @@ src/
 │   │   └── mod.ts                          # Provides a single point of export for all the MCP tools
 │   ├── middleware.ts           # Middleware for the MCP server (tool-call validation, etc.)
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
-├── types.ts                    # Shared types
-└── utils.ts                    # Shared utility
+├── shared/
+│   ├── constants/  
+│   │   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
+│   │   ├── http.ts                 # Constants for the HTTP server (e.g., headers, ports, etc.)
+│   │   ├── log.ts                  # Constants for the logger (e.g., log levels)
+│   │   └── mcp.ts                  # Constants for the MCP server (e.g., capabilities, etc.)
+│   ├── validation/
+│   │   ├── config.ts               # Validation of the AppConfig object
+│   │   ├── header.ts               # Validation for headers
+│   │   ├── host.ts                 # Validation for hosts
+│   │   ├── hostname.ts             # Validation for hostnames
+│   │   ├── log.ts                  # Validation for log levels
+│   │   ├── origin.ts               # Validation for origins
+│   │   └── port.ts                 # Validation for ports
+│   ├── constants.ts                # Single point of export for all shared constants
+│   ├── types.ts                    # Shared types
+│   ├── utils.ts                    # Shared utility functions
+│   └── validation.ts               # Single point of export for all shared validation functions
 static/             
 ├── .well-known/    
 │   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
@@ -222,19 +247,19 @@ static/
 
 ## Config
 
-| Environment Variable | Flag        | Default     | Description |
-| -------------------- | ----------- | ----------- | ----------- |
-| MCP_LOG_LEVEL        | -l          | "info"      | The log level to use |
-| MCP_HTTP_HOSTNAME    | -n          | "localhost" | The hostname to listen on for the HTTP server |
-| MCP_HTTP_PORT        | -p          | "3001"      | The port to listen on for the HTTP server |
-| MCP_HEADERS          | -H          | ""          | The headers to set for the HTTP server (CLI flag is a collection) |
-| MCP_ALLOW_ORIGINS    | --origin    | "*"         | The allowed origins for the HTTP server (CLI flag is a collection) |
-| MCP_ALLOW_HOSTS      | --host      | "localhost" | The allowed hosts for the HTTP server (CLI flag is a collection) |
-| MCP_NO_HTTP          | --no-http   | `false`     | Disable the HTTP server |
-| MCP_NO_STDIO         | --no-stdio  | `false`     | Disable the STDIO server |
-| MCP_NO_DNS_REBINDING | --no-dns-rebinding | `false` | Disable DNS rebinding protection |
+| Environment Variable | Flag           | Default     | Description |
+| -------------------- | -------------- | ----------- | ----------- |
+| MCP_LOG_LEVEL        | -l             | "info"      | The log level to use |
+| MCP_NO_HTTP          | --no-http      | `false`     | Disable the HTTP server |
+| MCP_NO_STDIO         | --no-stdio     | `false`     | Disable the STDIO server |
+| MCP_HTTP_HOSTNAME    | -n             | "localhost" | The hostname to listen on for the HTTP server |
+| MCP_HTTP_PORT        | -p             | "3001"      | The port to listen on for the HTTP server |
+| MCP_HEADERS          | -H             |             | The headers to set for the HTTP server (CLI flag is a collection) |
+| MCP_DNS_REBINDING    | --dnsRebinding | `false`     | Enable DNS rebinding protection |
+| MCP_ALLOWED_ORIGINS  | --origin       |             | The allowed origins for the HTTP server (CLI flag is a collection) |
+| MCP_ALLOWED_HOSTS    | --host         |             | The allowed hosts for the HTTP server (CLI flag is a collection) |
 
-⚠️ CLI flags take precedence over environment variables, except in collections (e.g. `--H`, `--origin` and `--host`), where the two are combined.
+⚠️ CLI flags take precedence over environment variables, except in collections (e.g. `-H`, `--origin` and `--host`), where the two are merged.
 
 ## Development
 

@@ -1,38 +1,27 @@
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
-import { logger as honoLogger } from "hono/logger";
 import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 
 import {
-  ALLOWED_HEADERS,
-  ALLOWED_METHODS,
   BODY_LIMIT,
-  EXPOSED_HEADERS,
+  DEFAULT_ALLOWED_HEADERS,
+  DEFAULT_ALLOWED_METHODS,
+  DEFAULT_EXPOSED_HEADERS,
   HEADER_KEYS,
+  HTTP_STATUS,
   RPC_ERROR_CODES,
   TIMEOUT,
-} from "$/constants";
-import type { Config } from "../config.ts";
-import type { Logger } from "../logger.ts";
+} from "$/shared/constants.ts";
+import type { AppConfig } from "$/shared/types.ts";
 
-export function configureMiddleware(app: Hono, config: Config, logger: Logger): void {
+export function configureMiddleware(app: Hono, config: AppConfig): void {
   app.use("*", secureHeaders());
-
-  if (config.log.level === "debug") {
-    app.use(honoLogger((message, ...rest) => {
-      logger.debug({
-        logger: "Hono HTTP server",
-        data: {
-          message,
-          details: rest,
-        },
-      });
-    }));
-  }
+  app.use("*", timeout(TIMEOUT));
+  app.use("*", requestId());
 
   app.use(
     "*",
@@ -46,13 +35,10 @@ export function configureMiddleware(app: Hono, config: Config, logger: Logger): 
             code: RPC_ERROR_CODES.INVALID_REQUEST,
             message: "Request body too large",
           },
-        }, 413);
+        }, HTTP_STATUS.CONTENT_TOO_LARGE);
       },
     }),
   );
-
-  app.use("*", timeout(TIMEOUT));
-  app.use("*", requestId());
 
   app.use(
     "*",
@@ -72,26 +58,23 @@ export function configureMiddleware(app: Hono, config: Config, logger: Logger): 
   );
 
   app.use(cors({
-    origin: (origin: string) => {
-      // If wildcard is allowed, accept any origin
-      if (config.http.allowedOrigins.includes("*")) {
-        return origin;
-      }
-      // Only return the origin if it's in the allowed list
-      if (config.http.allowedOrigins.includes(origin)) {
-        return origin;
-      }
+    origin: (origin: string, c: Context) => {
+      if (origin) return origin;
+      const referer = c.req.header("referer");
+      if (referer) return referer;
       return null;
     },
     credentials: true,
     maxAge: 86400,
-    allowMethods: ALLOWED_METHODS,
+    allowMethods: DEFAULT_ALLOWED_METHODS,
     allowHeaders: [
-      ...ALLOWED_HEADERS,
+      ...DEFAULT_ALLOWED_HEADERS,
+      ...(config.http.headers ?? []),
       ...Object.values(HEADER_KEYS),
     ],
     exposeHeaders: [
-      ...EXPOSED_HEADERS,
+      ...DEFAULT_EXPOSED_HEADERS,
+      ...(config.http.headers ?? []),
       ...Object.values(HEADER_KEYS),
     ],
   }));

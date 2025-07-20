@@ -5,49 +5,37 @@
 
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
-import type { Config } from "./config.ts";
-import type { HttpServerManager } from "./http/manager.ts";
+import type { AppConfig } from "$/shared/types.ts";
 import { createHttpServer } from "./http/server.ts";
 import { Logger } from "./logger.ts";
-import { SignalHandler } from "./signals.ts";
+import { setupSignalHandlers } from "./signals.ts";
 import { StdioTransportManager } from "./stdio.ts";
 
-export class App {
-  #running = false;
+export async function createApp(mcp: Server, config: AppConfig) {
+  const log = new Logger(mcp, config.log.level);
+  const stdio = new StdioTransportManager(config.stdio, log);
+  const http = createHttpServer(mcp, config, log);
 
-  #http: HttpServerManager;
-  #stdio: StdioTransportManager;
+  const start = async () => {
+    if (config.stdio.enabled) {
+      const transport = await stdio.acquire();
+      await mcp.connect(transport);
+    }
+    if (config.http.enabled) {
+      await http.start();
+    }
+  };
 
-  readonly config: Config;
-  readonly log: Logger;
+  const stop = async () => {
+    if (config.stdio.enabled) {
+      await stdio.release();
+    }
+    if (config.http.enabled) {
+      await http.stop();
+    }
+  };
 
-  constructor(mcp: Server, config: Config) {
-    this.config = config;
-    this.log = new Logger(mcp, config.log.level);
-    this.#http = createHttpServer(mcp, config, this.log);
-    this.#stdio = new StdioTransportManager(mcp, config, this.log);
+  setupSignalHandlers(stop);
 
-    // Handle shutdown signals gracefully
-    new SignalHandler(this.log, () => this.stop());
-  }
-
-  get running(): boolean {
-    return this.#running;
-  }
-
-  /** Start all services */
-  async start(): Promise<void> {
-    if (this.#running) return;
-    if (this.#stdio.enabled) await this.#stdio.start();
-    if (this.#http.enabled) await this.#http.start();
-    this.#running = true;
-  }
-
-  /** Stop all services gracefully */
-  async stop(): Promise<void> {
-    if (!this.#running) return;
-    await this.#stdio.stop();
-    await this.#http.stop();
-    this.#running = false;
-  }
+  return { start, stop, log };
 }

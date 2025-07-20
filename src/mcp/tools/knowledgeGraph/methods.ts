@@ -5,7 +5,7 @@
 
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
-import { createCallToolTextResponse } from "$/utils.ts";
+import { createCallToolTextResponse } from "$/shared/utils.ts";
 import type {
   Deletion,
   Entity,

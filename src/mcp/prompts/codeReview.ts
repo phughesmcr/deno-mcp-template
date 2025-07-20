@@ -1,11 +1,11 @@
 /**
- * @type {import("../types.ts").PromptModule<{ code: string }>}
+ * @type {import("$/shared/types.ts").PromptModule<{ code: string }>}
  * @module
  */
 
 import type { GetPromptResult, Prompt } from "@modelcontextprotocol/sdk/types.js";
 
-import type { PromptModule } from "$/types.ts";
+import type { PromptModule } from "$/shared/types.ts";
 
 const prompt: Prompt = {
   name: "review-code",

@@ -9,7 +9,7 @@ import type {
   ListPromptsResult,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import type { PromptModule } from "$/types.ts";
+import type { PromptModule } from "$/shared/types.ts";
 import { codeReview } from "./codeReview.ts";
 
 // deno-lint-ignore no-explicit-any

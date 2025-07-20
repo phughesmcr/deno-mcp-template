@@ -1,73 +1,100 @@
 import type { Server } from "@modelcontextprotocol/sdk/server";
-import { SetLevelRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  type LoggingMessageNotification,
+  SetLevelRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 
-import { APP_NAME, DEFAULT_LOG_LEVEL, LOG_LEVEL, VALID_LOG_LEVELS } from "$/constants";
-import type { LogData, LogLevelKey, LogLevelValue } from "$/types.ts";
+import { APP_NAME, DEFAULT_LOG_LEVEL, LOG_LEVEL, VALID_LOG_LEVELS } from "$/shared/constants.ts";
+import type { LogLevelKey } from "$/shared/types.ts";
+
+export type LogLevelValue = typeof LOG_LEVEL[LogLevelKey];
+
+export type LogMessageParams = LoggingMessageNotification["params"];
+
+export type LogParams = Omit<LogMessageParams, "level"> & { logger?: string };
 
 export class Logger {
-  /** The current log level (lower (0) is more severe) */
-  #severity: LogLevelValue;
+  /** The MCP server instance */
+  #mcp: Server;
 
-  /** The current log level name (e.g., "debug", "info", "notice", etc.) */
+  /** The current log level */
   #level: LogLevelKey;
 
-  /** The MCP server */
-  #server: Server;
+  /** The current log level severity (lower (0) is more severe) */
+  #severity: LogLevelValue;
 
-  /** A simple MCP-safe logger, routing messages to stderr to avoid STDIO bugs */
-  constructor(server: Server, level: LogLevelKey = DEFAULT_LOG_LEVEL) {
+  /** Log channel for detailed debugging information (e.g., Function entry/exit points) */
+  debug: (data: LogParams) => void;
+
+  /** Log channel for general informational messages (e.g., Operation progress updates) */
+  info: (data: LogParams) => void;
+
+  /** Log channel for normal but significant events	(e.g., Configuration changes) */
+  notice: (data: LogParams) => void;
+
+  /** Log channel for warning conditions (e.g. Deprecated feature usage) */
+  warning: (data: LogParams) => void;
+
+  /** Log channel for error conditions (e.g., Operation failures) */
+  error: (data: LogParams) => void;
+
+  /** Log channel for critical conditions (e.g., System component failures) */
+  critical: (data: LogParams) => void;
+
+  /** Log channel for action must be taken immediately (e.g., Data corruption detected) */
+  alert: (data: LogParams) => void;
+
+  /** Log channel for when the system is unusable (e.g., Complete system failure) */
+  emergency: (data: LogParams) => void;
+
+  constructor(mcp: Server, level: LogLevelKey = DEFAULT_LOG_LEVEL) {
+    this.#mcp = mcp;
     this.#level = level;
     this.#severity = LOG_LEVEL[level];
-    this.#server = server;
+
+    this.debug = (data: LogParams) => this.#log("debug", data);
+    this.info = (data: LogParams) => this.#log("info", data);
+    this.notice = (data: LogParams) => this.#log("notice", data);
+    this.warning = (data: LogParams) => this.#log("warning", data);
+    this.error = (data: LogParams) => this.#log("error", data);
+    this.critical = (data: LogParams) => this.#log("critical", data);
+    this.alert = (data: LogParams) => this.#log("alert", data);
+    this.emergency = (data: LogParams) => this.#log("emergency", data);
 
     // Register handler for `logging/setLevel`
-    server.setRequestHandler(
+    mcp.setRequestHandler(
       SetLevelRequestSchema,
       async (request) => {
-        const levelName = request.params.level.trim().toLowerCase();
-        if (VALID_LOG_LEVELS.includes(levelName as LogLevelKey)) {
-          await this.#setLoggingLevel(levelName as LogLevelKey);
-        } else {
-          this.error({
-            data: `Invalid log level "${levelName}" received.`,
-          });
+        const levelName = request.params.level.trim().toLowerCase() as LogLevelKey;
+        if (VALID_LOG_LEVELS.includes(levelName)) {
+          this.#level = levelName;
+          this.#severity = LOG_LEVEL[levelName];
         }
         return {};
       },
     );
   }
 
-  /** The current log level (lower is more severe) */
   get level() {
     return this.#level;
   }
 
-  /** The current log level severity (lower is more severe) */
   get severity() {
     return this.#severity;
   }
 
-  /** Sets the log level */
-  async #setLoggingLevel(level: LogLevelKey): Promise<void> {
-    this.#severity = LOG_LEVEL[level];
-    return this.#server.sendLoggingMessage({
-      level: "info",
-      data: `Logging level set to "${level}".`,
-    }).catch((error) => {
-      this.error({
-        data: {
-          message: `Failed to send logging message`,
-          details: error,
-        },
-      });
-    });
-  }
-
-  /** Notify the server and print to stderr */
-  #log(level: LogLevelKey, data: Omit<LogData, "level"> & { logger?: string }): void {
-    if (this.#severity < LOG_LEVEL[level]) return;
-    const result: LogData = { ...data, level, logger: data.logger ?? APP_NAME };
-    this.#server.sendLoggingMessage(result).catch((error) => {
+  async #log(logLevel: LogLevelKey, data: LogParams): Promise<void> {
+    if (this.#severity < LOG_LEVEL[logLevel]) {
+      return;
+    }
+    const result: LogMessageParams = {
+      ...data,
+      level: logLevel,
+      logger: data.logger ?? APP_NAME,
+    };
+    try {
+      await this.#mcp.sendLoggingMessage(result);
+    } catch (error) {
       const notConnected = error instanceof Error && error.message.includes("Not connected");
       if (!notConnected) {
         console.error({
@@ -79,30 +106,6 @@ export class Logger {
           },
         });
       }
-    });
+    }
   }
-
-  /** Log channel for detailed debugging information (e.g., Function entry/exit points) */
-  debug = this.#log.bind(this, "debug");
-
-  /** Log channel for general informational messages (e.g., Operation progress updates) */
-  info = this.#log.bind(this, "info");
-
-  /** Log channel for normal but significant events	(e.g., Configuration changes) */
-  notice = this.#log.bind(this, "notice");
-
-  /** Log channel for warning conditions (e.g. Deprecated feature usage) */
-  warning = this.#log.bind(this, "warning");
-
-  /** Log channel for error conditions (e.g., Operation failures) */
-  error = this.#log.bind(this, "error");
-
-  /** Log channel for critical conditions (e.g., System component failures) */
-  critical = this.#log.bind(this, "critical");
-
-  /** Log channel for action must be taken immediately (e.g., Data corruption detected) */
-  alert = this.#log.bind(this, "alert");
-
-  /** Log channel for when the system is unusable (e.g., Complete system failure) */
-  emergency = this.#log.bind(this, "emergency");
 }

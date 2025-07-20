@@ -8,7 +8,7 @@ import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { z } from "zod/v4";
 
 import { createValidationMiddleware, safeToolCall } from "$/mcp/middleware.ts";
-import type { ToolModule } from "$/types.ts";
+import type { ToolModule } from "$/shared/types.ts";
 import { KnowledgeGraphManager } from "./knowledgeGraphManager.ts";
 import { knowledgeGraphMethodsFactory } from "./methods.ts";
 import { InputSanitizer } from "./sanitization.ts";
