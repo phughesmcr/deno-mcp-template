@@ -76,9 +76,9 @@ Once you're ready to start adding your own tools, prompts, and resources, begin 
 
 Replace the server name, and the package location in the following examples to correspond to your own MCP server.
 
-These example are for Anthropic's products, but will work with other services that support MCP (e.g. Cursor, LMStudio, etc.)
+Your AI environment (Cursor, Claude, LMStudio, etc.) will have an MCP server configuration file (e.g. `claude-desktop-config.json` or `~/.cursor/mcp.json`) which you can edit to add your MCP server, like so:
 
-### `claude-desktop-config.json` using the MCP server published on JSR
+### Using the MCP server published on JSR
 
 ```json
 {
@@ -90,7 +90,7 @@ These example are for Anthropic's products, but will work with other services th
 }
 ```
 
-### `claude-desktop-config.json` using the HTTP server
+### Using the HTTP server
 
 Start the server using `deno task start`.
 
@@ -122,7 +122,7 @@ otherwise, if you are using DNS rebinding protection, you must set an origin hea
 }
 ```
 
-### `claude-desktop-config.json` using the STDIO server
+### Using the STDIO server
 
 ```json
 {
@@ -150,7 +150,7 @@ You can then use your binary like any other MCP server, for example:
 }
 ```
 
- See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) for more information.
+See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) for more information.
 
 ### Compile to a Claude Desktop Extension (DXT)
 
@@ -160,7 +160,7 @@ Run `deno task dxt:all` to compile the server to a DXT package for all platforms
 
 You can replace `dxt:all` with `dxt:win`, `dxt:mac:arm64`, `dxt:mac:x64`, `dxt:linux:x64`, or `dxt:linux:arm64` to compile for a specific platform.
 
-This will create a `dist/server.dxt` file you can share with others - they won't need to install Deno or any other dependencies.
+This will create a `dist/server.dxt` file you can share - customers won't need to install Deno or any other dependencies.
 
 ℹ️ Ensure `static/dxt-manifest.json` is updated with correct information for your server.
 
