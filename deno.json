@@ -9,9 +9,11 @@
         "deno",
         "mcp",
         "template",
+        "boilerplate",
         "ai",
         "agent",
-        "llm"
+        "llm",
+        "dxt"
     ],
     "homepage": "https://github.com/phughesmcr/deno-mcp-template",
     "bugs": {
@@ -36,7 +38,7 @@
         "zod-validation-error": "npm:zod-validation-error@^3.5.3"
     },
     "tasks": {
-        "prep": "deno fmt && deno lint --fix && deno check main.ts",
+        "prep": "deno fmt && deno lint --fix && deno check main.ts && deno check src/**/*.ts",
         "start": "deno run -A main.ts",
         "dev": "ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run -A --watch main.ts -l=debug",
         "ci": "deno task prep",
