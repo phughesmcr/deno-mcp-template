@@ -8,9 +8,7 @@ import { createErrorMap, fromError } from "zod-validation-error/v4";
 import { z } from "zod/v4";
 
 z.config({
-  customError: createErrorMap({
-    includePath: true,
-  }),
+  customError: createErrorMap(),
 });
 
 /**
@@ -24,8 +22,7 @@ export function createValidationMiddleware<T>(schema: z.ZodSchema<T>) {
     try {
       return schema.parse(args);
     } catch (error) {
-      const validationError = fromError(error);
-      throw validationError;
+      throw fromError(error, { includePath: true });
     }
   };
 }
