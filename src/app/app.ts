@@ -20,6 +20,7 @@ export async function createApp(mcp: Server, config: AppConfig) {
     if (config.stdio.enabled) {
       const transport = await stdio.acquire();
       await mcp.connect(transport);
+      log.info({ data: { message: `Listening on STDIO` } });
     }
     if (config.http.enabled) {
       await http.start();
@@ -29,13 +30,15 @@ export async function createApp(mcp: Server, config: AppConfig) {
   const stop = async () => {
     if (config.stdio.enabled) {
       await stdio.release();
+      log.debug({ data: { message: "STDIO transport released" } });
     }
     if (config.http.enabled) {
       await http.stop();
+      log.debug({ data: { message: "HTTP server stopped" } });
     }
   };
 
-  setupSignalHandlers(stop);
+  setupSignalHandlers(stop, log);
 
   return { start, stop, log };
 }

@@ -101,7 +101,7 @@ export class Logger {
           level: "error",
           logger: APP_NAME,
           data: {
-            error: "Failed to send logging message:",
+            error: "Failed to send logging message",
             details: error,
           },
         });

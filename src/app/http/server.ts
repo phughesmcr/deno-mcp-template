@@ -24,11 +24,11 @@ export function createHttpServer(
   configureMiddleware(app, config);
 
   // MCP POST route
-  const postHandler = createPostHandler(mcp, transports);
+  const postHandler = createPostHandler(mcp, transports, logger);
   app.post("/mcp", postHandler);
 
   // MCP GET & DELETE routes
-  const getHandler = createGetHandler(mcp, transports);
+  const getHandler = createGetHandler(mcp, transports, logger);
   app.on(["GET", "DELETE"], "/mcp", getHandler);
 
   // Static Routes

@@ -12,16 +12,16 @@ export class HttpServerManager {
   readonly config: Readonly<AppConfig["http"]>;
   #running: boolean;
 
-  #logger: Logger | null = null;
+  #logger: Logger;
 
   #server: Deno.HttpServer | null = null;
   #fetch: Deno.ServeHandler<Deno.NetAddr> | null = null;
 
-  constructor(config: AppConfig["http"], logger?: Logger) {
-    this.transports = new HttpTransportManager(config);
+  constructor(config: AppConfig["http"], logger: Logger) {
+    this.transports = new HttpTransportManager(config, logger);
     this.config = config;
     this.#running = false;
-    this.#logger = logger ?? null;
+    this.#logger = logger;
     this.#fetch = null;
   }
 
@@ -44,9 +44,8 @@ export class HttpServerManager {
       hostname,
       port,
       onListen: () => {
-        this.#logger?.info({
-          logger: "HttpServerManager",
-          data: `${APP_NAME} listening on ${hostname}:${port}`,
+        this.#logger.info({
+          data: { message: `${APP_NAME} listening on ${hostname}:${port}` },
         });
       },
     }, this.#fetch);
@@ -66,10 +65,12 @@ export class HttpServerManager {
 export class HttpTransportManager {
   #config: AppConfig["http"];
   #transports: Map<string, StreamableHTTPServerTransport>;
+  #logger: Logger;
 
-  constructor(config: AppConfig["http"]) {
+  constructor(config: AppConfig["http"], logger: Logger) {
     this.#config = config;
     this.#transports = new Map();
+    this.#logger = logger;
   }
 
   get count(): number {
@@ -82,16 +83,21 @@ export class HttpTransportManager {
 
   #create(sessionId?: string): StreamableHTTPServerTransport {
     const sessionKey = sessionId ?? crypto.randomUUID();
-    console.log(this.#config);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => sessionKey,
       onsessioninitialized: (id) => {
         if (!this.#transports.has(id)) {
           this.#transports.set(id, transport);
+          this.#logger.debug({
+            data: { message: "Session initialized", sessionId: id },
+          });
         }
       },
       onsessionclosed: (id) => {
         this.#transports.delete(id);
+        this.#logger.debug({
+          data: { message: "Session closed", sessionId: id },
+        });
       },
       enableJsonResponse: true,
       eventStore: new InMemoryEventStore(),

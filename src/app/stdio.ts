@@ -5,13 +5,13 @@ import type { Logger } from "./logger.ts";
 
 export class StdioTransportManager {
   #transport: StdioServerTransport | null = null;
-  #log: Logger | null = null;
+  #log: Logger;
 
   readonly enabled: boolean;
 
-  constructor(configuration: AppConfig["stdio"], logger?: Logger) {
+  constructor(configuration: AppConfig["stdio"], logger: Logger) {
     this.enabled = configuration.enabled;
-    this.#log = logger ?? null;
+    this.#log = logger;
   }
 
   get isRunning(): boolean {
@@ -26,7 +26,7 @@ export class StdioTransportManager {
     if (!this.enabled) throw new Error("STDIO transport is disabled");
     if (this.#transport) return this.#transport;
     this.#transport = new StdioServerTransport();
-    this.#log?.debug({ data: "STDIO transport acquired" });
+    this.#log.debug({ data: "STDIO transport acquired" });
     return this.#transport;
   }
 
@@ -36,7 +36,7 @@ export class StdioTransportManager {
       await this.#transport.close();
     } finally {
       this.#transport = null;
-      this.#log?.debug({ data: "STDIO transport released" });
+      this.#log.debug({ data: "STDIO transport released" });
     }
   }
 }
