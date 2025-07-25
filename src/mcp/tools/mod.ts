@@ -4,7 +4,11 @@
  * @module
  */
 
-import type { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolRequest,
+  CallToolResult,
+  ListToolsResult,
+} from "@modelcontextprotocol/sdk/types.js";
 
 import type { ToolModule } from "$/shared/types.ts";
 import { knowledgeGraph } from "./knowledgeGraph/mod.ts";
@@ -20,11 +24,11 @@ if (Object.keys(knowledgeGraph.methods).length === 0) {
   tools.splice(tools.findIndex((tool) => tool.name === knowledgeGraph.name), 1);
 }
 
-export const listTools = async () => ({
+export const listTools = async (): Promise<ListToolsResult> => ({
   tools: tools.flatMap((tool) => tool.tools),
 });
 
-export const callTool = async (request: CallToolRequest) => {
+export const callTool = async (request: CallToolRequest): Promise<CallToolResult> => {
   const { name, arguments: args } = request.params;
   if (!args) throw new Error(`No arguments provided for tool: ${name}`);
   const module = tools.find((tool) => tool.tools.find((t) => t.name === name));

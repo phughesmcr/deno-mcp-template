@@ -14,6 +14,7 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import type { LOG_LEVEL } from "$/shared/constants.ts";
+import type { ZodType } from "zod/v4";
 
 /** Acceptable log levels */
 export type LogLevelKey = keyof typeof LOG_LEVEL;
@@ -70,6 +71,7 @@ export interface AppConfig {
 export interface PromptModule<T extends Record<string, string>> {
   readonly prompt: Prompt;
   readonly request: (args: T) => Promise<GetPromptResult>;
+  readonly schema?: ZodType;
 }
 
 /** A wrapper for all the required properties for a handling a resource */
