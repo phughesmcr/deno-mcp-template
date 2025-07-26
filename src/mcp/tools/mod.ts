@@ -4,34 +4,39 @@
  * @module
  */
 
-import type {
-  CallToolRequest,
-  CallToolResult,
-  ListToolsResult,
-} from "@modelcontextprotocol/sdk/types.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ZodRawShape } from "zod/v3";
 
-import type { ToolModule } from "$/shared/types.ts";
-import { knowledgeGraph } from "./knowledgeGraph/mod.ts";
+import type { ToolModule, ToolPlugin } from "$/shared/types.ts";
+import poem from "./poem.ts";
+import weather from "./weather.ts";
 
 // deno-lint-ignore no-explicit-any
-const tools: ToolModule<any>[] = [
-  knowledgeGraph,
+export const tools: ToolModule<any>[] = [
+  weather, // Async tool with external API call
+  poem, // Sampling tool
   // ... more tools
 ];
 
-// If Deno KV failed to open, the knowledge graph tool is removed from the list of tools
-if (Object.keys(knowledgeGraph.methods).length === 0) {
-  tools.splice(tools.findIndex((tool) => tool.name === knowledgeGraph.name), 1);
+export class ToolManager {
+  #tools: Map<string, ToolPlugin>;
+  #mcp: McpServer;
+
+  constructor(mcp: McpServer) {
+    this.#mcp = mcp;
+    this.#tools = new Map();
+  }
+
+  /** Binds a module to a MCP server, creating a tool plugin */
+  #createPlugin<T extends ZodRawShape | undefined>(module: ToolModule<T>): ToolPlugin {
+    const [name, config, callback] = module;
+    return [name, config, callback(this.#mcp)] as ToolPlugin;
+  }
+
+  // deno-lint-ignore no-explicit-any
+  addTool(tool: ToolModule<any>) {
+    if (this.#tools.has(tool[0])) return;
+    const plugin = this.#createPlugin(tool);
+    this.#mcp.registerTool(...plugin);
+  }
 }
-
-export const listTools = async (): Promise<ListToolsResult> => ({
-  tools: tools.flatMap((tool) => tool.tools),
-});
-
-export const callTool = async (request: CallToolRequest): Promise<CallToolResult> => {
-  const { name, arguments: args } = request.params;
-  if (!args) throw new Error(`No arguments provided for tool: ${name}`);
-  const module = tools.find((tool) => tool.tools.find((t) => t.name === name));
-  if (!module) throw new Error(`Unknown tool: ${name}`);
-  return module.request(name, args);
-};

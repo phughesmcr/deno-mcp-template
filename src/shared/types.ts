@@ -3,21 +3,45 @@
  * @module
  */
 
-import type {
-  CallToolResult,
-  GetPromptResult,
-  Prompt,
-  ReadResourceResult,
-  Resource,
-  ResourceTemplate,
-  Tool,
-} from "@modelcontextprotocol/sdk/types.js";
-
 import type { LOG_LEVEL } from "$/shared/constants.ts";
-import type { ZodType } from "zod/v4";
+import type { McpServer, ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+import type { ZodRawShape } from "zod/v3";
 
 /** Acceptable log levels */
 export type LogLevelKey = keyof typeof LOG_LEVEL;
+
+/** Prompt parameters */
+export type PromptPlugin = Parameters<McpServer["registerPrompt"]>;
+
+/** Resource parameters */
+export type ResourcePlugin = Parameters<McpServer["registerResource"]>;
+
+/** Tool parameters */
+export type ToolPlugin = Parameters<McpServer["registerTool"]>;
+
+/** Tool configuration */
+export type ToolConfig<
+  InputArgs extends ZodRawShape | undefined = undefined,
+  OutputArgs extends ZodRawShape | undefined = undefined,
+> = {
+  title?: string;
+  description?: string;
+  inputSchema?: InputArgs;
+  outputSchema?: OutputArgs;
+  annotations?: ToolAnnotations;
+};
+
+/** Internal tool definition */
+export type ToolModule<
+  InputArgs extends ZodRawShape | undefined = undefined,
+  OutputArgs extends ZodRawShape | undefined = undefined,
+> = [
+  name: string,
+  config: ToolConfig<InputArgs, OutputArgs>,
+  // deno-lint-ignore no-explicit-any
+  callbackFactory: (mcp: McpServer) => ToolCallback<any>,
+];
 
 // **************************
 // Config
@@ -61,41 +85,4 @@ export interface AppConfig {
   http: HttpServerConfig;
   log: LoggerConfig;
   stdio: StdioConfig;
-}
-
-// **************************
-// Modules
-// **************************
-
-/** A wrapper for all the required properties for a handling a prompt */
-export interface PromptModule<T extends Record<string, string>> {
-  readonly prompt: Prompt;
-  readonly request: (args: T) => Promise<GetPromptResult>;
-  readonly schema?: ZodType;
-}
-
-/** A wrapper for all the required properties for a handling a resource */
-export interface ResourceModule {
-  readonly resource: Resource;
-  readonly request: () => Promise<ReadResourceResult>;
-}
-
-/** A wrapper for all the required properties for a handling a resource template */
-export interface ResourceTemplateModule<T> {
-  readonly resourceTemplate: ResourceTemplate;
-  readonly request: (
-    request: { params: { uri: string } },
-    ...args: T[]
-  ) => Promise<ReadResourceResult>;
-}
-
-/** A wrapper for all the required properties for a handling a tool */
-export interface ToolModule<T extends Record<string, unknown>> {
-  readonly name: string;
-  readonly tools: Tool[];
-  readonly methods: {
-    // deno-lint-ignore no-explicit-any
-    [key in keyof T]: (...args: any[]) => Promise<CallToolResult>;
-  };
-  readonly request: (name: string, args: Record<string, unknown>) => Promise<CallToolResult>;
 }

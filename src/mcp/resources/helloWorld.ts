@@ -1,29 +1,35 @@
-/**
- * @type {import("$/shared/types.ts").ResourceModule}
- * @module
- */
+import { type ResourceMetadata, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 
-import type { ReadResourceResult, Resource } from "@modelcontextprotocol/sdk/types.js";
+import type { ResourcePlugin } from "$/shared/types.ts";
 
-import type { ResourceModule } from "$/shared/types.ts";
+const name = "helloWorld";
 
-const resource: Resource = {
+const uriOrTemplate = new ResourceTemplate("hello://world", { list: undefined });
+
+const config: ResourceMetadata = {
   uri: "hello://world",
   name: "Hello World Message",
   description: "A simple greeting message",
   mimeType: "text/plain",
 };
 
-const request = async (): Promise<ReadResourceResult> => ({
-  contents: [
-    {
-      uri: "hello://world",
-      text: "Hello, World! This is my first MCP resource.",
-    },
-  ],
-});
+async function readCallback(): Promise<ReadResourceResult> {
+  return {
+    contents: [
+      {
+        uri: "hello://world",
+        text: "Hello, World! This is my first MCP resource.",
+      },
+    ],
+  };
+}
 
-export const helloWorld: ResourceModule = {
-  resource,
-  request,
-};
+const module: ResourcePlugin = [
+  name,
+  uriOrTemplate,
+  config,
+  readCallback,
+];
+
+export default module;

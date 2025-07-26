@@ -1,39 +1,45 @@
-/**
- * @type {import("$/shared/types.ts").ResourceTemplateModule}
- * @module
- */
+import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
+import type {
+  ReadResourceResult,
+  ServerNotification,
+  ServerRequest,
+} from "@modelcontextprotocol/sdk/types.js";
 
-import type { ReadResourceResult, ResourceTemplate } from "@modelcontextprotocol/sdk/types.js";
+import type { ResourcePlugin } from "$/shared/types.ts";
 
-import type { ResourceTemplateModule } from "$/shared/types.ts";
+const name = "greetings";
 
-const resourceTemplate: ResourceTemplate = {
-  uriTemplate: "greetings://{name}",
-  name: "Personal Greeting",
-  description: "A personalized greeting message",
-  mimeType: "text/plain",
-};
+const uriOrTemplate = new ResourceTemplate("greetings://{name}", { list: undefined });
 
-const request = async (
-  request: { params: { uri: string } },
-  greetingMatch: RegExpMatchArray | null,
-): Promise<ReadResourceResult> => {
-  if (!greetingMatch) {
+const config: ResourceMetadata = {};
+
+async function readCallback(
+  uri: URL,
+  variables: Record<string, unknown>,
+  _extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+): Promise<ReadResourceResult> {
+  const _name = uri.toString().match(/^greetings:\/\/(.+)$/);
+  if (!_name) {
     throw new Error("Invalid URI");
   }
-
-  const name = decodeURIComponent(greetingMatch[1] ?? "");
+  const name = (variables.name as string) ?? _name[1];
   return {
     contents: [
       {
-        uri: request.params.uri,
+        uri: uri.toString(),
         text: `Hello, ${name}! Welcome to MCP.`,
       },
     ],
   };
-};
+}
 
-export const greetings: ResourceTemplateModule<RegExpMatchArray | null> = {
-  resourceTemplate,
-  request,
-};
+const module: ResourcePlugin = [
+  name,
+  uriOrTemplate,
+  config,
+  readCallback,
+];
+
+export default module;
