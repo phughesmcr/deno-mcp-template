@@ -33,7 +33,7 @@
         "@std/dotenv/load": "jsr:@std/dotenv@^0.225.5/load",
         "@std/path": "jsr:@std/path@^1.1.1",
         "fetch-to-node": "npm:fetch-to-node@^2.1.0",
-        "hono": "jsr:@hono/hono@^4.8.7",
+        "hono": "jsr:@hono/hono@^4.8.9",
         "hono-rate-limiter": "npm:hono-rate-limiter@^0.4.2",
         "zod": "npm:zod@^4.0.10",
         "zod-validation-error": "npm:zod-validation-error@^4.0.1"
