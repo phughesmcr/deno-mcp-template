@@ -1,11 +1,10 @@
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { toFetchResponse, toReqRes } from "fetch-to-node";
 import type { Context } from "hono";
 
-import type { Logger } from "$/app/logger.ts";
 import { HEADER_KEYS, HTTP_STATUS, RPC_ERROR_CODES } from "$/shared/constants.ts";
 import { createRPCError } from "$/shared/utils.ts";
-import { toFetchResponse, toReqRes } from "fetch-to-node";
 import type { HttpServerManager } from "./transport.ts";
 
 /** Handles MCP request processing */
@@ -54,7 +53,7 @@ function handleMCPError(sessionId: string | undefined): Response {
   );
 }
 
-export function createPostHandler(mcp: Server, manager: HttpServerManager, logger: Logger) {
+export function createPostHandler(mcp: McpServer, manager: HttpServerManager) {
   const { transports } = manager;
   return async (c: Context) => {
     try {
@@ -91,13 +90,6 @@ export function createPostHandler(mcp: Server, manager: HttpServerManager, logge
       });
       return await handleMCPRequest(transport, newRequest);
     } catch (error) {
-      logger.error({
-        data: {
-          error: "Error in POST handler",
-          details: error,
-        },
-      });
-
       if (error instanceof Error && error.message.includes("Invalid JSON")) {
         return c.json(
           createRPCError(
@@ -139,7 +131,7 @@ export function createPostHandler(mcp: Server, manager: HttpServerManager, logge
   };
 }
 
-export function createGetHandler(mcp: Server, manager: HttpServerManager, logger: Logger) {
+export function createGetHandler(mcp: McpServer, manager: HttpServerManager) {
   const { transports } = manager;
   return async (c: Context) => {
     try {
@@ -171,13 +163,7 @@ export function createGetHandler(mcp: Server, manager: HttpServerManager, logger
         }
       }
       return await handleMCPRequest(transport, c.req.raw);
-    } catch (error) {
-      logger.error({
-        data: {
-          error: "Error in GET handler",
-          details: error,
-        },
-      });
+    } catch {
       return handleMCPError(c.req.header(HEADER_KEYS.SESSION_ID));
     }
   };

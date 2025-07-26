@@ -2,7 +2,6 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
 import { InMemoryEventStore } from "$/app/http/inMemoryEventStore.ts";
-import type { Logger } from "$/app/logger.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 
@@ -12,16 +11,13 @@ export class HttpServerManager {
   readonly config: Readonly<AppConfig["http"]>;
   #running: boolean;
 
-  #logger: Logger;
-
   #server: Deno.HttpServer | null = null;
   #fetch: Deno.ServeHandler<Deno.NetAddr> | null = null;
 
-  constructor(config: AppConfig["http"], logger: Logger) {
-    this.transports = new HttpTransportManager(config, logger);
+  constructor(config: AppConfig["http"]) {
+    this.transports = new HttpTransportManager(config);
     this.config = config;
     this.#running = false;
-    this.#logger = logger;
     this.#fetch = null;
   }
 
@@ -44,9 +40,7 @@ export class HttpServerManager {
       hostname,
       port,
       onListen: () => {
-        this.#logger.info({
-          data: { message: `${APP_NAME} listening on ${hostname}:${port}` },
-        });
+        console.error(`${APP_NAME} listening on ${hostname}:${port}`);
       },
     }, this.#fetch);
     this.#running = true;
@@ -65,12 +59,10 @@ export class HttpServerManager {
 export class HttpTransportManager {
   #config: AppConfig["http"];
   #transports: Map<string, StreamableHTTPServerTransport>;
-  #logger: Logger;
 
-  constructor(config: AppConfig["http"], logger: Logger) {
+  constructor(config: AppConfig["http"]) {
     this.#config = config;
     this.#transports = new Map();
-    this.#logger = logger;
   }
 
   get count(): number {
@@ -88,16 +80,10 @@ export class HttpTransportManager {
       onsessioninitialized: (id) => {
         if (!this.#transports.has(id)) {
           this.#transports.set(id, transport);
-          this.#logger.debug({
-            data: { message: "Session initialized", sessionId: id },
-          });
         }
       },
       onsessionclosed: (id) => {
         this.#transports.delete(id);
-        this.#logger.debug({
-          data: { message: "Session closed", sessionId: id },
-        });
       },
       enableJsonResponse: true,
       eventStore: new InMemoryEventStore(),

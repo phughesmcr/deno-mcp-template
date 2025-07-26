@@ -3,42 +3,41 @@
  * @module
  */
 
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { AppConfig } from "$/shared/types.ts";
 import { createHttpServer } from "./http/server.ts";
-import { Logger } from "./logger.ts";
 import { setupSignalHandlers } from "./signals.ts";
 import { StdioTransportManager } from "./stdio.ts";
 
-export async function createApp(mcp: Server, config: AppConfig) {
-  const log = new Logger(mcp, config.log.level);
-  const stdio = new StdioTransportManager(config.stdio, log);
-  const http = createHttpServer(mcp, config, log);
+export async function createApp(mcp: McpServer, config: AppConfig) {
+  const stdio = new StdioTransportManager(config.stdio);
+  const http = createHttpServer(mcp, config);
 
   const start = async () => {
+    // Connect to STDIO transport
     if (config.stdio.enabled) {
       const transport = await stdio.acquire();
       await mcp.connect(transport);
-      log.info({ data: { message: `Listening on STDIO` } });
     }
+    // Start HTTP server
     if (config.http.enabled) {
       await http.start();
     }
   };
 
   const stop = async () => {
+    // Release STDIO transport
     if (config.stdio.enabled) {
       await stdio.release();
-      log.debug({ data: { message: "STDIO transport released" } });
     }
+    // Stop HTTP server
     if (config.http.enabled) {
       await http.stop();
-      log.debug({ data: { message: "HTTP server stopped" } });
     }
   };
 
-  setupSignalHandlers(stop, log);
+  setupSignalHandlers(stop);
 
-  return { start, stop, log };
+  return { start, stop };
 }

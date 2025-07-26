@@ -1,21 +1,16 @@
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Hono } from "hono";
 import { serveStatic } from "hono/deno";
 
-import type { Logger } from "$/app/logger.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { createGetHandler, createPostHandler } from "./handlers.ts";
 import { configureMiddleware } from "./middleware.ts";
 import { HttpServerManager } from "./transport.ts";
 
-export function createHttpServer(
-  mcp: Server,
-  config: AppConfig,
-  logger: Logger,
-): HttpServerManager {
+export function createHttpServer(mcp: McpServer, config: AppConfig): HttpServerManager {
   // Create HTTP server manager
-  const transports = new HttpServerManager(config.http, logger);
+  const transports = new HttpServerManager(config.http);
 
   // Create the Hono app
   const app = new Hono();
@@ -24,11 +19,11 @@ export function createHttpServer(
   configureMiddleware(app, config);
 
   // MCP POST route
-  const postHandler = createPostHandler(mcp, transports, logger);
+  const postHandler = createPostHandler(mcp, transports);
   app.post("/mcp", postHandler);
 
   // MCP GET & DELETE routes
-  const getHandler = createGetHandler(mcp, transports, logger);
+  const getHandler = createGetHandler(mcp, transports);
   app.on(["GET", "DELETE"], "/mcp", getHandler);
 
   // Static Routes
