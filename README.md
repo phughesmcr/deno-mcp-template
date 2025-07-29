@@ -251,8 +251,6 @@ static/
 
 Run `deno task setup` to setup the project for your own use.
 
-‼️ By default the knowledge graph tool calls `await Deno.openKv()` - all KV functionality will be shared across users who access your server. You probably don't want this in production. Make sure user's can only read what they should have access to!
-
 ⚠️ You must grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information. (The setup task will do this for you.)
 
 ⚠️ If using `enableDnsRebindingProtection`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `src/constants/http.ts`. If not, you can disable `enableDnsRebindingProtection` in `src/app/http/manager.ts` (it is enabled by default).
@@ -292,10 +290,6 @@ If you do not plan on using Deno Deploy, remove `.github/workflows/deploy.yml`.
 >"Deno KV is a key-value database built directly into the Deno runtime, available in the `Deno.Kv` namespace. It can be used for many kinds of data storage use cases, but excels at storing simple data structures that benefit from very fast reads and writes. Deno KV is available in the Deno CLI and on Deno Deploy." - [Deno KV Manual](https://docs.deno.com/deploy/kv/manual/)
 
 Deno KV can be used without any additional dependencies or installs. Locally it will create a file-based database, and if you're using Deploy it is built right in, with no extra config.
-
-This template server implements the [Knowledge Graph Memory Server](https://github.com/modelcontextprotocol/servers/tree/main/src/memory) example, from [The ModelContextProtocol Github](https://github.com/modelcontextprotocol), using KV to store and retrieve the graph.
-
-Important: see ‼️ above.
 
 ## Extras
 
