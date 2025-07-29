@@ -1,7 +1,7 @@
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
-import { InMemoryEventStore } from "$/app/http/inMemoryEventStore.ts";
+import { KvEventStore } from "$/app/http/kvEventStore.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 
@@ -73,7 +73,7 @@ export class HttpTransportManager {
     return this.#transports.get(sessionId);
   }
 
-  #create(sessionId?: string): StreamableHTTPServerTransport {
+  async #create(sessionId?: string): Promise<StreamableHTTPServerTransport> {
     const sessionKey = sessionId ?? crypto.randomUUID();
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => sessionKey,
@@ -86,7 +86,7 @@ export class HttpTransportManager {
         this.#transports.delete(id);
       },
       enableJsonResponse: true,
-      eventStore: new InMemoryEventStore(),
+      eventStore: await KvEventStore.create(),
       enableDnsRebindingProtection: !!this.#config.enableDnsRebinding,
       allowedHosts: this.#config.allowedHosts ?? [],
       allowedOrigins: this.#config.allowedOrigins ?? [],
@@ -120,14 +120,18 @@ export class HttpTransportManager {
     return jsonBody;
   }
 
-  acquire(sessionId: string | undefined, requestBody: string): StreamableHTTPServerTransport {
+  async acquire(
+    sessionId: string | undefined,
+    requestBody: string,
+  ): Promise<StreamableHTTPServerTransport> {
     if (sessionId) {
       const transport = this.#transports.get(sessionId);
       if (transport) return transport;
     }
     this.#validateInitRequest(sessionId, requestBody);
     const sessionKey = sessionId ?? crypto.randomUUID();
-    return this.#create(sessionKey);
+    const transport = await this.#create(sessionKey);
+    return transport;
   }
 
   async release(sessionId: string): Promise<void> {

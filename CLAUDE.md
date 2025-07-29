@@ -21,7 +21,7 @@ src/
 ├── app/    
 │   ├── http/
 │   │   ├── handlers.ts             # HTTP handlers for the MCP server (GET, POST, etc.)
-│   │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
+│   │   ├── kvEventStore.ts         # Simple Deno KV event store for for session resumability
 │   │   ├── middleware.ts           # Middleware for the HTTP server (CORS, rate limiting, etc.)
 │   │   ├── server.ts               # The Hono HTTP server manager
 │   │   └── transport.ts            # The HTTP to MCP transport manager

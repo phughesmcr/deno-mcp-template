@@ -72,7 +72,7 @@ export function createPostHandler(mcp: McpServer, manager: HttpServerManager) {
         );
       }
 
-      const transport = transports.acquire(sessionId, bodyText);
+      const transport = await transports.acquire(sessionId, bodyText);
       try {
         await mcp.connect(transport);
       } catch (error) {

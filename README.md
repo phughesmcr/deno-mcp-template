@@ -187,7 +187,7 @@ src/
 ├── app/    
 │   ├── http/
 │   │   ├── handlers.ts             # HTTP handlers for the MCP server (GET, POST, etc.)
-│   │   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
+│   │   ├── kvEventStore.ts         # Simple Deno KV event store for for session resumability
 │   │   ├── middleware.ts           # Middleware for the HTTP server (CORS, rate limiting, etc.)
 │   │   ├── server.ts               # The Hono HTTP server manager
 │   │   └── transport.ts            # The HTTP to MCP transport manager
@@ -255,7 +255,7 @@ Run `deno task setup` to setup the project for your own use.
 
 ⚠️ If using `enableDnsRebindingProtection`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `src/constants/http.ts`. If not, you can disable `enableDnsRebindingProtection` in `src/app/http/manager.ts` (it is enabled by default).
 
-⚠️ `src/app/inMemoryEventStore.ts` is a simple utility for session resumability. It is **not** suitable for production use.
+⚠️ `src/app/http/kvEventStore.ts` is a simple utility for session resumability. It is **not** suitable for production use.
 
 ⚠️ The example server runs with `deno run -A` which enables all of Deno's permissions. You should [finetune the permissions](https://docs.deno.com/runtime/fundamentals/security/) before deploying to production.
 
