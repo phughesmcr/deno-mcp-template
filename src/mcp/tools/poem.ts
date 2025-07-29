@@ -1,51 +1,21 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult, CreateMessageRequest } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
 import type { ToolConfig, ToolModule } from "$/shared/types.ts";
 
 const schema = z.object({
-  msg: z.string().describe("The message to reflect"),
+  prompt: z.string().describe("The prompt to generate a poem for"),
 });
 
 const name = "reflect";
 
 // deno-lint-ignore no-explicit-any
 const config: ToolConfig<typeof schema.shape, any> = {
-  title: "Reflect",
-  description: "Reflect a message",
+  title: "Generate a poem",
+  description: "Generate a poem for the given prompt",
   inputSchema: schema.shape,
 };
-
-const fewShot = [
-  ["I want you to go to the moon with me", "You want me to go to the moon with you"],
-  ["Jim said we should take you to the doctor", "Jim said you should take me to the doctor"],
-  [
-    "Who can tell if they think we're good enough?",
-    "Who can tell if they think we're good enough?",
-  ],
-  ["I'm not sure if I'm good enough", "You're not sure if you're good enough"],
-  ["You and I should take a trip", "You and I should take a trip"],
-  ["What do you think I should do?", "What do I think you should do?"],
-  ["This is your last chance to give us the money", "This is my last chance to give you the money"],
-].flatMap(([user, assistant]): CreateMessageRequest["params"]["messages"] => {
-  return [
-    {
-      role: "user",
-      content: {
-        type: "text",
-        text: `reflect this message back to me:\n\n${user}`,
-      },
-    },
-    {
-      role: "assistant",
-      content: {
-        type: "text",
-        text: `{"text": "${assistant}"}`,
-      },
-    },
-  ];
-});
 
 // deno-lint-ignore no-explicit-any
 const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> => {
@@ -61,28 +31,21 @@ const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> 
     });
   }
 
-  const { msg } = parsed.data;
+  const { prompt } = parsed.data;
 
   // sampling
   const response = await mcp.server.createMessage({
     messages: [
-      ...fewShot,
       {
         role: "user",
         content: {
           type: "text",
-          text: `reflect this message back to me:\n\n${msg}`,
+          text: `Generate a poem for the following prompt:\n\n${prompt}`,
         },
       },
     ],
-    maxTokens: 10000,
-    temperature: 0.1,
-    systemPrompt:
-      `You are a helpful assistant that reflects messages back to the user with the same words but with the pronouns reversed (as if you were repeating it back to me as a question).
-       Do not remove any words or change the meaning of the message, just flip the pronouns. 
-       Keep punctuation and capitalization as is.
-       Do not add any additional text or commentary.
-       Respond only with valid JSON like so: {"text": "reflected message"}`,
+    maxTokens: 1024,
+    temperature: 0.7,
   });
 
   if (response.content.type !== "text") {
