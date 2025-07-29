@@ -5,6 +5,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { APP_NAME } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { createHttpServer } from "./http/server.ts";
 import { setupSignalHandlers } from "./signals.ts";
@@ -19,6 +20,7 @@ export async function createApp(mcp: McpServer, config: AppConfig) {
     if (config.stdio.enabled) {
       const transport = await stdio.acquire();
       await mcp.connect(transport);
+      console.error(`${APP_NAME} listening to STDIO`);
     }
     // Start HTTP server
     if (config.http.enabled) {
