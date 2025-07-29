@@ -8,7 +8,7 @@
  * {
  *   "mcpServers": {
  *     "my-published-mcp-server": {
- *       "command": "deno run -A --unstable-kv jsr:@your-scope/your-package"
+ *       "command": "deno run -A jsr:@your-scope/your-package"
  *     },
  *   }
  * }
@@ -32,7 +32,7 @@
  * {
  *   "mcpServers": {
  *     "my-local-mcp-server": {
- *       "command": "deno run -A --unstable-kv absolute/path/to/main.ts"
+ *       "command": "deno run -A absolute/path/to/main.ts"
  *     },
  *   }
  * }
