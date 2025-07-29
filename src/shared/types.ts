@@ -3,13 +3,9 @@
  * @module
  */
 
-import type { LOG_LEVEL } from "$/shared/constants.ts";
 import type { McpServer, ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape } from "zod/v3";
-
-/** Acceptable log levels */
-export type LogLevelKey = keyof typeof LOG_LEVEL;
 
 /** Prompt parameters */
 export type PromptPlugin = Parameters<McpServer["registerPrompt"]>;
@@ -70,11 +66,6 @@ export type HttpServerConfig = {
   allowedHosts?: string[];
 };
 
-/** The configuration for the logger */
-export type LoggerConfig = {
-  level: LogLevelKey;
-};
-
 /** The configuration for the STDIO transport */
 export type StdioConfig = {
   enabled: boolean;
@@ -83,6 +74,5 @@ export type StdioConfig = {
 /** Public app config */
 export interface AppConfig {
   http: HttpServerConfig;
-  log: LoggerConfig;
   stdio: StdioConfig;
 }

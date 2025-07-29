@@ -1,4 +1,4 @@
-import { Command, EnumType, ValidationError } from "@cliffy/command";
+import { Command, ValidationError } from "@cliffy/command";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
 import {
@@ -6,13 +6,8 @@ import {
   APP_USAGE,
   APP_VERSION,
   DEFAULT_HOSTNAME,
-  DEFAULT_LOG_LEVEL,
   DEFAULT_PORT,
-  VALID_LOG_LEVELS,
 } from "$/shared/constants.ts";
-import type { LogLevelKey } from "$/shared/types.ts";
-
-const logLevel = new EnumType<LogLevelKey>(VALID_LOG_LEVELS);
 
 async function createCommand() {
   return new Command()
@@ -23,7 +18,7 @@ async function createCommand() {
     .usage("[options]")
     .example(
       "Custom options",
-      `$ ${APP_USAGE} -p ${DEFAULT_PORT} -n ${DEFAULT_HOSTNAME} -l ${DEFAULT_LOG_LEVEL}`,
+      `$ ${APP_USAGE} -p ${DEFAULT_PORT} -n ${DEFAULT_HOSTNAME}`,
     )
     .example(
       "Use DNS rebinding protection",
@@ -35,14 +30,6 @@ async function createCommand() {
     )
     .meta("Deno", Deno.version.deno)
     .meta("MCP Protocol", LATEST_PROTOCOL_VERSION)
-    // Log level
-    .type("logLevel", logLevel)
-    .option("-l, --logLevel <level:logLevel>", "Set the log level.", {
-      default: DEFAULT_LOG_LEVEL,
-    })
-    .env("MCP_LOG_LEVEL=<value:logLevel>", "Set the log level.", {
-      prefix: "MCP_",
-    })
     // STDIO server
     .option("--no-stdio", "Disable the STDIO server.", {
       conflicts: ["no-http"],

@@ -24,19 +24,15 @@ Using Deno allows you to publish your MCP server using [JSR.io](https://jsr.io),
 
 ### MCP Server
 
-The MCP server is in `src/mcp/`. It currently implements prompts, resources (including dynamic resources), and tools. These are mostly the official examples from the [MCP Documentation](https://modelcontextprotocol.io/), giving a good starting point for your own features.
-
-The main tool example is the [knowledge graph memory server](https://github.com/modelcontextprotocol/servers/tree/main/src/memory) example from the [MCP Documentation](https://modelcontextprotocol.io/), implemented using [Deno KV](https://deno.com/kv) for storage.
+The MCP server is in `src/mcp/`. It currently implements prompts, resources (including dynamic resources), and tools (including sampling). These are mostly the official examples from the [MCP Documentation](https://modelcontextprotocol.io/), giving a good starting point for your own features.
 
 ### App
 
-The "app" component, found in `src/app/`, wraps the MCP server in some convenience functions for serving HTTP routes, transport management, logging, etc. It is designed to need only a few changes to get your MCP server up and running, so you don't have to worry about setting up best practices every time you start a new project, (see ⚠️ below).
-
-ℹ️ You can control the log level using the `MCP_LOG_LEVEL` environment variable or by passing `--log-level` to the server. E.g. `--log-level debug`.
+The "app" component, found in `src/app/`, wraps the MCP server in some convenience functions for serving HTTP routes, transport management, etc. It is designed to need only a few changes to get your MCP server up and running, so you don't have to worry about setting up best practices every time you start a new project, (see ⚠️ below).
 
 #### HTTP Server
 
-The app uses `Deno.serve` to start an HTTP server built with [Hono](https://hono.dev/). The server features comprehensive middleware including rate limiting, CORS protection, CSRF protection, security headers, request timeouts, and session management. DNS rebinding protection is also built in and enabled by default.
+The app uses `Deno.serve` to start an HTTP server built with [Hono](https://hono.dev/). The server features comprehensive middleware including rate limiting, CORS protection, security headers, request timeouts, and session management.
 
 ℹ️ For DNS rebinding protection, you can set the `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` variables (see [Config](#config))
 
@@ -84,7 +80,7 @@ Your AI environment (Cursor, Claude, LMStudio, etc.) will have an MCP server con
 {
     "mcpServers": {
         "my-mcp-server": {
-            "command": "deno run -A --unstable-kv jsr:@your-scope/your-package"
+            "command": "deno run -A jsr:@your-scope/your-package"
         },
     }
 }
@@ -128,7 +124,7 @@ otherwise, if you are using DNS rebinding protection, you must set an origin hea
 {
     "mcpServers": {
         "my-mcp-server": {
-            "command": "deno run -A --unstable-kv absolute/path/to/main.ts"
+            "command": "deno run -A absolute/path/to/main.ts"
         },
     }
 }
@@ -197,41 +193,32 @@ src/
 │   │   └── transport.ts            # The HTTP to MCP transport manager
 │   ├── app.ts                  # The main application class
 │   ├── cli.ts                  # Parses CLI args and env vars into an AppConfig object
-│   ├── logger.ts               # A simple logger that doesn't interfere with stdout
 │   ├── signals.ts              # Signal handling for SIGINT, SIGTERM, etc.
 │   └── stdio.ts                # The STDIO transport & state manager
 ├── mcp/ 
 │   ├── prompts/                             
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
-│   │   ├── mod.ts                          # Provides a single point of export for all the MCP prompts
-│   │   └── schemas.ts                      # Zod schemas for MCP prompts
+│   │   └── mod.ts                          # Provides a single point of export for all the MCP prompts
 │   ├── resources/                             
 │   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
 │   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
 │   │   ├── mod.ts                          # Provides a single point of export for all the MCP resources
 │   │   └── schemas.ts                      # Zod schemas for MCP resources
 │   ├── tools/                             
-│   │   ├── knowledgeGraph/                 # The knowledge graph example tool
-│   │   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
-│   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
-│   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
-│   │   │   ├── sanitization.ts             # Input sanitization utilities for knowledge graph data
-│   │   │   └── schemas.ts                  # Zod schemas for knowledge graph tools
-│   │   └── mod.ts                          # Provides a single point of export for all the MCP tools
-│   ├── middleware.ts           # Middleware for the MCP server (tool-call validation, etc.)
+│   │   ├── mod.ts                          # Provides a single point of export for all the MCP tools
+│   │   ├── poem.ts                         # A tool that showcases sampling
+│   │   └── weather.ts                      # A tool that fetches weather data
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
 ├── shared/
 │   ├── constants/  
 │   │   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
 │   │   ├── http.ts                 # Constants for the HTTP server (e.g., headers, ports, etc.)
-│   │   ├── log.ts                  # Constants for the logger (e.g., log levels)
 │   │   └── mcp.ts                  # Constants for the MCP server (e.g., capabilities, etc.)
 │   ├── validation/
 │   │   ├── config.ts               # Validation of the AppConfig object
 │   │   ├── header.ts               # Validation for headers
 │   │   ├── host.ts                 # Validation for hosts
 │   │   ├── hostname.ts             # Validation for hostnames
-│   │   ├── log.ts                  # Validation for log levels
 │   │   ├── origin.ts               # Validation for origins
 │   │   └── port.ts                 # Validation for ports
 │   ├── constants.ts                # Single point of export for all shared constants
@@ -249,7 +236,6 @@ static/
 
 | Environment Variable | Flag           | Default     | Description |
 | -------------------- | -------------- | ----------- | ----------- |
-| MCP_LOG_LEVEL        | -l             | "info"      | The log level to use |
 | MCP_NO_HTTP          | --no-http      | `false`     | Disable the HTTP server |
 | MCP_NO_STDIO         | --no-stdio     | `false`     | Disable the STDIO server |
 | MCP_HTTP_HOSTNAME    | -n             | "localhost" | The hostname to listen on for the HTTP server |

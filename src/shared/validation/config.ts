@@ -1,10 +1,9 @@
 import type { CliOptions } from "$/app/cli.ts";
-import type { AppConfig, HttpServerConfig, LoggerConfig, StdioConfig } from "$/shared/types.ts";
+import type { AppConfig, HttpServerConfig, StdioConfig } from "$/shared/types.ts";
 import {
   validateHeaders,
   validateHostname,
   validateHosts,
-  validateLogLevel,
   validateOrigins,
   validatePort,
 } from "$/shared/validation.ts";
@@ -55,24 +54,6 @@ export function validateStdioConfig(config: CliOptions): ValidationResult<StdioC
   };
 }
 
-export function validateLoggerConfig(config: CliOptions): ValidationResult<LoggerConfig> {
-  const { logLevel } = config;
-  try {
-    const validatedLogLevel = validateLogLevel(logLevel);
-    return {
-      success: true,
-      value: {
-        level: validatedLogLevel,
-      },
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error as Error,
-    };
-  }
-}
-
 export function validateConfig(config: CliOptions): ValidationResult<AppConfig> {
   try {
     const validatedHttp = validateHttpConfig(config);
@@ -80,9 +61,6 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
 
     const validatedStdio = validateStdioConfig(config);
     if (!validatedStdio.success) throw validatedStdio.error;
-
-    const validatedLogger = validateLoggerConfig(config);
-    if (!validatedLogger.success) throw validatedLogger.error;
 
     return {
       success: true,
@@ -98,9 +76,6 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
         },
         stdio: {
           enabled: !!config.stdio,
-        },
-        log: {
-          level: config.logLevel,
         },
       },
     };
