@@ -8,7 +8,7 @@ const schema = z.object({
   prompt: z.string().describe("The prompt to generate a poem for"),
 });
 
-const name = "reflect";
+const name = "poem";
 
 // deno-lint-ignore no-explicit-any
 const config: ToolConfig<typeof schema.shape, any> = {
