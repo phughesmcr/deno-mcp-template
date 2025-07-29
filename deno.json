@@ -147,5 +147,8 @@
                 "require-await"
             ]
         }
-    }
+    },
+    "unstable": [
+        "kv"
+    ]
 }
