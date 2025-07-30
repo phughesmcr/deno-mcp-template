@@ -21,16 +21,9 @@ async function handleMCPRequest(transport: StreamableHTTPServerTransport, reques
 }
 
 /** Safely extracts the session ID from the request header */
-function getSessionId(c: Context): string | Response {
+function getSessionId(c: Context): string | undefined | Response {
   try {
-    const sessionId = c.req.header(HEADER_KEYS.SESSION_ID);
-    if (!sessionId?.trim()) {
-      return c.json(
-        createRPCError(INVALID_SESSION_ID, RPC_ERROR_CODES.INVALID_REQUEST, "Invalid session ID"),
-        HTTP_STATUS.BAD_REQUEST,
-      );
-    }
-    return sessionId;
+    return c.req.header(HEADER_KEYS.SESSION_ID) ?? undefined;
   } catch {
     return c.json(
       createRPCError(INVALID_SESSION_ID, RPC_ERROR_CODES.INVALID_REQUEST, "Invalid session ID"),
@@ -45,7 +38,7 @@ function handleInternalMCPError(c: Context): Response {
   if (sessionId instanceof Response) sessionId = INVALID_SESSION_ID;
   return c.json(
     createRPCError(
-      sessionId,
+      sessionId ?? INVALID_SESSION_ID,
       RPC_ERROR_CODES.INTERNAL_ERROR,
       "Internal server error",
     ),
@@ -76,7 +69,7 @@ async function getBodyText(c: Context): Promise<[Request, string] | Response> {
 /** Acquires a transport for the given session ID and body text */
 async function acquireTransport(
   c: Context,
-  sessionId: string,
+  sessionId: string | undefined,
   transportManager: HttpServerManager,
   bodyText: string,
 ): Promise<StreamableHTTPServerTransport | Response> {
@@ -87,18 +80,30 @@ async function acquireTransport(
   } catch (error) {
     if (error instanceof Error && error.message.includes("Invalid JSON")) {
       return c.json(
-        createRPCError(sessionId, RPC_ERROR_CODES.INVALID_REQUEST, "Invalid JSON in request body"),
+        createRPCError(
+          sessionId ?? INVALID_SESSION_ID,
+          RPC_ERROR_CODES.INVALID_REQUEST,
+          "Invalid JSON in request body",
+        ),
         HTTP_STATUS.BAD_REQUEST,
       );
     }
     if (error instanceof Error && error.message.includes("No valid session")) {
       return c.json(
-        createRPCError(sessionId, RPC_ERROR_CODES.INVALID_REQUEST, "Invalid session ID"),
+        createRPCError(
+          sessionId ?? INVALID_SESSION_ID,
+          RPC_ERROR_CODES.INVALID_REQUEST,
+          "Invalid session ID",
+        ),
         HTTP_STATUS.BAD_REQUEST,
       );
     }
     return c.json(
-      createRPCError(sessionId, RPC_ERROR_CODES.INTERNAL_ERROR, "Internal server error"),
+      createRPCError(
+        sessionId ?? INVALID_SESSION_ID,
+        RPC_ERROR_CODES.INTERNAL_ERROR,
+        "Internal server error",
+      ),
       HTTP_STATUS.INTERNAL_SERVER_ERROR,
     );
   }
@@ -189,6 +194,13 @@ export function createGetAndDeleteHandler(mcp: McpServer, manager: HttpServerMan
     try {
       const sessionId = getSessionId(c);
       if (sessionId instanceof Response) return sessionId;
+
+      if (!sessionId) {
+        return c.json(
+          createRPCError(INVALID_SESSION_ID, RPC_ERROR_CODES.INVALID_REQUEST, "Invalid session ID"),
+          HTTP_STATUS.BAD_REQUEST,
+        );
+      }
 
       const transport = await getTransport(c, sessionId, manager);
       if (transport instanceof Response) return transport;
