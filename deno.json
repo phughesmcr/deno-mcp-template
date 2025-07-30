@@ -35,7 +35,7 @@
         "fetch-to-node": "npm:fetch-to-node@^2.1.0",
         "hono": "jsr:@hono/hono@^4.8.10",
         "hono-rate-limiter": "npm:hono-rate-limiter@^0.4.2",
-        "zod": "npm:zod@^4.0.13",
+        "zod": "npm:zod@^4.0.14",
         "zod-validation-error": "npm:zod-validation-error@^4.0.1"
     },
     "tasks": {
