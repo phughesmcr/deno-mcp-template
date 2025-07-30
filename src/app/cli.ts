@@ -8,7 +8,9 @@ import {
   DEFAULT_HOSTNAME,
   DEFAULT_PORT,
 } from "$/shared/constants.ts";
+import type { AppConfig } from "$/shared/types.ts";
 import { mergeArrays } from "$/shared/utils.ts";
+import { validateConfig } from "$/shared/validation.ts";
 
 export type CliCommand = Awaited<ReturnType<typeof createCommand>>;
 
@@ -105,39 +107,46 @@ async function createCommand() {
     .parse(Deno.args);
 }
 
-export async function handleCliArgs(): Promise<CliOptions> {
+function transformCliOptions(rawOptions: CliCommand["options"]): CliOptions {
+  const {
+    header,
+    host,
+    origin,
+    noHttp: _noHttp,
+    noStdio: _noStdio,
+    headers: rawHeaders,
+    allowedOrigins: rawAllowedOrigins,
+    allowedHosts: rawAllowedHosts,
+    ...cleanOptions
+  } = rawOptions;
+
+  return {
+    ...cleanOptions,
+    headers: mergeArrays(header, rawHeaders),
+    allowedOrigins: mergeArrays(origin, rawAllowedOrigins),
+    allowedHosts: mergeArrays(host, rawAllowedHosts),
+  };
+}
+
+function handleError(error: unknown): never {
+  if (error instanceof ValidationError) {
+    error.cmd?.showHelp();
+    console.error("Usage error: %s", error.message);
+    Deno.exit(error.exitCode);
+  } else {
+    console.error("Runtime error: %s", error);
+    Deno.exit(1);
+  }
+}
+
+export async function handleCliArgs(): Promise<AppConfig> {
   try {
     const { options } = await createCommand();
-    // concat arrays
-    const result = {
-      ...options,
-      ...{
-        headers: mergeArrays(options.header, options.headers),
-        allowedOrigins: mergeArrays(options.origin, options.allowedOrigins),
-        allowedHosts: mergeArrays(options.host, options.allowedHosts),
-      },
-    };
-    // delete leftover keys
-    delete result.header;
-    delete result.host;
-    delete result.origin;
-    delete result.noHttp;
-    delete result.noStdio;
-    // check if both servers are disabled
-    if (!result.http && !result.stdio) {
-      throw new Error(
-        "Both the HTTP and the STDIO servers are disabled. Please enable at least one server.",
-      );
-    }
-    return result as CliOptions;
+    const transformedOptions = transformCliOptions(options);
+    const config = validateConfig(transformedOptions);
+    if (!config.success) throw config.error;
+    return config.value;
   } catch (error) {
-    if (error instanceof ValidationError) {
-      error.cmd?.showHelp();
-      console.error("Usage error: %s", error.message);
-      Deno.exit(error.exitCode);
-    } else {
-      console.error("Runtime error: %s", error);
-      Deno.exit(1);
-    }
+    handleError(error);
   }
 }

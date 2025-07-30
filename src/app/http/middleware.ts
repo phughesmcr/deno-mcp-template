@@ -22,7 +22,7 @@ import {
 } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 
-export function configureMiddleware(app: Hono, config: AppConfig): Hono {
+export function configureMiddleware(app: Hono, config: AppConfig["http"]): Hono {
   app.use(secureHeaders());
   app.use(timeout(TIMEOUT));
   app.use(requestId());
@@ -68,12 +68,12 @@ export function configureMiddleware(app: Hono, config: AppConfig): Hono {
     allowMethods: DEFAULT_ALLOWED_METHODS,
     allowHeaders: [
       ...DEFAULT_ALLOWED_HEADERS,
-      ...(config.http.headers ?? []),
+      ...(config.headers ?? []),
       ...Object.values(HEADER_KEYS),
     ],
     exposeHeaders: [
       ...DEFAULT_EXPOSED_HEADERS,
-      ...(config.http.headers ?? []),
+      ...(config.headers ?? []),
       ...Object.values(HEADER_KEYS),
     ],
   }));

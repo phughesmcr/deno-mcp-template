@@ -4,26 +4,24 @@ import { serveStatic } from "hono/deno";
 
 import { APP_NAME, HTTP_STATUS } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
-import { createGetHandler, createPostHandler } from "./handlers.ts";
+import { createGetAndDeleteHandler, createPostHandler } from "./handlers.ts";
 import { configureMiddleware } from "./middleware.ts";
 import { HttpServerManager } from "./transport.ts";
 
-export function createHttpServer(mcp: McpServer, config: AppConfig): HttpServerManager {
-  // Create HTTP server manager
-  const transports = new HttpServerManager(config.http);
+export interface HttpServer {
+  /** Starts the HTTP server */
+  connect: () => Promise<void>;
+  /** Stops the HTTP server */
+  disconnect: () => Promise<void>;
+}
 
-  // Create the Hono app
-  const app = new Hono();
-
-  // Configure all middleware
-  configureMiddleware(app, config);
-
+function createRoutes(app: Hono, mcp: McpServer, transports: HttpServerManager) {
   // MCP POST route
   const postHandler = createPostHandler(mcp, transports);
   app.post("/mcp", postHandler);
 
   // MCP GET & DELETE routes
-  const getHandler = createGetHandler(mcp, transports);
+  const getHandler = createGetAndDeleteHandler(mcp, transports);
   app.on(["GET", "DELETE"], "/mcp", getHandler);
 
   // Static Routes
@@ -36,20 +34,50 @@ export function createHttpServer(mcp: McpServer, config: AppConfig): HttpServerM
 
   // 404 Route
   app.get("*", serveStatic({ path: "./static/404.html" }));
+}
 
-  // Error handler
+function createApp(
+  mcp: McpServer,
+  config: AppConfig["http"],
+  transports: HttpServerManager,
+): Hono {
+  const app = new Hono();
+  configureMiddleware(app, config);
+  createRoutes(app, mcp, transports);
   app.onError((err, c) => {
     return c.json(
       {
-        content: [{ type: "text", text: `Error: ${err.message}` }],
+        content: [{ type: "text", text: err.message }],
         isError: true,
       },
       HTTP_STATUS.INTERNAL_SERVER_ERROR,
     );
   });
+  return app;
+}
 
-  // Couple Deno.serve to the Hono HTTP server
-  transports.fetch = app.fetch.bind(app);
-
-  return transports;
+export function createHttpServer(mcp: McpServer, config: AppConfig["http"]): HttpServer {
+  const transports = new HttpServerManager(config);
+  const app = createApp(mcp, config, transports);
+  transports.fetch = app.fetch.bind(app); // Couple Deno.serve to the Hono HTTP server
+  return {
+    connect: async () => {
+      if (transports.enabled) {
+        try {
+          await transports.start();
+        } catch (error) {
+          console.error(`${APP_NAME} failed to start HTTP server: ${error}`);
+        }
+      }
+    },
+    disconnect: async () => {
+      if (transports.enabled) {
+        try {
+          await transports.stop();
+        } catch (error) {
+          console.error(`${APP_NAME} failed to stop HTTP server: ${error}`);
+        }
+      }
+    },
+  };
 }

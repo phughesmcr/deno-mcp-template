@@ -62,6 +62,12 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
     const validatedStdio = validateStdioConfig(config);
     if (!validatedStdio.success) throw validatedStdio.error;
 
+    if (!config.stdio && !config.http) {
+      throw new Error(
+        "Both the HTTP and STDIO servers are disabled. Please enable at least one server.",
+      );
+    }
+
     return {
       success: true,
       value: {

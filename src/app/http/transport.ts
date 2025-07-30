@@ -21,7 +21,7 @@ export class HttpServerManager {
     this.#fetch = null;
   }
 
-  get isEnabled(): boolean {
+  get enabled(): boolean {
     return this.config.enabled;
   }
 
@@ -34,7 +34,7 @@ export class HttpServerManager {
 
   /** Starts the HTTP server */
   async start(): Promise<void> {
-    if (!this.isEnabled || this.#running || !this.#fetch) return;
+    if (!this.enabled || this.#running || !this.#fetch) return;
     const { hostname, port } = this.config;
     this.#server = Deno.serve({
       hostname,
