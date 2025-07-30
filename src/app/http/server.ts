@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Hono } from "hono";
 import { serveStatic } from "hono/deno";
 
-import { APP_NAME } from "$/shared/constants.ts";
+import { APP_NAME, HTTP_STATUS } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { createGetHandler, createPostHandler } from "./handlers.ts";
 import { configureMiddleware } from "./middleware.ts";
@@ -34,8 +34,19 @@ export function createHttpServer(mcp: McpServer, config: AppConfig): HttpServerM
   app.get("/openapi.yaml", (c) => c.redirect("/.well-known/openapi.yaml"));
   app.get("/", (c) => c.text(`${APP_NAME} running. See \`/llms.txt\` for machine-readable docs.`));
 
-  // Fallback Route - serve llms.txt for any unmatched routes
-  app.get("*", serveStatic({ path: "./static/.well-known/llms.txt" }));
+  // 404 Route
+  app.get("*", serveStatic({ path: "./static/404.html" }));
+
+  // Error handler
+  app.onError((err, c) => {
+    return c.json(
+      {
+        content: [{ type: "text", text: `Error: ${err.message}` }],
+        isError: true,
+      },
+      HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    );
+  });
 
   // Couple Deno.serve to the Hono HTTP server
   transports.fetch = app.fetch.bind(app);

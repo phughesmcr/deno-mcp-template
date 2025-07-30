@@ -25,7 +25,7 @@ export const DEFAULT_ALLOWED_HOSTS: string[] = [];
  * @note The presence of "*" will allow all origins.
  * @note This is ignored if env.MCP_ALLOWED_ORIGINS is set or CLI --origin is provided.
  */
-export const DEFAULT_ALLOWED_ORIGINS: string[] = ["*"];
+export const DEFAULT_ALLOWED_ORIGINS: string[] = [];
 
 /**
  * The allowed methods for the MCP server's CORS protection.
@@ -46,6 +46,9 @@ export const DEFAULT_ALLOWED_HEADERS = [
   "Authorization",
   "x-api-key",
   "X-Requested-With",
+  "x-forwarded-for",
+  "x-real-ip",
+  "cf-connecting-ip",
 ];
 
 /**
@@ -68,6 +71,15 @@ export const BODY_LIMIT = 1024 * 1024 * 4; // 4MB
 
 /** @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/0d545176f9ba852c97a18a40037abff40cd086c2/src/shared/protocol.ts#L60} */
 export const TIMEOUT = 60000; // 60 seconds
+
+/** The rate limit window for the MCP server. */
+export const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+
+/** The rate limit for the MCP server. */
+export const RATE_LIMIT = 100; // Limit each IP to 100 requests per window
+
+/** The maximum age for the MCP server's CORS protection. */
+export const CORS_MAX_AGE = 86400; // 24 hours
 
 /** Required headers for the MCP server. */
 export const HEADER_KEYS = {
