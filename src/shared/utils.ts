@@ -86,3 +86,7 @@ export function createCallToolErrorResponse(
     ...createCallToolTextResponse(obj, structuredContent),
   };
 }
+
+export function mergeArrays(a?: string[], b?: string[]): string[] {
+  return [...new Set([...a ?? [], ...b ?? []])];
+}

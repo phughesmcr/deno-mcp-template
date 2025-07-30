@@ -8,6 +8,17 @@ import {
   DEFAULT_HOSTNAME,
   DEFAULT_PORT,
 } from "$/shared/constants.ts";
+import { mergeArrays } from "$/shared/utils.ts";
+
+export type CliCommand = Awaited<ReturnType<typeof createCommand>>;
+
+export type CliOptions =
+  & Omit<CliCommand["options"], "header" | "host" | "origin" | "noHttp" | "noStdio">
+  & {
+    headers: string[];
+    allowedOrigins: string[];
+    allowedHosts: string[];
+  };
 
 async function createCommand() {
   return new Command()
@@ -77,6 +88,7 @@ async function createCommand() {
     .option("--origin <origin:string>", "Allow an origin for DNS rebinding.", {
       collect: true,
       conflicts: ["no-http"],
+      depends: ["dnsRebinding"],
     })
     .env("MCP_ALLOWED_ORIGINS=<value:string[]>", "Allowed origins for DNS rebinding.", {
       prefix: "MCP_",
@@ -85,6 +97,7 @@ async function createCommand() {
     .option("--host <host:string>", "Allow a host for DNS rebinding.", {
       collect: true,
       conflicts: ["no-http"],
+      depends: ["dnsRebinding"],
     })
     .env("MCP_ALLOWED_HOSTS=<value:string[]>", "Allowed hosts for DNS rebinding.", {
       prefix: "MCP_",
@@ -92,33 +105,30 @@ async function createCommand() {
     .parse(Deno.args);
 }
 
-export type CliCommand = Awaited<ReturnType<typeof createCommand>>;
-
-export type CliOptions =
-  & Omit<CliCommand["options"], "header" | "host" | "origin" | "noHttp" | "noStdio">
-  & {
-    headers: string[];
-    allowedOrigins: string[];
-    allowedHosts: string[];
-  };
-
 export async function handleCliArgs(): Promise<CliOptions> {
   try {
     const { options } = await createCommand();
-    const concatenated = {
-      headers: [...new Set([...(options.header ?? []), ...(options.headers ?? [])])],
-      allowedOrigins: [...new Set([...(options.origin ?? []), ...(options.allowedOrigins ?? [])])],
-      allowedHosts: [...new Set([...(options.host ?? []), ...(options.allowedHosts ?? [])])],
-    };
+    // concat arrays
     const result = {
       ...options,
-      ...concatenated,
+      ...{
+        headers: mergeArrays(options.header, options.headers),
+        allowedOrigins: mergeArrays(options.origin, options.allowedOrigins),
+        allowedHosts: mergeArrays(options.host, options.allowedHosts),
+      },
     };
+    // delete leftover keys
     delete result.header;
     delete result.host;
     delete result.origin;
     delete result.noHttp;
     delete result.noStdio;
+    // check if both servers are disabled
+    if (!result.http && !result.stdio) {
+      throw new Error(
+        "Both the HTTP and the STDIO servers are disabled. Please enable at least one server.",
+      );
+    }
     return result as CliOptions;
   } catch (error) {
     if (error instanceof ValidationError) {
