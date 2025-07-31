@@ -8,16 +8,17 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ZodRawShape } from "zod/v3";
 
 import type { ToolModule, ToolPlugin } from "$/shared/types.ts";
+import domain from "./domain.ts";
 import poem from "./poem.ts";
-import weather from "./weather.ts";
 
 // deno-lint-ignore no-explicit-any
 export const tools: ToolModule<any>[] = [
-  weather, // Async tool with external API call
+  domain, // Async tool with external API call
   poem, // Sampling tool
   // ... more tools
 ];
 
+// Allows for tools to access the MCP server for sampling
 export class ToolManager {
   #tools: Map<string, ToolPlugin>;
   #mcp: McpServer;

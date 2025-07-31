@@ -1,43 +1,43 @@
 import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import type {
-  ReadResourceResult,
-  ServerNotification,
-  ServerRequest,
-} from "@modelcontextprotocol/sdk/types.js";
+import type { ReadResourceResult, ResourceTemplate } from "@modelcontextprotocol/sdk/types.js";
 
-import type { ResourcePlugin } from "$/shared/types.ts";
+import type { ResourceTemplatePlugin } from "$/shared/types.ts";
 
 const name = "greetings";
 
-const uriOrTemplate = new ResourceTemplate("greetings://{name}", { list: undefined });
+const template: ResourceTemplate = {
+  name: "greetings",
+  uriTemplate: "greetings://{name}",
+  mimeType: "text/plain",
+};
 
 const config: ResourceMetadata = {};
 
 async function readCallback(
   uri: URL,
   variables: Record<string, unknown>,
-  _extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
 ): Promise<ReadResourceResult> {
   const _name = uri.toString().match(/^greetings:\/\/(.+)$/);
-  if (!_name) {
-    throw new Error("Invalid URI");
-  }
+  if (!_name) throw new SyntaxError("Invalid greetings URI format");
   const name = (variables.name as string) ?? _name[1];
+  if (!name || typeof name !== "string" || name.trim().length === 0) {
+    throw new SyntaxError("Name parameter is required and must be a non-empty string");
+  }
+  // Sanitize name to prevent injection
+  const sanitizedName = name.trim().slice(0, 100).replace(/[^a-zA-Z0-9\-]/g, "");
   return {
     contents: [
       {
         uri: uri.toString(),
-        text: `Hello, ${name}! Welcome to MCP.`,
+        text: `Hello, ${sanitizedName}! Welcome to MCP.`,
       },
     ],
   };
 }
 
-const module: ResourcePlugin = [
+const module: ResourceTemplatePlugin = [
   name,
-  uriOrTemplate,
+  template,
   config,
   readCallback,
 ];

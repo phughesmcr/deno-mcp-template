@@ -26,7 +26,7 @@ async function callback(args: Record<string, unknown>): Promise<GetPromptResult>
     throw new Error(error.message);
   }
   if (!data.code) {
-    throw new Error("Code parameter is required");
+    throw new SyntaxError("Code parameter is required");
   }
   return {
     messages: [{
