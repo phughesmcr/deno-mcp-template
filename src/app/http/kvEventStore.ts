@@ -6,6 +6,7 @@
 
 import type { EventStore } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
+import { monotonicUlid } from "@std/ulid";
 
 /** An event in the MCP event stream */
 type McpEvent = { streamId: string; message: JSONRPCMessage; id: string };
@@ -36,7 +37,7 @@ export class KvEventStore implements EventStore {
 
   /** Stores an event with a generated event ID */
   async storeEvent(streamId: string, message: JSONRPCMessage): Promise<string> {
-    const eventId = `${streamId}_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    const eventId = `${streamId}_${monotonicUlid()}`;
     const key = [...EVENTS_KEY, streamId, eventId];
     const value: McpEvent = { streamId, message, id: eventId };
     await this.#kv.set(key, value, { expireIn: EVENT_EXPIRY });
