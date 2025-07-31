@@ -66,7 +66,7 @@ deno task start
 deno task dev
 ```
 
-Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/constants/**.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/http/middleware.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
+Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/constants/**.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/http/hono.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
 
 ## Using your MCP server
 
@@ -253,7 +253,7 @@ Run `deno task setup` to setup the project for your own use.
 
 ⚠️ You must grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information. (The setup task will do this for you.)
 
-⚠️ If using `enableDnsRebindingProtection`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `src/constants/http.ts`. If not, you can disable `enableDnsRebindingProtection` in `src/app/http/manager.ts` (it is enabled by default).
+⚠️ If using `--dnsRebinding`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `src/constants/http.ts`, or pass `--origin` and `--host` to the server.
 
 ⚠️ `src/app/http/kvEventStore.ts` is a simple utility for session resumability. It is **not** suitable for production use.
 
