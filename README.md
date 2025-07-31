@@ -187,10 +187,10 @@ src/
 ├── app/    
 │   ├── http/
 │   │   ├── handlers.ts             # HTTP handlers for the MCP server (GET, POST, etc.)
+│   │   ├── hono.ts                 # Manages the Hono server, middleware, and routes
 │   │   ├── kvEventStore.ts         # Simple Deno KV event store for for session resumability
-│   │   ├── middleware.ts           # Middleware for the HTTP server (CORS, rate limiting, etc.)
-│   │   ├── server.ts               # The Hono HTTP server manager
-│   │   └── transport.ts            # The HTTP to MCP transport manager
+│   │   ├── mod.ts                  # The main entrypoint for the HTTP server
+│   │   └── transport.ts            # Manages the StreamableHTTPServerTransports
 │   ├── app.ts                  # The main application class
 │   ├── cli.ts                  # Parses CLI args and env vars into an AppConfig object
 │   ├── signals.ts              # Signal handling for SIGINT, SIGTERM, etc.
@@ -205,9 +205,9 @@ src/
 │   │   ├── mod.ts                          # Provides a single point of export for all the MCP resources
 │   │   └── schemas.ts                      # Zod schemas for MCP resources
 │   ├── tools/                             
+│   │   ├── domain.ts                       # A tool that fetches web domain information from the domainsdb API
 │   │   ├── mod.ts                          # Provides a single point of export for all the MCP tools
-│   │   ├── poem.ts                         # A tool that showcases sampling
-│   │   └── weather.ts                      # A tool that fetches weather data
+│   │   └── poem.ts                         # A tool that showcases sampling
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
 ├── shared/
 │   ├── constants/  
