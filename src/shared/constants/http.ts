@@ -81,6 +81,9 @@ export const RATE_LIMIT = 100; // Limit each IP to 100 requests per window
 /** The maximum age for the MCP server's CORS protection. */
 export const CORS_MAX_AGE = 86400; // 24 hours
 
+/** The expiry time for events */
+export const EVENT_EXPIRY = 60 * 60 * 24 * 1000; // 1 day in milliseconds
+
 /** Required headers for the MCP server. */
 export const HEADER_KEYS = {
   SESSION_ID: "mcp-session-id",

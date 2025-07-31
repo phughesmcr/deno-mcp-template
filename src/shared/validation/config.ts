@@ -8,6 +8,14 @@ import {
   validatePort,
 } from "$/shared/validation.ts";
 
+const UUID_V4_REGEX = new RegExp(
+  /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/i,
+);
+
+export function isUUID(str: string): boolean {
+  return UUID_V4_REGEX.test(str);
+}
+
 export type ValidationResult<T, E extends Error = Error> = {
   success: true;
   value: T;

@@ -9,7 +9,6 @@ import {
   DEFAULT_PORT,
 } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
-import { mergeArrays } from "$/shared/utils.ts";
 import { validateConfig } from "$/shared/validation.ts";
 
 export type CliCommand = Awaited<ReturnType<typeof createCommand>>;
@@ -21,6 +20,11 @@ export type CliOptions =
     allowedOrigins: string[];
     allowedHosts: string[];
   };
+
+/** Merges two arrays of strings, removing duplicates */
+function mergeArrays(a?: string[], b?: string[]): string[] {
+  return [...new Set([...a ?? [], ...b ?? []])];
+}
 
 async function createCommand() {
   return new Command()
@@ -128,17 +132,6 @@ function transformCliOptions(rawOptions: CliCommand["options"]): CliOptions {
   };
 }
 
-function handleError(error: unknown): never {
-  if (error instanceof ValidationError) {
-    error.cmd?.showHelp();
-    console.error("Usage error: %s", error.message);
-    Deno.exit(error.exitCode);
-  } else {
-    console.error("Runtime error: %s", error);
-    Deno.exit(1);
-  }
-}
-
 export async function handleCliArgs(): Promise<AppConfig> {
   try {
     const { options } = await createCommand();
@@ -147,6 +140,13 @@ export async function handleCliArgs(): Promise<AppConfig> {
     if (!config.success) throw config.error;
     return config.value;
   } catch (error) {
-    handleError(error);
+    if (error instanceof ValidationError) {
+      error.cmd?.showHelp();
+      console.error("Usage error: %s", error.message);
+      Deno.exit(error.exitCode);
+    } else {
+      console.error("Runtime error: %s", error);
+      Deno.exit(1);
+    }
   }
 }

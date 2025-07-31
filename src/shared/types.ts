@@ -3,15 +3,45 @@
  * @module
  */
 
-import type { McpServer, ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  McpServer,
+  ReadResourceCallback,
+  ReadResourceTemplateCallback,
+  ResourceMetadata,
+  ToolCallback,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ResourceTemplate, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape } from "zod/v3";
+
+export interface Transport {
+  /** Connects the transport to the MCP server */
+  connect: () => Promise<void>;
+  /** Disconnects the transport from the MCP server */
+  disconnect: () => Promise<void>;
+  /** Checks if the transport is enabled */
+  isEnabled: () => boolean;
+  /** Checks if the transport is running */
+  isRunning: () => boolean;
+}
 
 /** Prompt parameters */
 export type PromptPlugin = Parameters<McpServer["registerPrompt"]>;
 
 /** Resource parameters */
-export type ResourcePlugin = Parameters<McpServer["registerResource"]>;
+export type ResourcePlugin = [
+  name: string,
+  uri: string,
+  config: ResourceMetadata,
+  readCallback: ReadResourceCallback,
+];
+
+/** Resource template parameters */
+export type ResourceTemplatePlugin = [
+  name: string,
+  template: ResourceTemplate,
+  config: ResourceMetadata,
+  readCallback: ReadResourceTemplateCallback,
+];
 
 /** Tool parameters */
 export type ToolPlugin = Parameters<McpServer["registerTool"]>;

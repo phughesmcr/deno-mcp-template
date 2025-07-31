@@ -7,35 +7,108 @@ import {
   type CallToolResult,
   JSONRPC_VERSION,
   type JSONRPCError,
-  type JSONRPCResponse,
   type RequestId,
-  type Result,
 } from "@modelcontextprotocol/sdk/types.js";
 
-/** Creates a JSON-RPC error response */
-export function createRPCError(
-  id: RequestId,
-  code: number,
-  message: string,
-  data?: unknown,
-): JSONRPCError {
-  return {
-    jsonrpc: JSONRPC_VERSION,
-    id,
-    error: { code, message, data },
-  };
+export interface RPCErrorSpec {
+  code: number;
+  message: string;
+  requestId: RequestId;
+  data?: unknown;
+  options?: ErrorOptions;
 }
 
-/** Creates a JSON-RPC success response */
-export function createRPCSuccess(
-  id: RequestId,
-  result: Result,
-): JSONRPCResponse {
-  return {
-    jsonrpc: JSONRPC_VERSION,
-    id,
-    result,
-  };
+/** Custom RPC Error class with structured data and JSON-RPC 2.0 compliance */
+export class RPCError extends Error {
+  readonly code: number;
+  readonly requestId: RequestId;
+  readonly data?: unknown;
+  readonly timestamp: string;
+
+  constructor(spec: RPCErrorSpec) {
+    super(spec.message, spec.options);
+    this.name = "RPCError";
+    this.code = spec.code;
+    this.requestId = spec.requestId;
+    this.data = spec.data;
+    this.timestamp = new Date().toISOString();
+
+    // Ensure proper prototype chain for instanceof checks
+    Object.setPrototypeOf(this, RPCError.prototype);
+  }
+
+  /** Convert to JSON-RPC 2.0 error response format */
+  toJSONRPC(): JSONRPCError {
+    const errorData = this.data ?
+      {
+        ...this.data,
+        timestamp: this.timestamp,
+        errorCode: this.code,
+      } :
+      {
+        timestamp: this.timestamp,
+        errorCode: this.code,
+      };
+
+    return {
+      jsonrpc: JSONRPC_VERSION,
+      id: this.requestId,
+      error: {
+        code: this.code,
+        message: this.message,
+        data: errorData,
+      },
+    };
+  }
+
+  /** Convert to JSON string representation */
+  override toString(): string {
+    return JSON.stringify(this.toJSONRPC());
+  }
+
+  /** Create error response with additional context */
+  withContext(additionalData: Record<string, unknown>): RPCError {
+    const mergedData = this.data ? { ...this.data, ...additionalData } : additionalData;
+    return new RPCError({
+      code: this.code,
+      message: this.message,
+      requestId: this.requestId,
+      data: mergedData,
+    });
+  }
+
+  /** Static factory methods for common RPC errors */
+  static internalError(requestId: RequestId, data?: unknown): RPCError {
+    return new RPCError({
+      code: -32603,
+      message: "Internal error",
+      requestId,
+      data,
+    });
+  }
+
+  /** Create from standard Error with additional context */
+  static fromError(
+    error: Error,
+    code: number,
+    requestId: RequestId,
+    additionalData?: unknown,
+  ): RPCError {
+    const data = {
+      originalError: error.message,
+      errorType: error.constructor.name,
+      stack: error.stack,
+      ...(additionalData as Record<string, unknown> || {}),
+    };
+
+    return new RPCError({
+      code,
+      message: error.message,
+      requestId,
+      data,
+      options: { cause: error },
+    });
+  }
 }
 
 /**
@@ -62,10 +135,10 @@ export function createArrayValidator<T>(
   return (items: T[]): T[] => items.map(itemValidator);
 }
 
-export const createCallToolTextResponse = (
+export function createCallToolTextResponse(
   obj: unknown,
   structuredContent?: Record<string, unknown>,
-): CallToolResult => {
+): CallToolResult {
   return {
     content: [
       {
@@ -75,7 +148,7 @@ export const createCallToolTextResponse = (
     ],
     structuredContent,
   };
-};
+}
 
 export function createCallToolErrorResponse(
   obj: unknown,
@@ -85,8 +158,4 @@ export function createCallToolErrorResponse(
     isError: true,
     ...createCallToolTextResponse(obj, structuredContent),
   };
-}
-
-export function mergeArrays(a?: string[], b?: string[]): string[] {
-  return [...new Set([...a ?? [], ...b ?? []])];
 }

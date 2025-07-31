@@ -8,6 +8,8 @@ import type { EventStore } from "@modelcontextprotocol/sdk/server/streamableHttp
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { monotonicUlid } from "@std/ulid";
 
+import { EVENT_EXPIRY } from "$/shared/constants/http.ts";
+
 /** An event in the MCP event stream */
 type McpEvent = { streamId: string; message: JSONRPCMessage; id: string };
 
@@ -19,9 +21,6 @@ type Sender = { send: McpEventSender };
 
 /** The key for the events bucket */
 const EVENTS_KEY = ["events"];
-
-/** The expiry time for events */
-const EVENT_EXPIRY = 60 * 60 * 24 * 7 * 1000; // 7 days in milliseconds
 
 export class KvEventStore implements EventStore {
   #kv: Deno.Kv;
