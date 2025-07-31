@@ -12,6 +12,11 @@ const UUID_V4_REGEX = new RegExp(
   /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/i,
 );
 
+/**
+ * Checks if a string is a valid UUID v4
+ * @param str - The string to validate
+ * @returns True if the string is a valid UUID v4
+ */
 export function isUUID(str: string): boolean {
   return UUID_V4_REGEX.test(str);
 }
@@ -24,6 +29,11 @@ export type ValidationResult<T, E extends Error = Error> = {
   error: E;
 };
 
+/**
+ * Validates HTTP server configuration from CLI options
+ * @param config - The CLI options to validate
+ * @returns The validation result with HTTP server config or error
+ */
 export function validateHttpConfig(config: CliOptions): ValidationResult<HttpServerConfig> {
   const { http, hostname, port, headers, allowedHosts, allowedOrigins, dnsRebinding } = config;
   try {
@@ -52,6 +62,11 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
   }
 }
 
+/**
+ * Validates STDIO configuration from CLI options
+ * @param config - The CLI options to validate
+ * @returns The validation result with STDIO config or error
+ */
 export function validateStdioConfig(config: CliOptions): ValidationResult<StdioConfig> {
   const { stdio } = config;
   return {
@@ -62,6 +77,11 @@ export function validateStdioConfig(config: CliOptions): ValidationResult<StdioC
   };
 }
 
+/**
+ * Validates the complete application configuration from CLI options
+ * @param config - The CLI options to validate
+ * @returns The validation result with app config or error
+ */
 export function validateConfig(config: CliOptions): ValidationResult<AppConfig> {
   try {
     const validatedHttp = validateHttpConfig(config);

@@ -132,6 +132,11 @@ function transformCliOptions(rawOptions: CliCommand["options"]): CliOptions {
   };
 }
 
+/**
+ * Handles CLI argument parsing and validation
+ * @returns The validated application configuration
+ * @throws {Error} When validation fails or usage errors occur
+ */
 export async function handleCliArgs(): Promise<AppConfig> {
   try {
     const { options } = await createCommand();

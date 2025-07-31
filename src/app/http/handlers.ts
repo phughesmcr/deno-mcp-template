@@ -72,8 +72,16 @@ async function connectTransport(
   }
 }
 
-/** Handles MCP POST requests */
-export function createPostHandler(mcp: McpServer, transports: HTTPTransportManager) {
+/**
+ * Creates a handler for MCP POST requests
+ * @param mcp - The MCP server instance
+ * @param transports - The HTTP transport manager
+ * @returns The POST request handler
+ */
+export function createPostHandler(
+  mcp: McpServer,
+  transports: HTTPTransportManager,
+): (c: Context) => Promise<Response> {
   return async (c: Context) => {
     try {
       const sessionId = getSessionId(c);
@@ -88,8 +96,16 @@ export function createPostHandler(mcp: McpServer, transports: HTTPTransportManag
   };
 }
 
-/** Handles MCP GET and DELETE requests */
-export function createGetAndDeleteHandler(mcp: McpServer, transports: HTTPTransportManager) {
+/**
+ * Creates a handler for MCP GET and DELETE requests
+ * @param mcp - The MCP server instance
+ * @param transports - The HTTP transport manager
+ * @returns The GET and DELETE request handler
+ */
+export function createGetAndDeleteHandler(
+  mcp: McpServer,
+  transports: HTTPTransportManager,
+): (c: Context) => Promise<Response> {
   return async (c: Context) => {
     try {
       const sessionId = getSessionId(c);

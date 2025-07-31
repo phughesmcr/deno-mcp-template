@@ -5,7 +5,12 @@ import type { AppConfig, Transport } from "$/shared/types.ts";
 import { createHonoApp } from "./hono.ts";
 import { createHTTPTransportManager } from "./transport.ts";
 
-/** Creates a HTTP server using Hono and Deno.serve */
+/**
+ * Creates a HTTP server using Hono and Deno.serve
+ * @param mcp - The MCP server instance
+ * @param config - The HTTP server configuration
+ * @returns The HTTP transport instance
+ */
 export function createHttpServer(mcp: McpServer, config: AppConfig["http"]): Transport {
   const { enabled, hostname, port } = config;
   const transports = createHTTPTransportManager(config);

@@ -10,6 +10,12 @@ export type App = {
   stop: () => Promise<void>;
 };
 
+/**
+ * Creates the main application instance with STDIO and HTTP transports
+ * @param mcp - The MCP server instance
+ * @param config - The application configuration
+ * @returns The application instance with start/stop methods
+ */
 export function createApp(mcp: McpServer, config: AppConfig): App {
   const stdio = createStdioManager(mcp, config.stdio);
   const http = createHttpServer(mcp, config.http);

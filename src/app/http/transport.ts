@@ -28,6 +28,11 @@ function isValidInitializeRequest(
   }
 }
 
+/**
+ * Creates an HTTP transport manager for handling MCP sessions
+ * @param config - The HTTP configuration
+ * @returns The HTTP transport manager
+ */
 export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTransportManager {
   const { allowedHosts = [], allowedOrigins = [], enableDnsRebinding } = config;
   const transports = new Map<string, StreamableHTTPServerTransport>();

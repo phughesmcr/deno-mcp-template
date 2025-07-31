@@ -29,4 +29,10 @@ const validateHeader = (header: string): string => {
   return `${key}:${value}`;
 };
 
+/**
+ * Validates an array of HTTP headers
+ * @param headers - Array of header strings in "key:value" format
+ * @returns The validated headers array
+ * @throws {Error} When header format is invalid
+ */
 export const validateHeaders = createArrayValidator(validateHeader);

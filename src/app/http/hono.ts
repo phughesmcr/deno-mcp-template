@@ -114,7 +114,11 @@ function createRoutes(app: Hono, mcp: McpServer, transports: HTTPTransportManage
   app.get("*", serveStatic({ path: "./static/404.html" }));
 }
 
-/** Creates a Hono app with properly configured middleware and routes */
+/**
+ * Creates a Hono app with properly configured middleware and routes
+ * @param spec - The Hono application specification
+ * @returns The configured Hono application
+ */
 export function createHonoApp({ mcp, config, transports }: HonoAppSpec): Hono {
   const app = new Hono();
   configureMiddleware(app, config);
