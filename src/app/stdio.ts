@@ -32,36 +32,16 @@ export function createStdioManager(mcp: McpServer, { enabled }: AppConfig["stdio
 
   /** Connect the MCP server to the STDIO transport */
   const connect = async () => {
-    if (enabled) {
-      try {
-        const transport = await acquire();
-        await mcp.connect(transport);
-        console.error(`${APP_NAME} connected to STDIO`);
-      } catch (error) {
-        console.error(`${APP_NAME} STDIO Connection Error:`, {
-          message: "Failed to connect to STDIO",
-          error: error instanceof Error ? error.message : error,
-          timestamp: new Date().toISOString(),
-          operation: "stdio-connect",
-        });
-      }
-    }
+    if (!enabled) return;
+    const transport = await acquire();
+    await mcp.connect(transport);
+    console.error(`${APP_NAME} connected to STDIO`);
   };
 
   /** Disconnect the MCP server from the STDIO transport */
   const disconnect = async () => {
-    if (enabled) {
-      try {
-        await release();
-      } catch (error) {
-        console.error(`${APP_NAME} STDIO Disconnection Error:`, {
-          message: "Failed to disconnect from STDIO",
-          error: error instanceof Error ? error.message : error,
-          timestamp: new Date().toISOString(),
-          operation: "stdio-disconnect",
-        });
-      }
-    }
+    if (!enabled) return;
+    await release();
   };
 
   /** Check if the STDIO transport is running */

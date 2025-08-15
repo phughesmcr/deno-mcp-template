@@ -18,7 +18,7 @@ export function createHttpServer(mcp: McpServer, config: AppConfig["http"]): Tra
   let server: Deno.HttpServer | null = null;
 
   const connect = async () => {
-    if (!enabled || server) return;
+    if (!enabled || server !== null) return;
     server = Deno.serve({
       hostname,
       port,
@@ -29,8 +29,13 @@ export function createHttpServer(mcp: McpServer, config: AppConfig["http"]): Tra
   };
 
   const disconnect = async () => {
-    await transports.releaseAll();
-    await server?.shutdown();
+    if (!enabled || server === null) return;
+    try {
+      await transports.releaseAll();
+    } catch {
+      /* ignore */
+    }
+    await server.shutdown();
     server = null;
   };
 

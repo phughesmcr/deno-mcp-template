@@ -159,3 +159,15 @@ export function createCallToolErrorResponse(
     ...createCallToolTextResponse(obj, structuredContent),
   };
 }
+
+export function getRejected(results: PromiseSettledResult<unknown>[]): Error | null {
+  const firstRejected = results.find((r) => r.status === "rejected") as
+    | PromiseRejectedResult
+    | undefined;
+  if (firstRejected) {
+    return firstRejected.reason instanceof Error ?
+      firstRejected.reason :
+      new Error(String(firstRejected.reason));
+  }
+  return null;
+}
