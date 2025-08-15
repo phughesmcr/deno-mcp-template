@@ -1,42 +1,30 @@
-import type { Logger } from "./logger.ts";
-
-export class SignalHandler {
-  #onShutdown: () => Promise<void>;
-  #logger: Logger;
-
-  /** Handles shutdown signals gracefully */
-  constructor(logger: Logger, onShutdown: () => Promise<void> = async () => {}) {
-    this.#logger = logger;
-    this.#onShutdown = onShutdown;
-    this.#init();
-  }
-
-  #init(): void {
-    // Handle beforeunload event
-    globalThis.addEventListener("beforeunload", this.#onShutdown);
-
-    // Handle uncaught exceptions
-    globalThis.addEventListener("unhandledrejection", this.#handleError);
-
-    // Handle SIGINT (Ctrl+C)
-    Deno.addSignalListener("SIGINT", () => this.#handleSignal("SIGINT"));
-
-    // Handle SIGTERM (Unix only)
-    if (Deno.build.os !== "windows") {
-      Deno.addSignalListener("SIGTERM", () => this.#handleSignal("SIGTERM"));
-      Deno.addSignalListener("SIGHUP", () => this.#handleSignal("SIGHUP"));
-    }
-  }
-
-  #handleError = async (): Promise<void> => {
-    this.#logger.error("Unhandled rejection, shutting down gracefully...");
-    await this.#onShutdown();
+/** Sets up signal handlers for graceful shutdown */
+export function setupSignalHandlers(onShutdown: () => Promise<void>): void {
+  const handleError = async (): Promise<never> => {
+    await onShutdown();
     Deno.exit(1);
   };
 
-  #handleSignal = async (signal: string): Promise<void> => {
-    this.#logger.info(`Received ${signal}, shutting down gracefully...`);
-    await this.#onShutdown();
+  const handleSignal = async (): Promise<never> => {
+    await onShutdown();
     Deno.exit(0);
   };
+
+  globalThis.addEventListener("beforeunload", onShutdown);
+  globalThis.addEventListener("unhandledrejection", handleError);
+
+  // Handle SIGINT (Ctrl+C)
+  Deno.addSignalListener("SIGINT", handleSignal);
+
+  // Handle SIGTERM (Unix only)
+  try {
+    Deno.addSignalListener("SIGTERM", handleSignal);
+  } catch {
+    // ignore if unsupported on this platform
+  }
+  try {
+    Deno.addSignalListener("SIGHUP", handleSignal);
+  } catch {
+    // ignore if unsupported on this platform
+  }
 }

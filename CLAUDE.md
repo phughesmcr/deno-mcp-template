@@ -1,4 +1,6 @@
-# CLAUDE.md - Deno MCP Template Development Guide
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Deno version: ^2.4.0
 
@@ -10,52 +12,53 @@ Format, lint, and check code: `deno task prep`
 
 ## Project Structure
 
+The code is structured to be easily parsable by an AI agent. Files are grouped by feature, and ideally less than 200 lines of code.
+
 ```markdown
 deno.json     # Project configuration
 main.ts       # The main entry point
 src/              
 ├── app/    
 │   ├── http/
-│   │   ├── manager.ts            # The HTTP transport & state manager
-│   │   ├── middleware.ts         # Middleware for the HTTP server
-│   │   └── server.ts             # The Hono HTTP server
+│   │   ├── handlers.ts             # HTTP handlers for the MCP server (GET, POST, etc.)
+│   │   ├── hono.ts                 # Manages the Hono server, middleware, and routes
+│   │   ├── kvEventStore.ts         # Simple Deno KV event store for for session resumability
+│   │   ├── mod.ts                  # The main entrypoint for the HTTP server
+│   │   └── transport.ts            # Manages the StreamableHTTPServerTransports
 │   ├── app.ts                  # The main application class
-│   ├── config.ts               # Parses CLI args and env vars into an AppConfig object
-│   ├── inMemoryEventStore.ts   # Simple in-memory event store for for session resumability
-│   ├── logger.ts               # A simple logger that doesn't interfere with stdout
-│   ├── signals.ts              # Global signal handling for handling SIGINT, SIGTERM, etc.
+│   ├── cli.ts                  # Parses CLI args and env vars into an AppConfig object
+│   ├── signals.ts              # Signal handling for SIGINT, SIGTERM, etc.
 │   └── stdio.ts                # The STDIO transport & state manager
-├── constants/  
-│   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
-│   ├── cli.ts                  # Constants for the CLI (e.g., help text, args, etc.)
-│   ├── env.ts                  # Constants for the ENV variables 
-│   ├── http.ts                 # Constants for the HTTP server (e.g., headers, ports, etc.)
-│   ├── mcp.ts                  # Constants for the MCP server (e.g., capabilities, etc.)
-│   ├── mod.ts                  # Single point of export for all constants (`$/constants`)
-│   └── validation.ts           # Constants for the various validation functions (e.g., log level)
 ├── mcp/ 
 │   ├── prompts/                             
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
-│   │   ├── mod.ts                          # Provides a single point of export for all the MCP prompts
-│   │   └── schemas.ts                      # Zod schemas for MCP prompts
+│   │   └── mod.ts                          # Provides a single point of export for all the MCP prompts
 │   ├── resources/                             
 │   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
 │   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
 │   │   ├── mod.ts                          # Provides a single point of export for all the MCP resources
 │   │   └── schemas.ts                      # Zod schemas for MCP resources
 │   ├── tools/                             
-│   │   ├── knowledgeGraph/                 # The knowledge graph example tool
-│   │   │   ├── knowledgeGraphManager.ts    # The knowledge graph class
-│   │   │   ├── methods.ts                  # Adaptors for converting graph function to MCP tool calls/results
-│   │   │   ├── mod.ts                      # Provides a single point of export for the knowledge graph
-│   │   │   ├── sanitization.ts             # Input sanitization utilities for knowledge graph data
-│   │   │   └── schemas.ts                  # Zod schemas for knowledge graph tools
-│   │   └── mod.ts                          # Provides a single point of export for all the MCP tools
-│   ├── middleware.ts           # Middleware for the MCP server (tool-call validation, etc.)
+│   │   ├── domain.ts                       # A tool that fetches web domain information from the domainsdb API
+│   │   ├── mod.ts                          # Provides a single point of export for all the MCP tools
+│   │   └── poem.ts                         # A tool that showcases sampling
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
-├── schemas.ts                  # Shared Zod schemas
-├── types.ts                    # Shared types
-└── utils.ts                    # Shared utility
+├── shared/
+│   ├── constants/  
+│   │   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
+│   │   ├── http.ts                 # Constants for the HTTP server (e.g., headers, ports, etc.)
+│   │   └── mcp.ts                  # Constants for the MCP server (e.g., capabilities, etc.)
+│   ├── validation/
+│   │   ├── config.ts               # Validation of the AppConfig object
+│   │   ├── header.ts               # Validation for headers
+│   │   ├── host.ts                 # Validation for hosts
+│   │   ├── hostname.ts             # Validation for hostnames
+│   │   ├── origin.ts               # Validation for origins
+│   │   └── port.ts                 # Validation for ports
+│   ├── constants.ts                # Single point of export for all shared constants
+│   ├── types.ts                    # Shared types
+│   ├── utils.ts                    # Shared utility functions
+│   └── validation.ts               # Single point of export for all shared validation functions
 static/             
 ├── .well-known/    
 │   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
@@ -67,12 +70,12 @@ static/
 
 Deno: This project uses Deno exclusively. Follow Deno standards and best practice.
 Imports: Use JSR imports (`jsr:`) or npm imports (`npm:`) with explicit paths. ES module style, include `.ts` extension. Group imports logically.
-Structure: The entrypoint is `main.ts`. Core functionality is in `src/`. `src/app` wraps the MCP server from `src/mcp` in some convenience functions for serving HTTP, logging, etc.
+Structure: The entrypoint is `main.ts`. Core functionality is in `src/`. `src/app` wraps the MCP server from `src/mcp` in some convenience functions for serving HTTP, etc.
 TypeScript: Strict type checking, ES modules, explicit return types
 Naming: PascalCase for classes/types, camelCase for functions/variables
 Files: Lowercase with hyphens, test files with .test.ts suffix
 Error Handling: Use TypeScript's strict mode, explicit error checking in tests
-Formatting: 2-space indentation, semicolons required, single quotes preferred
+Formatting: 2-space indentation, semicolons required, double quotes preferred
 Testing: Locate tests in `test/`, use descriptive test names. We use `deno test` for testing.
 Comments: JSDoc for public APIs, inline comments for complex logic
 
@@ -87,3 +90,10 @@ Error Handling: Provide detailed error messages but avoid exposing sensitive inf
 Tool Implementation: Follow the MCP schema for defining tool schemas and handlers
 
 ## Docs
+
+[MCP Spec](https://modelcontextprotocol.io/specification/2025-06-18)
+[MCP Concepts](https://modelcontextprotocol.io/docs/concepts/)
+[MCP Server Features](https://modelcontextprotocol.io/specification/2025-06-18/server/index)
+[Hono Docs](https://hono.dev/docs/)
+[Deno Docs](https://docs.deno.com/)
+[Zod Docs](https://zod.dev/)

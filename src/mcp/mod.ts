@@ -1,41 +1,39 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import {
-  CallToolRequestSchema,
-  GetPromptRequestSchema,
-  ListPromptsRequestSchema,
-  ListResourcesRequestSchema,
-  ListResourceTemplatesRequestSchema,
-  ListToolsRequestSchema,
-  ReadResourceRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { SERVER_CAPABILITIES, SERVER_INFO } from "$/constants";
-import { getPrompt, listPrompts } from "./prompts/mod.ts";
-import { listResources, listResourceTemplates, readResource } from "./resources/mod.ts";
-import { callTool, listTools } from "./tools/mod.ts";
+import { SERVER_CAPABILITIES, SERVER_INFO } from "$/shared/constants.ts";
+import { prompts } from "./prompts/mod.ts";
+import { resources } from "./resources/mod.ts";
+import { ToolManager, tools } from "./tools/mod.ts";
 
-/** Creates a new MCP server and initializes the request handlers */
-export function createMcpServer(): Server {
+/**
+ * Creates a new MCP server and initializes the request handlers
+ * @returns The configured MCP server instance
+ */
+export function createMcpServer(): McpServer {
   // You can edit the server capabilities in `src/constants.ts`
-  const server = new Server(SERVER_INFO, { capabilities: SERVER_CAPABILITIES });
+  const server = new McpServer(SERVER_INFO, { capabilities: SERVER_CAPABILITIES });
 
   // Prompt handlers
   if ("prompts" in SERVER_CAPABILITIES) {
-    server.setRequestHandler(ListPromptsRequestSchema, listPrompts);
-    server.setRequestHandler(GetPromptRequestSchema, getPrompt);
+    for (const prompt of prompts) {
+      server.registerPrompt(...prompt);
+    }
   }
 
   // Resource handlers
   if ("resources" in SERVER_CAPABILITIES) {
-    server.setRequestHandler(ListResourceTemplatesRequestSchema, listResourceTemplates);
-    server.setRequestHandler(ListResourcesRequestSchema, listResources);
-    server.setRequestHandler(ReadResourceRequestSchema, readResource);
+    for (const resource of resources) {
+      const _resource = resource as unknown as Parameters<McpServer["registerResource"]>;
+      server.registerResource(..._resource);
+    }
   }
 
   // Tool handlers
   if ("tools" in SERVER_CAPABILITIES) {
-    server.setRequestHandler(ListToolsRequestSchema, listTools);
-    server.setRequestHandler(CallToolRequestSchema, callTool);
+    const toolManager = new ToolManager(server);
+    for (const tool of tools) {
+      toolManager.addTool(tool);
+    }
   }
 
   return server;

@@ -1,14 +1,16 @@
-/**
- * @type {import("../types.ts").PromptModule<{ code: string }>}
- * @module
- */
-
 import type { GetPromptResult, Prompt } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod/v3";
 
-import type { PromptModule } from "$/types.ts";
+import type { PromptPlugin } from "$/shared/types.ts";
 
-const prompt: Prompt = {
-  name: "review-code",
+const schema = z.object({
+  code: z.string().min(1, "Code required").max(50000, "Code too long"),
+});
+
+const name = "review-code";
+
+const config: Prompt = {
+  name,
   title: "Code Review",
   description: "Review code for best practices and potential issues",
   arguments: [{
@@ -18,17 +20,29 @@ const prompt: Prompt = {
   }],
 };
 
-const request = async ({ code }: { code: string }): Promise<GetPromptResult> => ({
-  messages: [{
-    role: "user",
-    content: {
-      type: "text",
-      text: `Please review this code:\n\n${code}`,
-    },
-  }],
-});
+async function callback(args: Record<string, unknown>): Promise<GetPromptResult> {
+  const { success, data, error } = schema.safeParse(args);
+  if (!success) {
+    throw new Error(error.message);
+  }
+  if (!data.code) {
+    throw new SyntaxError("Code parameter is required");
+  }
+  return {
+    messages: [{
+      role: "user",
+      content: {
+        type: "text",
+        text: `Please review this code:\n\n${data.code}`,
+      },
+    }],
+  };
+}
 
-export const codeReview: PromptModule<{ code: string }> = {
-  prompt,
-  request,
-};
+const prompt: PromptPlugin = [
+  name,
+  config,
+  callback,
+];
+
+export default prompt;

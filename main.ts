@@ -8,7 +8,7 @@
  * {
  *   "mcpServers": {
  *     "my-published-mcp-server": {
- *       "command": "deno run -A --unstable-kv jsr:@your-scope/your-package"
+ *       "command": "deno run -A jsr:@your-scope/your-package"
  *     },
  *   }
  * }
@@ -32,7 +32,7 @@
  * {
  *   "mcpServers": {
  *     "my-local-mcp-server": {
- *       "command": "deno run -A --unstable-kv absolute/path/to/main.ts"
+ *       "command": "deno run -A absolute/path/to/main.ts"
  *     },
  *   }
  * }
@@ -51,27 +51,15 @@
  */
 
 import { createApp } from "$/app/app.ts";
+import { handleCliArgs } from "$/app/cli.ts";
 import { createMcpServer } from "$/mcp/mod.ts";
 
-// Load environment variables
+// read env vars from .env file
 import "@std/dotenv/load";
 
-// If the script is run directly, start the MCP server
 if (import.meta.main) {
-  // server is the MCP server
-  const server = createMcpServer();
-
-  // app is a wrapper for HTTP and STDIO etc.
-  const app = createApp(server);
+  const config = await handleCliArgs();
+  const mcp = createMcpServer();
+  const app = createApp(mcp, config);
   await app.start();
-
-  // Log some debug info
-  setTimeout(() => {
-    app.log.debug({
-      data: {
-        debug: "App config",
-        details: app.config,
-      },
-    });
-  }, 200);
 }

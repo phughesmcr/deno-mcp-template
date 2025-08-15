@@ -16,6 +16,7 @@
         "CODEOWNERS",
         "cursorignore",
         "finetune",
+        "hostnames",
         "llms",
         "modelcontextprotocol",
         "msvc",

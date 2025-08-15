@@ -32,3 +32,5 @@ export const SERVER_INFO = {
   title: APP_TITLE,
   version: APP_VERSION,
 } as const;
+
+export const INVALID_SESSION_ID = "-1";

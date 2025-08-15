@@ -1,6 +1,6 @@
 {
     "name": "@phughesmcr/deno-mcp-template",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "license": "MIT",
     "exports": "./main.ts",
     "description": "A demo package for MCP servers in Deno",
@@ -9,9 +9,11 @@
         "deno",
         "mcp",
         "template",
+        "boilerplate",
         "ai",
         "agent",
-        "llm"
+        "llm",
+        "dxt"
     ],
     "homepage": "https://github.com/phughesmcr/deno-mcp-template",
     "bugs": {
@@ -24,18 +26,21 @@
     },
     "imports": {
         "$/": "./src/",
-        "$/constants": "./src/constants/mod.ts",
-        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.15.1",
-        "@std/cli": "jsr:@std/cli@^1.0.20",
+        "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.8",
+        "@cliffy/flags": "jsr:@cliffy/flags@^1.0.0-rc.8",
+        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.17.3",
+        "@std/cli": "jsr:@std/cli@^1.0.21",
         "@std/dotenv/load": "jsr:@std/dotenv@^0.225.5/load",
-        "@std/path": "jsr:@std/path@^1.1.1",
+        "@std/path": "jsr:@std/path@^1.1.2",
+        "@std/ulid": "jsr:@std/ulid@^1.0.0",
         "fetch-to-node": "npm:fetch-to-node@^2.1.0",
-        "hono": "jsr:@hono/hono@^4.8.4",
+        "hono": "jsr:@hono/hono@^4.9.2",
         "hono-rate-limiter": "npm:hono-rate-limiter@^0.4.2",
-        "zod": "npm:zod@^3.25.76"
+        "zod": "npm:zod@^4.0.17",
+        "zod-validation-error": "npm:zod-validation-error@^4.0.1"
     },
     "tasks": {
-        "prep": "deno fmt && deno lint --fix && deno check main.ts",
+        "prep": "deno fmt && deno lint --fix && deno check main.ts && deno check src/**/*.ts",
         "start": "deno run -A main.ts",
         "dev": "ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run -A --watch main.ts -l=debug",
         "ci": "deno task prep",
@@ -141,11 +146,13 @@
             ],
             "exclude": [
                 "require-await"
+            ],
+            "include": [
+                "no-useless-rename"
             ]
         }
     },
     "unstable": [
-        "cron",
         "kv"
     ]
 }

@@ -1,60 +1,59 @@
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-import { APP_NAME } from "$/constants";
-import type { AppConfig } from "$/types.ts";
-import type { Logger } from "./logger.ts";
+import { APP_NAME } from "$/shared/constants.ts";
+import type { AppConfig, Transport } from "$/shared/types.ts";
 
-export class StdioTransportManager {
-  #mcp: Server;
-  #transport: StdioServerTransport | null = null;
-  #enabled: boolean;
-  #logger: Logger;
+/**
+ * Creates a new STDIO transport manager
+ * @param mcp - The MCP server
+ * @param config - The configuration for the STDIO transport
+ * @returns The transport manager
+ */
+export function createStdioManager(mcp: McpServer, { enabled }: AppConfig["stdio"]): Transport {
+  let transport: StdioServerTransport | null = null;
 
-  constructor(mcp: Server, config: AppConfig, logger: Logger) {
-    this.#mcp = mcp;
-    this.#enabled = !config.noStdio;
-    this.#logger = logger;
-  }
+  /** Get or create the STDIO transport */
+  const acquire = async () => {
+    if (transport) return transport;
+    transport = new StdioServerTransport();
+    return transport;
+  };
 
-  get isRunning(): boolean {
-    return !!this.#transport;
-  }
-
-  get transport(): StdioServerTransport | null {
-    return this.#transport;
-  }
-
-  async start(): Promise<void> {
-    if (!this.#enabled || this.isRunning) return;
+  /** Release the STDIO transport */
+  const release = async () => {
     try {
-      this.#transport = new StdioServerTransport();
-      await this.#mcp.connect(this.#transport);
-      this.#logger.info(`${APP_NAME} listening on STDIO`);
-    } catch (error) {
-      this.#logger.error({
-        data: {
-          error: `Error starting ${APP_NAME} STDIO transport:`,
-          details: error,
-        },
-      });
-    }
-  }
-
-  async stop(): Promise<void> {
-    if (!this.isRunning) return;
-    try {
-      await this.#transport?.close();
-      this.#logger.info(`${APP_NAME} STDIO transport closed`);
-    } catch (error) {
-      this.#logger.error({
-        data: {
-          error: `Error closing ${APP_NAME} STDIO transport:`,
-          details: error,
-        },
-      });
+      if (!transport) return;
+      await transport.close();
     } finally {
-      this.#transport = null;
+      transport = null;
     }
-  }
+  };
+
+  /** Connect the MCP server to the STDIO transport */
+  const connect = async () => {
+    if (!enabled) return;
+    const transport = await acquire();
+    await mcp.connect(transport);
+    console.error(`${APP_NAME} connected to STDIO`);
+  };
+
+  /** Disconnect the MCP server from the STDIO transport */
+  const disconnect = async () => {
+    if (!enabled) return;
+    await release();
+  };
+
+  /** Check if the STDIO transport is running */
+  const isRunning = () => !!transport;
+
+  /** Check if the STDIO transport is enabled */
+  const isEnabled = () => enabled;
+
+  return {
+    connect,
+    disconnect,
+    isEnabled,
+    isRunning,
+  };
 }

@@ -10,14 +10,14 @@ export const DEFAULT_PORT = 3001;
 export const DEFAULT_HOSTNAME = "localhost";
 
 /** The default headers for the MCP server. */
-export const HEADERS: string[] = [];
+export const DEFAULT_HEADERS: string[] = [];
 
 /**
  * The expected hosts for the MCP server's DNS rebinding protection to accept.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Host}
  * @note This is ignored if env.MCP_ALLOWED_HOSTS is set or CLI --host is provided.
  */
-export const ALLOWED_HOSTS: string[] = [DEFAULT_HOSTNAME];
+export const DEFAULT_ALLOWED_HOSTS: string[] = [];
 
 /**
  * The expected origins for the MCP server's DNS rebinding protection to accept.
@@ -25,14 +25,14 @@ export const ALLOWED_HOSTS: string[] = [DEFAULT_HOSTNAME];
  * @note The presence of "*" will allow all origins.
  * @note This is ignored if env.MCP_ALLOWED_ORIGINS is set or CLI --origin is provided.
  */
-export const ALLOWED_ORIGINS: string[] = ["*"];
+export const DEFAULT_ALLOWED_ORIGINS: string[] = [];
 
 /**
  * The allowed methods for the MCP server's CORS protection.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Methods}
  * @note GET/POST are required for the HTTP server to function correctly.
  */
-export const ALLOWED_METHODS = ["GET", "POST", "DELETE", "OPTIONS"];
+export const ALLOWED_METHODS = ["GET", "POST", "DELETE"];
 
 /**
  * The allowed headers for the MCP server's CORS protection.
@@ -46,6 +46,9 @@ export const ALLOWED_HEADERS = [
   "Authorization",
   "x-api-key",
   "X-Requested-With",
+  "x-forwarded-for",
+  "x-real-ip",
+  "cf-connecting-ip",
 ];
 
 /**
@@ -63,13 +66,29 @@ export const EXPOSED_HEADERS = [
 // You should not need to change anything below this line.
 // ********************************************************
 
+/** @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/400b020c854d31112c8f29a2e280072731ed3d5f/src/server/streamableHttp.ts#L9C7-L9C27} */
 export const BODY_LIMIT = 1024 * 1024 * 4; // 4MB
 
-export const TIMEOUT = 10000; // 10 seconds
+/** @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/0d545176f9ba852c97a18a40037abff40cd086c2/src/shared/protocol.ts#L60} */
+export const TIMEOUT = 60000; // 60 seconds
 
+/** The rate limit window for the MCP server. */
+export const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+
+/** The rate limit for the MCP server. */
+export const RATE_LIMIT = 100; // Limit each IP to 100 requests per window
+
+/** The maximum age for the MCP server's CORS protection. */
+export const CORS_MAX_AGE = 86400; // 24 hours
+
+/** The expiry time for events */
+export const EVENT_EXPIRY = 60 * 60 * 24 * 1000; // 1 day in milliseconds
+
+/** Required headers for the MCP server. */
 export const HEADER_KEYS = {
   SESSION_ID: "mcp-session-id",
   LAST_EVENT_ID: "last-event-id",
+  MCP_PROTOCOL_VERSION: "mcp-protocol-version",
 } as const;
 
 export const HTTP_STATUS = {
@@ -82,6 +101,7 @@ export const HTTP_STATUS = {
   NOT_FOUND: 404,
   METHOD_NOT_ALLOWED: 405,
   NOT_ACCEPTABLE: 406,
+  CONTENT_TOO_LARGE: 413,
   INTERNAL_SERVER_ERROR: 500,
 } as const;
 

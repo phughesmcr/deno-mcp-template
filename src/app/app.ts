@@ -1,84 +1,92 @@
-/**
- * @description Simple application orchestrator following Single Responsibility Principle
- * @module
- */
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { APP_NAME } from "$/shared/constants.ts";
+import type { AppConfig } from "$/shared/types.ts";
+import { getRejected } from "$/shared/utils.ts";
+import { createHttpServer } from "./http/mod.ts";
+import { setupSignalHandlers } from "./signals.ts";
+import { createStdioManager } from "./stdio.ts";
 
-import { parseConfig } from "$/app/config.ts";
-import type { AppConfig } from "$/types.ts";
-import type { HttpServerManager } from "./http/manager.ts";
-import { createHttpServer } from "./http/server.ts";
-import { Logger } from "./logger.ts";
-import { SignalHandler } from "./signals.ts";
-import { StdioTransportManager } from "./stdio.ts";
-
-class Application {
-  #running = false;
-  #http: HttpServerManager;
-  #stdio: StdioTransportManager;
-
-  readonly config: Readonly<AppConfig>;
-  readonly log: Logger;
-
-  constructor(
-    logger: Logger,
-    http: HttpServerManager,
-    stdio: StdioTransportManager,
-    config: AppConfig,
-  ) {
-    this.config = config;
-    this.log = logger;
-    this.#http = http;
-    this.#stdio = stdio;
-  }
-
-  /** Start all services */
-  async start(): Promise<void> {
-    if (this.#running) return;
-    if (!this.config.noStdio) await this.#stdio.start();
-    if (!this.config.noHttp) await this.#http.start();
-    this.#running = true;
-  }
-
-  /** Stop all services gracefully */
-  async stop(): Promise<void> {
-    if (!this.#running) return;
-    await this.#stdio.stop();
-    await this.#http.stop();
-    this.#running = false;
-  }
-
-  get isRunning(): boolean {
-    return this.#running;
-  }
+export interface App {
+  start: () => Promise<void>;
+  stop: () => Promise<void>;
+  isRunning: () => boolean;
 }
 
 /**
- * Factory function for creating an Application instance with dependency injection
- * @param server - The MCP server
- * @returns The Application instance
+ * Creates the main application instance with STDIO and HTTP transports
+ * @param mcp - The MCP server instance
+ * @param config - The application configuration
+ * @returns The application instance with start/stop methods
  */
-export function createApp(server: Server): Application {
-  // Load configuration
-  const config: AppConfig = parseConfig();
+export function createApp(mcp: McpServer, config: AppConfig): App {
+  const stdio = createStdioManager(mcp, config.stdio);
+  const http = createHttpServer(mcp, config.http);
 
-  // logger is a wrapper for console.error
-  const logger = new Logger(server, config.log);
+  let isRunning = false;
+  let lastError: Error | null = null;
+  let startInProgress: Promise<void> | null = null;
+  let stopInProgress: Promise<void> | null = null;
 
-  // Create HTTP server manager
-  const http: HttpServerManager = createHttpServer(server, config, logger);
+  const start = async (): Promise<void> => {
+    if (isRunning) return;
+    if (startInProgress) return await startInProgress;
 
-  // Create STDIO transport manager
-  const stdio = new StdioTransportManager(server, config, logger);
+    startInProgress = (async () => {
+      lastError = null;
+      try {
+        console.error(`${APP_NAME} starting...`);
+        const results = await Promise.allSettled([
+          stdio.connect(),
+          http.connect(),
+        ]);
+        lastError = getRejected(results);
+        if (lastError) throw lastError;
+        isRunning = true;
+      } catch (err) {
+        console.error(`${APP_NAME} starting failed. Rolling back...`);
+        const error = err instanceof Error ? err : new Error(String(err));
+        lastError = error;
+        isRunning = false;
+        await Promise.allSettled([
+          stdio.disconnect(),
+          http.disconnect(),
+        ]);
+      } finally {
+        startInProgress = null;
+      }
+    })();
 
-  // Create application instance
-  const app = new Application(logger, http, stdio, config);
+    return await startInProgress;
+  };
 
-  // Handle shutdown signals gracefully
-  new SignalHandler(logger, () => app.stop());
+  const stop = async (): Promise<void> => {
+    if (!isRunning) return;
+    if (stopInProgress) return await stopInProgress;
 
-  return app;
+    stopInProgress = (async () => {
+      const results = await Promise.allSettled([
+        stdio.disconnect(),
+        http.disconnect(),
+      ]);
+      isRunning = false;
+      lastError = getRejected(results);
+      if (lastError) throw lastError;
+    })();
+
+    try {
+      console.error(`${APP_NAME} stopping...`);
+      await stopInProgress;
+    } finally {
+      stopInProgress = null;
+    }
+  };
+
+  setupSignalHandlers(stop);
+
+  return {
+    start,
+    stop,
+    isRunning: () => isRunning,
+  };
 }
-
-export type { Application };
