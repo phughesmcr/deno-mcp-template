@@ -40,9 +40,9 @@ export function createApp(mcp: McpServer, config: AppConfig): App {
           stdio.connect(),
           http.connect(),
         ]);
-        isRunning = true;
         lastError = getRejected(results);
         if (lastError) throw lastError;
+        isRunning = true;
       } catch (err) {
         console.error(`${APP_NAME} starting failed. Rolling back...`);
         const error = err instanceof Error ? err : new Error(String(err));
