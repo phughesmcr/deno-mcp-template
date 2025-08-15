@@ -51,14 +51,14 @@ async function createCommand() {
     .option("--no-stdio", "Disable the STDIO server.", {
       conflicts: ["no-http"],
     })
-    .env("MCP_NO_STDIO=<value:boolean>", "Disable the STDIO server.", {
+    .env("NO_STDIO=<value:boolean>", "Disable the STDIO server.", {
       prefix: "MCP_",
     })
     // HTTP server
     .option("--no-http", "Disable the HTTP server.", {
       conflicts: ["no-stdio"],
     })
-    .env("MCP_NO_HTTP=<value:boolean>", "Disable the HTTP server.", {
+    .env("NO_HTTP=<value:boolean>", "Disable the HTTP server.", {
       prefix: "MCP_",
     })
     // Port
@@ -66,19 +66,19 @@ async function createCommand() {
       default: DEFAULT_PORT,
       conflicts: ["no-http"],
     })
-    .env("MCP_PORT=<value:integer>", "Set the port.", { prefix: "MCP_" })
+    .env("PORT=<value:integer>", "Set the port.", { prefix: "MCP_" })
     // Hostname
     .option("-n, --hostname <hostname:string>", "Set the hostname.", {
       default: DEFAULT_HOSTNAME,
       conflicts: ["no-http"],
     })
-    .env("MCP_HOSTNAME=<value:string>", "Set the hostname.", { prefix: "MCP_" })
+    .env("HOSTNAME=<value:string>", "Set the hostname.", { prefix: "MCP_" })
     // Headers
     .option("-H, --header <header:string>", "Set a custom header.", {
       collect: true,
       conflicts: ["no-http"],
     })
-    .env("MCP_HEADERS=<value:string[]>", "Set custom headers.", {
+    .env("HEADERS=<value:string[]>", "Set custom headers.", {
       prefix: "MCP_",
     })
     // DNS rebinding
@@ -87,7 +87,7 @@ async function createCommand() {
       conflicts: ["no-http"],
       depends: ["origin", "host"],
     })
-    .env("MCP_DNS_REBINDING=<value:boolean>", "Enable DNS rebinding protection.", {
+    .env("DNS_REBINDING=<value:boolean>", "Enable DNS rebinding protection.", {
       prefix: "MCP_",
     })
     // Allowed origins
@@ -96,7 +96,7 @@ async function createCommand() {
       conflicts: ["no-http"],
       depends: ["dnsRebinding"],
     })
-    .env("MCP_ALLOWED_ORIGINS=<value:string[]>", "Allowed origins for DNS rebinding.", {
+    .env("ALLOWED_ORIGINS=<value:string[]>", "Allowed origins for DNS rebinding.", {
       prefix: "MCP_",
     })
     // Allowed hosts
@@ -105,7 +105,7 @@ async function createCommand() {
       conflicts: ["no-http"],
       depends: ["dnsRebinding"],
     })
-    .env("MCP_ALLOWED_HOSTS=<value:string[]>", "Allowed hosts for DNS rebinding.", {
+    .env("ALLOWED_HOSTS=<value:string[]>", "Allowed hosts for DNS rebinding.", {
       prefix: "MCP_",
     })
     .parse(Deno.args);
