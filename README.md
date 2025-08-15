@@ -6,7 +6,7 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/publish.yml?label=publish)
 
 ![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
-![Version](https://img.shields.io/badge/version-0.3.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![Repo Size](https://img.shields.io/github/languages/code-size/phughesmcr/deno-mcp-template)
 ![License](https://img.shields.io/github/license/phughesmcr/deno-mcp-template)
 
