@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { AppConfig } from "$/shared/types.ts";
-import { getRejected } from "../shared/utils.ts";
+import { getRejected } from "$/shared/utils.ts";
 import { createHttpServer } from "./http/mod.ts";
 import { setupSignalHandlers } from "./signals.ts";
 import { createStdioManager } from "./stdio.ts";
