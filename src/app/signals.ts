@@ -17,6 +17,14 @@ export function setupSignalHandlers(onShutdown: () => Promise<void>): void {
   Deno.addSignalListener("SIGINT", handleSignal);
 
   // Handle SIGTERM (Unix only)
-  Deno.addSignalListener("SIGTERM", handleSignal);
-  Deno.addSignalListener("SIGHUP", handleSignal);
+  try {
+    Deno.addSignalListener("SIGTERM", handleSignal);
+  } catch {
+    // ignore if unsupported on this platform
+  }
+  try {
+    Deno.addSignalListener("SIGHUP", handleSignal);
+  } catch {
+    // ignore if unsupported on this platform
+  }
 }
