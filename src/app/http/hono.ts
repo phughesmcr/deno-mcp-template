@@ -9,13 +9,13 @@ import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 
 import {
+  ALLOWED_HEADERS,
+  ALLOWED_METHODS,
   APP_NAME,
   BODY_LIMIT,
   CORS_MAX_AGE,
-  DEFAULT_ALLOWED_HEADERS,
-  DEFAULT_ALLOWED_METHODS,
   DEFAULT_ALLOWED_ORIGINS,
-  DEFAULT_EXPOSED_HEADERS,
+  EXPOSED_HEADERS,
   HEADER_KEYS,
   HTTP_STATUS,
   RATE_LIMIT,
@@ -68,22 +68,24 @@ function configureMiddleware(app: Hono, config: AppConfig["http"]): Hono {
     }),
   );
 
+  const allowedOrigins = config.allowedOrigins ?? DEFAULT_ALLOWED_ORIGINS;
+
   app.use(cors({
-    origin: (origin: string) => {
+    origin: (origin: string | undefined) => {
       if (!origin) return null;
-      if (DEFAULT_ALLOWED_ORIGINS.includes("*")) return origin;
-      return DEFAULT_ALLOWED_ORIGINS.includes(origin) ? origin : null;
+      if (allowedOrigins?.includes("*")) return origin;
+      return allowedOrigins?.includes(origin) ? origin : null;
     },
     credentials: true,
     maxAge: CORS_MAX_AGE,
-    allowMethods: DEFAULT_ALLOWED_METHODS,
+    allowMethods: ALLOWED_METHODS,
     allowHeaders: [
-      ...DEFAULT_ALLOWED_HEADERS,
+      ...ALLOWED_HEADERS,
       ...(config.headers ?? []),
       ...Object.values(HEADER_KEYS),
     ],
     exposeHeaders: [
-      ...DEFAULT_EXPOSED_HEADERS,
+      ...EXPOSED_HEADERS,
       ...(config.headers ?? []),
       ...Object.values(HEADER_KEYS),
     ],

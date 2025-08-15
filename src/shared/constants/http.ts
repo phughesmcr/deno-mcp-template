@@ -32,14 +32,14 @@ export const DEFAULT_ALLOWED_ORIGINS: string[] = [];
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Methods}
  * @note GET/POST are required for the HTTP server to function correctly.
  */
-export const DEFAULT_ALLOWED_METHODS = ["GET", "POST", "DELETE"];
+export const ALLOWED_METHODS = ["GET", "POST", "DELETE"];
 
 /**
  * The allowed headers for the MCP server's CORS protection.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers}
  * @note Headers required by the MCP spec are automatically added.
  */
-export const DEFAULT_ALLOWED_HEADERS = [
+export const ALLOWED_HEADERS = [
   "Origin",
   "Content-Type",
   "Accept",
@@ -56,7 +56,7 @@ export const DEFAULT_ALLOWED_HEADERS = [
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Expose-Headers}
  * @note Headers required by the MCP spec are automatically added.
  */
-export const DEFAULT_EXPOSED_HEADERS = [
+export const EXPOSED_HEADERS = [
   "Content-Type",
   "Authorization",
   "x-api-key",
