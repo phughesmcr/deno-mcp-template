@@ -75,7 +75,7 @@ TypeScript: Strict type checking, ES modules, explicit return types
 Naming: PascalCase for classes/types, camelCase for functions/variables
 Files: Lowercase with hyphens, test files with .test.ts suffix
 Error Handling: Use TypeScript's strict mode, explicit error checking in tests
-Formatting: 2-space indentation, semicolons required, single quotes preferred
+Formatting: 2-space indentation, semicolons required, double quotes preferred
 Testing: Locate tests in `test/`, use descriptive test names. We use `deno test` for testing.
 Comments: JSDoc for public APIs, inline comments for complex logic
 
