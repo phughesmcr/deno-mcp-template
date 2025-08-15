@@ -59,7 +59,7 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
     return transport;
   };
 
-  const acquire = async (sessionId: string | undefined, requestBody: string) => {
+  const acquire = async (requestBody: string, sessionId?: string) => {
     if (sessionId) {
       const transport = transports.get(sessionId);
       if (transport) return transport;
