@@ -34,6 +34,15 @@ export class KvEventStore implements EventStore {
     this.#kv = kv;
   }
 
+  /** Closes the underlying Deno.Kv instance */
+  close(): void {
+    try {
+      this.#kv.close();
+    } catch {
+      // ignore errors during close
+    }
+  }
+
   /** Stores an event with a generated event ID */
   async storeEvent(streamId: string, message: JSONRPCMessage): Promise<string> {
     const eventId = `${streamId}_${monotonicUlid()}`;

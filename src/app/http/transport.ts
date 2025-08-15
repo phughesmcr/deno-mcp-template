@@ -8,6 +8,7 @@ export interface HTTPTransportManager {
   acquire(requestBody: string, sessionId?: string): Promise<StreamableHTTPServerTransport>;
   get(sessionId: string): StreamableHTTPServerTransport | undefined;
   releaseAll(): Promise<void>;
+  close(): Promise<void>;
 }
 
 function isValidInitializeRequest(
@@ -36,6 +37,14 @@ function isValidInitializeRequest(
 export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTransportManager {
   const { allowedHosts = [], allowedOrigins = [], enableDnsRebinding } = config;
   const transports = new Map<string, StreamableHTTPServerTransport>();
+  let eventStorePromise: Promise<KvEventStore> | null = null;
+
+  const getEventStore = async (): Promise<KvEventStore> => {
+    if (!eventStorePromise) {
+      eventStorePromise = KvEventStore.create();
+    }
+    return await eventStorePromise;
+  };
 
   const create = async (sessionId: string = crypto.randomUUID()) => {
     const transport = new StreamableHTTPServerTransport({
@@ -49,7 +58,7 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
         transports.delete(id);
       },
       enableJsonResponse: true,
-      eventStore: await KvEventStore.create(),
+      eventStore: await getEventStore(),
       enableDnsRebindingProtection: !!enableDnsRebinding,
       allowedHosts,
       allowedOrigins,
@@ -76,10 +85,21 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
   };
 
   const get = (sessionId: string) => transports.get(sessionId);
+  const close = async () => {
+    if (eventStorePromise) {
+      try {
+        const store = await eventStorePromise;
+        store.close();
+      } finally {
+        eventStorePromise = null;
+      }
+    }
+  };
 
   return {
     acquire,
     get,
     releaseAll,
+    close,
   };
 }

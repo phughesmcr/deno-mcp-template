@@ -32,6 +32,7 @@ export function createHttpServer(mcp: McpServer, config: AppConfig["http"]): Tra
     if (!enabled || server === null) return;
     try {
       await transports.releaseAll();
+      await transports.close();
     } catch {
       /* ignore */
     }
