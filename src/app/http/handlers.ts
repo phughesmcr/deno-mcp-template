@@ -30,7 +30,18 @@ function handleMCPError(c: Context, error?: unknown): Response {
     rpcError = RPCError.internalError(sessionId ?? INVALID_SESSION_ID);
   }
 
-  return c.json(rpcError.toJSONRPC(), HTTP_STATUS.INTERNAL_SERVER_ERROR);
+  // Map RPC error codes to HTTP status and return
+  const payload = rpcError.toJSONRPC();
+  switch (rpcError.code) {
+    case RPC_ERROR_CODES.PARSE_ERROR:
+    case RPC_ERROR_CODES.INVALID_REQUEST:
+    case RPC_ERROR_CODES.INVALID_PARAMS:
+      return c.json(payload, HTTP_STATUS.BAD_REQUEST);
+    case RPC_ERROR_CODES.METHOD_NOT_FOUND:
+      return c.json(payload, HTTP_STATUS.METHOD_NOT_ALLOWED);
+    default:
+      return c.json(payload, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+  }
 }
 
 /** Passes the request to the transport and returns the response */

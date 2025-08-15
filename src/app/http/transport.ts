@@ -2,7 +2,9 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
 import { KvEventStore } from "$/app/http/kvEventStore.ts";
+import { INVALID_SESSION_ID, RPC_ERROR_CODES } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
+import { RPCError } from "$/shared/utils.ts";
 
 export interface HTTPTransportManager {
   acquire(requestBody: string, sessionId?: string): Promise<StreamableHTTPServerTransport>;
@@ -14,18 +16,34 @@ export interface HTTPTransportManager {
 function isValidInitializeRequest(
   sessionId: string | undefined,
   requestBody: string,
-): { valid: true; body: unknown } | { valid: false; error: string } {
+):
+  | { valid: true; body: unknown }
+  | { valid: false; error: string; code: number } {
   if (!requestBody.length) {
-    return { valid: false, error: "Empty request body" };
+    return { valid: false, error: "Empty request body", code: RPC_ERROR_CODES.INVALID_REQUEST };
   }
   try {
     const jsonBody = JSON.parse(requestBody);
     const isInit = isInitializeRequest(jsonBody);
     if (isInit) return { valid: true, body: jsonBody };
-    if (!sessionId) return { valid: false, error: "No valid session ID provided" };
-    return { valid: false, error: `No transport found for session ID: ${sessionId}` };
+    if (!sessionId) {
+      return {
+        valid: false,
+        error: "No valid session ID provided",
+        code: RPC_ERROR_CODES.INVALID_REQUEST,
+      };
+    }
+    return {
+      valid: false,
+      error: `No transport found for session ID: ${sessionId}`,
+      code: RPC_ERROR_CODES.INVALID_REQUEST,
+    };
   } catch {
-    return { valid: false, error: "Invalid JSON in request body" };
+    return {
+      valid: false,
+      error: "Invalid JSON in request body",
+      code: RPC_ERROR_CODES.PARSE_ERROR,
+    };
   }
 }
 
@@ -74,7 +92,13 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
       if (transport) return transport;
     }
     const validation = isValidInitializeRequest(sessionId, requestBody);
-    if (!validation.valid) throw new Error(validation.error);
+    if (!validation.valid) {
+      throw new RPCError({
+        code: validation.code,
+        message: validation.error,
+        requestId: sessionId ?? INVALID_SESSION_ID,
+      });
+    }
     return await create(sessionId ?? crypto.randomUUID());
   };
 

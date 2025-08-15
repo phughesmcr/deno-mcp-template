@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { APP_NAME } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { getRejected } from "$/shared/utils.ts";
 import { createHttpServer } from "./http/mod.ts";
@@ -34,6 +35,7 @@ export function createApp(mcp: McpServer, config: AppConfig): App {
     startInProgress = (async () => {
       lastError = null;
       try {
+        console.error(`${APP_NAME} starting...`);
         const results = await Promise.allSettled([
           stdio.connect(),
           http.connect(),
@@ -42,6 +44,7 @@ export function createApp(mcp: McpServer, config: AppConfig): App {
         lastError = getRejected(results);
         if (lastError) throw lastError;
       } catch (err) {
+        console.error(`${APP_NAME} starting failed. Rolling back...`);
         const error = err instanceof Error ? err : new Error(String(err));
         lastError = error;
         isRunning = false;
@@ -72,6 +75,7 @@ export function createApp(mcp: McpServer, config: AppConfig): App {
     })();
 
     try {
+      console.error(`${APP_NAME} stopping...`);
       await stopInProgress;
     } finally {
       stopInProgress = null;
