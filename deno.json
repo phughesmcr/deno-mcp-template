@@ -1,6 +1,6 @@
 {
     "name": "@phughesmcr/deno-mcp-template",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "license": "MIT",
     "exports": "./main.ts",
     "description": "A demo package for MCP servers in Deno",
