@@ -64,6 +64,7 @@ function configureMiddleware(app: Hono, config: AppConfig["http"]): Hono {
         c.req.header(HEADER_KEYS.SESSION_ID) ||
         c.req.header("x-forwarded-for") ||
         c.req.header("x-real-ip") ||
+        c.req.header("mcp-session-id") ||
         "unknown",
     }),
   );
@@ -105,7 +106,7 @@ function createRoutes(app: Hono, mcp: McpServer, transports: HTTPTransportManage
 
   // Static Routes
   app.use("/static/*", serveStatic({ root: "./static" }));
-  app.use("/.well-known/*", serveStatic({ root: "./static/.well-known" }));
+  app.use("/.well-known/*", serveStatic({ root: "./static" }));
   app.use("/favicon.ico", serveStatic({ path: "./static/favicon.ico" }));
   app.get("/llms.txt", (c) => c.redirect("/.well-known/llms.txt"));
   app.get("/openapi.yaml", (c) => c.redirect("/.well-known/openapi.yaml"));
@@ -113,7 +114,7 @@ function createRoutes(app: Hono, mcp: McpServer, transports: HTTPTransportManage
   app.get("/", (c) => c.text(`${APP_NAME} running. See \`/llms.txt\` for machine-readable docs.`));
 
   // 404 Route
-  app.get("*", serveStatic({ path: "./static/404.html" }));
+  app.notFound((c) => c.html(Deno.readTextFileSync("./static/404.html"), 404));
 }
 
 /**
@@ -126,13 +127,14 @@ export function createHonoApp({ mcp, config, transports }: HonoAppSpec): Hono {
   configureMiddleware(app, config);
   createRoutes(app, mcp, transports);
   app.onError((err, c) => {
-    return c.json(
-      {
+    const path = c.req.path;
+    if (path === "/mcp") {
+      return c.json({
         content: [{ type: "text", text: err.message }],
         isError: true,
-      },
-      HTTP_STATUS.INTERNAL_SERVER_ERROR,
-    );
+      }, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    }
+    return c.text(err.message, HTTP_STATUS.INTERNAL_SERVER_ERROR);
   });
   return app;
 }

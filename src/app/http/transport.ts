@@ -110,6 +110,7 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
 
   const get = (sessionId: string) => transports.get(sessionId);
   const close = async () => {
+    await releaseAll();
     if (eventStorePromise) {
       try {
         const store = await eventStorePromise;
