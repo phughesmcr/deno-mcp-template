@@ -1,30 +1,26 @@
 /** Sets up signal handlers for graceful shutdown */
 export function setupSignalHandlers(onShutdown: () => Promise<void>): void {
-  const handleError = async (): Promise<never> => {
-    await onShutdown();
-    Deno.exit(1);
+  const handleExit = (code: number) => {
+    onShutdown().finally(() => Deno.exit(code));
   };
 
-  const handleSignal = async (): Promise<never> => {
-    await onShutdown();
-    Deno.exit(0);
-  };
+  globalThis.addEventListener("beforeunload", () => {
+    onShutdown();
+  });
 
-  globalThis.addEventListener("beforeunload", onShutdown);
-  globalThis.addEventListener("unhandledrejection", handleError);
+  globalThis.addEventListener("unhandledrejection", (_event) => {
+    handleExit(1);
+  });
 
   // Handle SIGINT (Ctrl+C)
-  Deno.addSignalListener("SIGINT", handleSignal);
+  Deno.addSignalListener("SIGINT", () => handleExit(0));
 
-  // Handle SIGTERM (Unix only)
-  try {
-    Deno.addSignalListener("SIGTERM", handleSignal);
-  } catch {
-    // ignore if unsupported on this platform
-  }
-  try {
-    Deno.addSignalListener("SIGHUP", handleSignal);
-  } catch {
-    // ignore if unsupported on this platform
+  // Handle SIGTERM and SIGHUP (Unix only)
+  for (const signal of ["SIGTERM", "SIGHUP"] as const) {
+    try {
+      Deno.addSignalListener(signal, () => handleExit(0));
+    } catch {
+      // ignore if unsupported on this platform
+    }
   }
 }
