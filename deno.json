@@ -24,6 +24,7 @@
         "type": "git",
         "url": "git+https://github.com/phughesmcr/deno-mcp-template.git"
     },
+    "nodeModulesDir": "auto",
     "imports": {
         "$/": "./src/",
         "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.8",
