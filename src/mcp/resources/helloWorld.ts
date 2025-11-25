@@ -8,8 +8,6 @@ const name = "helloWorld";
 const uriOrTemplate = "hello://world";
 
 const config: ResourceMetadata = {
-  uri: "hello://world",
-  name: "Hello World Message",
   description: "A simple greeting message",
   mimeType: "text/plain",
 };
@@ -18,7 +16,7 @@ async function readCallback(): Promise<ReadResourceResult> {
   return {
     contents: [
       {
-        uri: "hello://world",
+        uri: uriOrTemplate,
         text: "Hello, World! This is my first MCP resource.",
       },
     ],
