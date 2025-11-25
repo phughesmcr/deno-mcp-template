@@ -8,12 +8,12 @@ import {
   DEFAULT_HOSTNAME,
   DEFAULT_PORT,
 } from "$/shared/constants.ts";
-import type { AppConfig } from "$/shared/types.ts";
+import type { AppConfig, Prettify } from "$/shared/types.ts";
 import { validateConfig } from "$/shared/validation.ts";
 
 export type CliCommand = Awaited<ReturnType<typeof createCommand>>;
 
-export type CliOptions =
+export type CliOptions = Prettify<
   & Omit<CliCommand["options"], "header" | "host" | "origin" | "noHttp" | "noStdio">
   & {
     http: boolean;
@@ -21,7 +21,8 @@ export type CliOptions =
     headers: string[];
     allowedOrigins: string[];
     allowedHosts: string[];
-  };
+  }
+>;
 
 /** Merges two arrays of strings, removing duplicates */
 function mergeArrays(a?: string[], b?: string[]): string[] {
