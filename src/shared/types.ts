@@ -51,7 +51,13 @@ export type ResourceTemplatePlugin = [
 ];
 
 /** Tool parameters */
-export type ToolPlugin = Parameters<McpServer["registerTool"]>;
+export type ToolPlugin = [
+  name: string,
+  // deno-lint-ignore no-explicit-any
+  config: ToolConfig<any, any>,
+  // deno-lint-ignore no-explicit-any
+  cb: ToolCallback<any>,
+];
 
 /** Tool configuration */
 export type ToolConfig<

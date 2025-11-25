@@ -2,8 +2,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
-import type { ToolConfig, ToolModule } from "$/shared/types.ts";
-import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
+import type { ToolConfig, ToolModule } from "../../shared/types.ts";
+import { createCallToolErrorResponse, createCallToolTextResponse } from "../../shared/utils.ts";
 
 const schema = z.object({
   prompt: z.string().describe("The prompt to generate a poem for"),
@@ -49,17 +49,19 @@ const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> 
       temperature: 0.7,
     });
 
-    if (response.content.type !== "text") {
+    const content = Array.isArray(response.content) ? response.content[0] : response.content;
+
+    if (!content || content.type !== "text") {
       return createCallToolErrorResponse({
         error: "No text response from sampling",
         prompt,
-        responseType: response.content.type,
+        responseType: content?.type ?? "unknown",
         operation: "poem-generation",
       });
     }
 
     return createCallToolTextResponse({
-      poem: response.content.text,
+      poem: content.text,
       prompt,
       timestamp: new Date().toISOString(),
     });
