@@ -1,4 +1,5 @@
 #!/usr/bin/env -S deno run -A
+/** @warning ^ You should narrow the allowed permissions in production. */
 
 /**
  * @description An example MCP server using Deno

@@ -1,10 +1,14 @@
 {
     "deno.enable": true,
+    "deno.codeLens.implementations": true,
+    "deno.codeLens.references": true,
+    "deno.codeLens.referencesAllFunctions": true,
     "editor.defaultFormatter": "denoland.vscode-deno",
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-        "source.fixAll": "always",
-        "source.organizeImports": "always"
+        "source.addMissingImports.ts": "explicit",
+        "source.organizeImports": "explicit",
+        "source.fixAll": "explicit",
     },
     "editor.rulers": [
         100

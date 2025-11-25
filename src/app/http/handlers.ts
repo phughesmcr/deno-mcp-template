@@ -24,10 +24,10 @@ function handleMCPError(c: Context, error?: unknown): Response {
     rpcError = RPCError.fromError(
       error,
       RPC_ERROR_CODES.INTERNAL_ERROR,
-      sessionId ?? INVALID_SESSION_ID,
+      sessionId,
     );
   } else {
-    rpcError = RPCError.internalError(sessionId ?? INVALID_SESSION_ID);
+    rpcError = RPCError.internalError(sessionId);
   }
 
   // Map RPC error codes to HTTP status and return

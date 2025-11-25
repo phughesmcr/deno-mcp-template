@@ -14,7 +14,7 @@ export function createStdioManager(mcp: McpServer, { enabled }: AppConfig["stdio
   let transport: StdioServerTransport | null = null;
 
   /** Get or create the STDIO transport */
-  const acquire = async () => {
+  const acquire = () => {
     if (transport) return transport;
     transport = new StdioServerTransport();
     return transport;
@@ -33,15 +33,21 @@ export function createStdioManager(mcp: McpServer, { enabled }: AppConfig["stdio
   /** Connect the MCP server to the STDIO transport */
   const connect = async () => {
     if (!enabled) return;
-    const transport = await acquire();
-    await mcp.connect(transport);
-    console.error(`${APP_NAME} connected to STDIO`);
+    try {
+      const _transport = acquire();
+      await mcp.connect(_transport);
+      console.error(`${APP_NAME} connected to STDIO`);
+    } catch (error) {
+      await release();
+      throw error;
+    }
   };
 
   /** Disconnect the MCP server from the STDIO transport */
   const disconnect = async () => {
     if (!enabled) return;
     await release();
+    console.error(`${APP_NAME} disconnected from STDIO`);
   };
 
   /** Check if the STDIO transport is running */

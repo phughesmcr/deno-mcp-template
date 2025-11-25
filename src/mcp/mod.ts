@@ -23,8 +23,9 @@ export function createMcpServer(): McpServer {
   // Resource handlers
   if ("resources" in SERVER_CAPABILITIES) {
     for (const resource of resources) {
-      const _resource = resource as unknown as Parameters<McpServer["registerResource"]>;
-      server.registerResource(..._resource);
+      server.registerResource(
+        ...(resource as unknown as Parameters<McpServer["registerResource"]>),
+      );
     }
   }
 

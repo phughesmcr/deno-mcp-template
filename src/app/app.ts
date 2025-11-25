@@ -31,6 +31,7 @@ export function createApp(mcp: McpServer, config: AppConfig): App {
   const start = async (): Promise<void> => {
     if (isRunning) return;
     if (startInProgress) return await startInProgress;
+    if (stopInProgress) await stopInProgress;
 
     startInProgress = (async () => {
       lastError = null;
@@ -52,6 +53,7 @@ export function createApp(mcp: McpServer, config: AppConfig): App {
           stdio.disconnect(),
           http.disconnect(),
         ]);
+        throw lastError;
       } finally {
         startInProgress = null;
       }
@@ -61,8 +63,9 @@ export function createApp(mcp: McpServer, config: AppConfig): App {
   };
 
   const stop = async (): Promise<void> => {
+    if (startInProgress) await startInProgress.catch(() => {});
     if (!isRunning) return;
-    if (stopInProgress) return await stopInProgress;
+    if (stopInProgress) return stopInProgress;
 
     stopInProgress = (async () => {
       const results = await Promise.allSettled([
@@ -71,7 +74,10 @@ export function createApp(mcp: McpServer, config: AppConfig): App {
       ]);
       isRunning = false;
       lastError = getRejected(results);
-      if (lastError) throw lastError;
+      if (lastError) {
+        console.error(`${APP_NAME} stop encountered errors`);
+        throw lastError;
+      }
     })();
 
     try {

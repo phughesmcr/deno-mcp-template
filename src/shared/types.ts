@@ -13,9 +13,16 @@ import type {
 import type { ResourceTemplate, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape } from "zod/v3";
 
+export type Prettify<T> =
+  & {
+    [K in keyof T]: T[K];
+  }
+  // deno-lint-ignore ban-types
+  & {};
+
 export interface Transport {
   /** Connects the transport to the MCP server */
-  connect: () => Promise<void>;
+  connect: () => void;
   /** Disconnects the transport from the MCP server */
   disconnect: () => Promise<void>;
   /** Checks if the transport is enabled */

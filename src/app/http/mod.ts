@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { APP_NAME } from "$/shared/constants.ts";
-import type { AppConfig, Transport } from "$/shared/types.ts";
+import type { HttpServerConfig, Transport } from "$/shared/types.ts";
 import { createHonoApp } from "./hono.ts";
 import { createHTTPTransportManager } from "./transport.ts";
 
@@ -11,13 +11,13 @@ import { createHTTPTransportManager } from "./transport.ts";
  * @param config - The HTTP server configuration
  * @returns The HTTP transport instance
  */
-export function createHttpServer(mcp: McpServer, config: AppConfig["http"]): Transport {
+export function createHttpServer(mcp: McpServer, config: HttpServerConfig): Transport {
   const { enabled, hostname, port } = config;
   const transports = createHTTPTransportManager(config);
   const hono = createHonoApp({ mcp, config, transports });
   let server: Deno.HttpServer | null = null;
 
-  const connect = async () => {
+  const connect = () => {
     if (!enabled || server !== null) return;
     server = Deno.serve({
       hostname,
@@ -35,9 +35,10 @@ export function createHttpServer(mcp: McpServer, config: AppConfig["http"]): Tra
       await transports.close();
     } catch {
       /* ignore */
+    } finally {
+      await server?.shutdown();
+      server = null;
     }
-    await server.shutdown();
-    server = null;
   };
 
   const isRunning = () => !!server;

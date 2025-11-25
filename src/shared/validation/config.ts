@@ -99,18 +99,9 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
     return {
       success: true,
       value: {
-        http: {
-          enabled: !!config.http,
-          hostname: config.hostname,
-          port: config.port,
-          headers: config.headers,
-          allowedHosts: config.allowedHosts,
-          allowedOrigins: config.allowedOrigins,
-          enableDnsRebinding: config.dnsRebinding,
-        },
-        stdio: {
-          enabled: !!config.stdio,
-        },
+        ...config,
+        http: { ...validatedHttp.value },
+        stdio: { ...validatedStdio.value },
       },
     };
   } catch (error) {
