@@ -42,7 +42,7 @@ const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult>
 
     try {
       const response = await fetch(
-        `https://api.domainsdb.info/v1/domains/search?domain=${domain}`,
+        `https://api.domainsdb.info/v1/domains/search?domain=${encodeURIComponent(domain)}`,
         { signal: controller.signal },
       );
 

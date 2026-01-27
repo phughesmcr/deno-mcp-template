@@ -1,4 +1,4 @@
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
 import { KvEventStore } from "$/app/http/kvEventStore.ts";
@@ -7,8 +7,11 @@ import type { AppConfig } from "$/shared/types.ts";
 import { RPCError } from "$/shared/utils.ts";
 
 export interface HTTPTransportManager {
-  acquire(requestBody: string, sessionId?: string): Promise<StreamableHTTPServerTransport>;
-  get(sessionId: string): StreamableHTTPServerTransport | undefined;
+  acquire(
+    requestBody: string,
+    sessionId?: string,
+  ): Promise<WebStandardStreamableHTTPServerTransport>;
+  get(sessionId: string): WebStandardStreamableHTTPServerTransport | undefined;
   releaseAll(): Promise<void>;
   close(): Promise<void>;
 }
@@ -53,8 +56,13 @@ function isValidInitializeRequest(
  * @returns The HTTP transport manager
  */
 export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTransportManager {
-  const { allowedHosts = [], allowedOrigins = [], enableDnsRebinding } = config;
-  const transports = new Map<string, StreamableHTTPServerTransport>();
+  const {
+    allowedHosts = [],
+    allowedOrigins = [],
+    enableDnsRebinding,
+    jsonResponseMode,
+  } = config;
+  const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
   let eventStorePromise: Promise<KvEventStore> | null = null;
 
   const getEventStore = async (): Promise<KvEventStore> => {
@@ -65,7 +73,7 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
   };
 
   const create = async (sessionId: string = crypto.randomUUID()) => {
-    const transport = new StreamableHTTPServerTransport({
+    const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: () => sessionId,
       onsessioninitialized: (id) => {
         if (!transports.has(id)) {
@@ -75,7 +83,7 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
       onsessionclosed: (id) => {
         transports.delete(id);
       },
-      enableJsonResponse: true,
+      enableJsonResponse: !!jsonResponseMode,
       eventStore: await getEventStore(),
       enableDnsRebindingProtection: !!enableDnsRebinding,
       allowedHosts,

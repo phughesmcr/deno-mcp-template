@@ -1,17 +1,43 @@
-import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult, ResourceTemplate } from "@modelcontextprotocol/sdk/types.js";
+import {
+  type CompleteResourceTemplateCallback,
+  type ResourceMetadata,
+  ResourceTemplate,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 
 import type { ResourceTemplatePlugin } from "$/shared/types.ts";
 
 const name = "greetings";
 
-const template: ResourceTemplate = {
-  name: "greetings",
-  uriTemplate: "greetings://{name}",
-  mimeType: "text/plain",
+const nameSuggestions = [
+  "Ada",
+  "Alan",
+  "Grace",
+  "Linus",
+  "Margaret",
+  "Ken",
+];
+
+const completeName: CompleteResourceTemplateCallback = (value) => {
+  const prefix = value.trim().toLowerCase();
+  return nameSuggestions
+    .filter((name) => name.toLowerCase().startsWith(prefix))
+    .slice(0, 5);
 };
 
-const config: ResourceMetadata = {};
+const template = new ResourceTemplate(
+  "greetings://{name}",
+  {
+    list: undefined,
+    complete: {
+      name: completeName,
+    },
+  },
+);
+
+const config: ResourceMetadata = {
+  mimeType: "text/plain",
+};
 
 async function readCallback(
   uri: URL,
@@ -24,7 +50,10 @@ async function readCallback(
     throw new SyntaxError("Name parameter is required and must be a non-empty string");
   }
   // Sanitize name to prevent injection
-  const sanitizedName = name.trim().slice(0, 100).replace(/[^a-zA-Z0-9\-]/g, "");
+  const sanitizedName = name
+    .trim()
+    .slice(0, 100)
+    .replace(/[^\p{L}\p{N}\s\-']/gu, "");
   return {
     contents: [
       {
@@ -35,11 +64,12 @@ async function readCallback(
   };
 }
 
-const module: ResourceTemplatePlugin = [
+const module: ResourceTemplatePlugin = {
+  type: "template",
   name,
   template,
   config,
   readCallback,
-];
+};
 
 export default module;

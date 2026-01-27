@@ -2,11 +2,14 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
-import type { ToolConfig, ToolModule } from "../../shared/types.ts";
-import { createCallToolErrorResponse, createCallToolTextResponse } from "../../shared/utils.ts";
+import type { ToolConfig, ToolModule } from "$/shared/types.ts";
+import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
 
 const schema = z.object({
-  prompt: z.string().describe("The prompt to generate a poem for"),
+  prompt: z.string()
+    .min(1, "Prompt is required")
+    .max(5000, "Prompt too long (max 5000 characters)")
+    .describe("The prompt to generate a poem for"),
 });
 
 const name = "poem";
@@ -35,19 +38,22 @@ const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> 
 
   try {
     // sampling
-    const response = await mcp.server.createMessage({
-      messages: [
-        {
-          role: "user",
-          content: {
-            type: "text",
-            text: `Generate a poem for the following prompt:\n\n${prompt}`,
+    const response = await mcp.server.createMessage(
+      {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Generate a poem for the following prompt:\n\n${prompt}`,
+            },
           },
-        },
-      ],
-      maxTokens: 1024,
-      temperature: 0.7,
-    });
+        ],
+        maxTokens: 1024,
+        temperature: 0.7,
+      },
+      { timeout: 30000 },
+    );
 
     const content = Array.isArray(response.content) ? response.content[0] : response.content;
 

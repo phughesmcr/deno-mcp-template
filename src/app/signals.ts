@@ -23,4 +23,16 @@ export function setupSignalHandlers(onShutdown: () => Promise<void>): void {
       // ignore if unsupported on this platform
     }
   }
+
+  // Handle stream closure errors gracefully (e.g., when SSE client disconnects)
+  globalThis.addEventListener("error", (event) => {
+    if (
+      event.error instanceof TypeError &&
+      event.error.message.includes("stream controller cannot close or enqueue")
+    ) {
+      // Suppress stream closure errors - these occur when clients disconnect
+      event.preventDefault();
+      return;
+    }
+  });
 }

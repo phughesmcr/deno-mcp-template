@@ -35,7 +35,13 @@ export interface HonoAppSpec {
 
 function configureMiddleware(app: Hono, config: AppConfig["http"]): Hono {
   app.use(secureHeaders());
-  app.use(timeout(TIMEOUT));
+  // Apply timeout to all routes except /mcp (SSE streams are long-lived)
+  app.use("*", async (c, next) => {
+    if (c.req.path === "/mcp") {
+      return next();
+    }
+    return timeout(TIMEOUT)(c, next);
+  });
   app.use(requestId());
 
   app.use(

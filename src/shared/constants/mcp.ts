@@ -20,7 +20,18 @@ export const SERVER_CAPABILITIES: ServerCapabilities = {
   tools: {
     listChanged: true,
   },
-  // experimental: {},
+  tasks: {
+    list: {},
+    cancel: {},
+    requests: {
+      tools: {
+        call: {},
+      },
+    },
+  },
+  experimental: {
+    elicitation: {},
+  },
 };
 
 // ********************************************************

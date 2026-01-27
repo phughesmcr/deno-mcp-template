@@ -3,21 +3,32 @@ import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 
 import type { ResourcePlugin } from "$/shared/types.ts";
 
-const name = "helloWorld";
+export const COUNTER_URI = "counter://value";
 
-const uri = "hello://world";
+let counterValue = 0;
+
+export function incrementCounterValue(delta: number): number {
+  counterValue += delta;
+  return counterValue;
+}
+
+export function getCounterValue(): number {
+  return counterValue;
+}
+
+const name = "counter";
 
 const config: ResourceMetadata = {
-  description: "A simple greeting message",
-  mimeType: "text/plain",
+  description: "A simple in-memory counter resource",
+  mimeType: "application/json",
 };
 
 async function readCallback(): Promise<ReadResourceResult> {
   return {
     contents: [
       {
-        uri,
-        text: "Hello, World! This is my first MCP resource.",
+        uri: COUNTER_URI,
+        text: JSON.stringify({ value: counterValue }),
       },
     ],
   };
@@ -26,7 +37,7 @@ async function readCallback(): Promise<ReadResourceResult> {
 const module: ResourcePlugin = {
   type: "resource",
   name,
-  uri,
+  uri: COUNTER_URI,
   config,
   readCallback,
 };
