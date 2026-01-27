@@ -28,15 +28,14 @@
         "$/": "./src/",
         "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.8",
         "@cliffy/flags": "jsr:@cliffy/flags@^1.0.0-rc.8",
-        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.22.0",
-        "@std/cli": "jsr:@std/cli@^1.0.24",
-        "@std/dotenv/load": "jsr:@std/dotenv@^0.225.5/load",
-        "@std/path": "jsr:@std/path@^1.1.3",
+        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.25.3",
+        "@std/cli": "jsr:@std/cli@^1.0.26",
+        "@std/dotenv/load": "jsr:@std/dotenv@^0.225.6/load",
+        "@std/path": "jsr:@std/path@^1.1.4",
         "@std/ulid": "jsr:@std/ulid@^1.0.0",
-        "fetch-to-node": "npm:fetch-to-node@^2.1.0",
-        "hono": "jsr:@hono/hono@^4.10.6",
-        "hono-rate-limiter": "npm:hono-rate-limiter@^0.4.2",
-        "zod": "npm:zod@^4.1.13",
+        "hono": "jsr:@hono/hono@^4.11.7",
+        "hono-rate-limiter": "npm:hono-rate-limiter@^0.5.3",
+        "zod": "npm:zod@^4.3.6",
         "zod-validation-error": "npm:zod-validation-error@^5.0.0"
     },
     "tasks": {
@@ -112,10 +111,7 @@
         "noUncheckedIndexedAccess": false,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
-        "verbatimModuleSyntax": true,
-        "types": [
-            "npm:@types/express@5.0.3"
-        ]
+        "verbatimModuleSyntax": true
     },
     "fmt": {
         "include": [
