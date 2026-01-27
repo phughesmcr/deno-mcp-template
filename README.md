@@ -6,7 +6,7 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/publish.yml?label=publish)
 
 ![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
-![Version](https://img.shields.io/badge/version-0.5.2-blue)
+![Version](https://img.shields.io/badge/version-0.5.3-blue)
 ![Repo Size](https://img.shields.io/github/languages/code-size/phughesmcr/deno-mcp-template)
 ![License](https://img.shields.io/github/license/phughesmcr/deno-mcp-template)
 
@@ -241,6 +241,7 @@ static/
 | MCP_HTTP_HOSTNAME    | -n             | "localhost" | The hostname to listen on for the HTTP server |
 | MCP_HTTP_PORT        | -p             | "3001"      | The port to listen on for the HTTP server |
 | MCP_HEADERS          | -H             |             | The headers to set for the HTTP server (CLI flag is a collection) |
+| MCP_JSON_RESPONSE    | --json-response| `false`     | Enable JSON-only responses (disable SSE streaming) |
 | MCP_DNS_REBINDING    | --dnsRebinding | `false`     | Enable DNS rebinding protection |
 | MCP_ALLOWED_ORIGINS  | --origin       |             | The allowed origins for the HTTP server (CLI flag is a collection) |
 | MCP_ALLOWED_HOSTS    | --host         |             | The allowed hosts for the HTTP server (CLI flag is a collection) |
