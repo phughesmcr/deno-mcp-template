@@ -112,6 +112,9 @@ export type HttpServerConfig = {
 
   /** The allowed hosts */
   allowedHosts?: string[];
+
+  /** Whether to use JSON-only responses (disable SSE streaming) */
+  jsonResponseMode?: boolean;
 };
 
 /** The configuration for the STDIO transport */

@@ -86,6 +86,12 @@ function createCommand() {
       conflicts: ["no-http"],
     })
     .env("HEADERS=<value:string[]>", "Set custom headers.", { prefix })
+    // JSON response mode
+    .option("--json-response", "Enable JSON-only responses (disable SSE streaming).", {
+      default: false,
+      conflicts: ["no-http"],
+    })
+    .env("JSON_RESPONSE=<value:boolean>", "Enable JSON-only responses.", { prefix })
     // DNS rebinding
     .option("--dnsRebinding", "Enable DNS rebinding protection.", {
       default: false,

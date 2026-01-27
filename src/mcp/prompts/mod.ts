@@ -4,8 +4,10 @@
  */
 import type { PromptPlugin } from "$/shared/types.ts";
 import codeReview from "./codeReview.ts";
+import languagePrompt from "./languagePrompt.ts";
 
 export const prompts: PromptPlugin[] = [
   codeReview,
+  languagePrompt,
   // ... more prompts
 ] as const;

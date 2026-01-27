@@ -1,6 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { toFetchResponse, toReqRes } from "fetch-to-node";
+import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Context } from "hono";
 
 import {
@@ -46,13 +45,11 @@ function handleMCPError(c: Context, error?: unknown): Response {
 
 /** Passes the request to the transport and returns the response */
 async function handleMCPRequest(
-  transport: StreamableHTTPServerTransport,
+  transport: WebStandardStreamableHTTPServerTransport,
   request: Request,
+  parsedBody?: unknown,
 ): Promise<Response> {
-  const { req, res } = toReqRes(request);
-  await transport.handleRequest(req, res);
-  const response = await toFetchResponse(res);
-  return response;
+  return await transport.handleRequest(request, { parsedBody });
 }
 
 /** Extracts and validates the session ID from the request header */
@@ -70,7 +67,7 @@ function getSessionId(c: Context): string | undefined {
 /** Safely attempts to connect the transport to the MCP server */
 async function connectTransport(
   mcp: McpServer,
-  transport: StreamableHTTPServerTransport,
+  transport: WebStandardStreamableHTTPServerTransport,
 ): Promise<void> {
   try {
     await mcp.connect(transport);
@@ -98,9 +95,26 @@ export function createPostHandler(
       const sessionId = getSessionId(c);
       const originalRequest = c.req.raw.clone();
       const bodyText = await c.req.raw.text();
+      if (!bodyText.length) {
+        throw new RPCError({
+          code: RPC_ERROR_CODES.INVALID_REQUEST,
+          message: "Empty request body",
+          requestId: sessionId ?? INVALID_SESSION_ID,
+        });
+      }
+      let parsedBody: unknown;
+      try {
+        parsedBody = JSON.parse(bodyText);
+      } catch (error) {
+        throw new RPCError({
+          code: RPC_ERROR_CODES.PARSE_ERROR,
+          message: error instanceof Error ? error.message : "Invalid JSON in request body",
+          requestId: sessionId ?? INVALID_SESSION_ID,
+        });
+      }
       const transport = await transports.acquire(bodyText, sessionId);
       await connectTransport(mcp, transport);
-      return await handleMCPRequest(transport, originalRequest);
+      return await handleMCPRequest(transport, originalRequest, parsedBody);
     } catch (error) {
       return handleMCPError(c, error);
     }

@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { EventStore } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { EventStore } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { monotonicUlid } from "@std/ulid";
 

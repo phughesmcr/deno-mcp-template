@@ -35,7 +35,16 @@ export type ValidationResult<T, E extends Error = Error> = {
  * @returns The validation result with HTTP server config or error
  */
 export function validateHttpConfig(config: CliOptions): ValidationResult<HttpServerConfig> {
-  const { http, hostname, port, headers, allowedHosts, allowedOrigins, dnsRebinding } = config;
+  const {
+    http,
+    hostname,
+    port,
+    headers,
+    allowedHosts,
+    allowedOrigins,
+    dnsRebinding,
+    jsonResponse,
+  } = config;
   try {
     const validatedHostname = validateHostname(hostname);
     const validatedPort = validatePort(port);
@@ -52,6 +61,7 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
         allowedHosts: validatedAllowedHosts,
         allowedOrigins: validatedAllowedOrigins,
         enableDnsRebinding: !!dnsRebinding,
+        jsonResponseMode: !!jsonResponse,
       },
     };
   } catch (error) {

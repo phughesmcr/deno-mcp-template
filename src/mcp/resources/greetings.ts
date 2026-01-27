@@ -1,13 +1,38 @@
-import { type ResourceMetadata, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  type CompleteResourceTemplateCallback,
+  type ResourceMetadata,
+  ResourceTemplate,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 
 import type { ResourceTemplatePlugin } from "$/shared/types.ts";
 
 const name = "greetings";
 
+const nameSuggestions = [
+  "Ada",
+  "Alan",
+  "Grace",
+  "Linus",
+  "Margaret",
+  "Ken",
+];
+
+const completeName: CompleteResourceTemplateCallback = (value) => {
+  const prefix = value.trim().toLowerCase();
+  return nameSuggestions
+    .filter((name) => name.toLowerCase().startsWith(prefix))
+    .slice(0, 5);
+};
+
 const template = new ResourceTemplate(
   "greetings://{name}",
-  { list: undefined },
+  {
+    list: undefined,
+    complete: {
+      name: completeName,
+    },
+  },
 );
 
 const config: ResourceMetadata = {
