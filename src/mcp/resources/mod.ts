@@ -4,12 +4,12 @@
  * @module
  */
 
-import type { ResourcePlugin, ResourceTemplatePlugin } from "$/shared/types.ts";
+import type { AnyResourcePlugin } from "$/shared/types.ts";
 
 import greetings from "./greetings.ts";
 import helloWorld from "./helloWorld.ts";
 
-export const resources: (ResourcePlugin | ResourceTemplatePlugin)[] = [
+export const resources: AnyResourcePlugin[] = [
   greetings,
   helloWorld,
   // ... more resources

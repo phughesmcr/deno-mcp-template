@@ -5,7 +5,7 @@ import type { ResourcePlugin } from "$/shared/types.ts";
 
 const name = "helloWorld";
 
-const uriOrTemplate = "hello://world";
+const uri = "hello://world";
 
 const config: ResourceMetadata = {
   description: "A simple greeting message",
@@ -16,18 +16,19 @@ async function readCallback(): Promise<ReadResourceResult> {
   return {
     contents: [
       {
-        uri: uriOrTemplate,
+        uri,
         text: "Hello, World! This is my first MCP resource.",
       },
     ],
   };
 }
 
-const module: ResourcePlugin = [
+const module: ResourcePlugin = {
+  type: "resource",
   name,
-  uriOrTemplate,
+  uri,
   config,
   readCallback,
-];
+};
 
 export default module;

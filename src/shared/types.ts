@@ -8,9 +8,10 @@ import type {
   ReadResourceCallback,
   ReadResourceTemplateCallback,
   ResourceMetadata,
+  ResourceTemplate,
   ToolCallback,
 } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ResourceTemplate, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape } from "zod/v3";
 
 export type Prettify<T> =
@@ -35,20 +36,24 @@ export interface Transport {
 export type PromptPlugin = Parameters<McpServer["registerPrompt"]>;
 
 /** Resource parameters */
-export type ResourcePlugin = [
-  name: string,
-  uri: string,
-  config: ResourceMetadata,
-  readCallback: ReadResourceCallback,
-];
+export type ResourcePlugin = {
+  type: "resource";
+  name: string;
+  uri: string;
+  config: ResourceMetadata;
+  readCallback: ReadResourceCallback;
+};
 
 /** Resource template parameters */
-export type ResourceTemplatePlugin = [
-  name: string,
-  template: ResourceTemplate,
-  config: ResourceMetadata,
-  readCallback: ReadResourceTemplateCallback,
-];
+export type ResourceTemplatePlugin = {
+  type: "template";
+  name: string;
+  template: ResourceTemplate;
+  config: ResourceMetadata;
+  readCallback: ReadResourceTemplateCallback;
+};
+
+export type AnyResourcePlugin = ResourcePlugin | ResourceTemplatePlugin;
 
 /** Tool parameters */
 export type ToolPlugin = [
