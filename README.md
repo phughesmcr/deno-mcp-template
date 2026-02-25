@@ -34,7 +34,7 @@ The "app" component, found in `src/app/`, wraps the MCP server in some convenien
 
 The app uses `Deno.serve` to start an HTTP server built with [Hono](https://hono.dev/). The server features comprehensive middleware including rate limiting, CORS protection, security headers, request timeouts, and session management.
 
-ℹ️ For DNS rebinding protection, you can set the `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` variables (see [Config](#config))
+ℹ️ For DNS rebinding protection, you can set the `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` variables (see [Config](#config))
 
 ⚠️ If no allowed hosts or origins are set, the server will allow all origins and hosts.
 
@@ -103,7 +103,7 @@ You can use the `mcp-remote` tool to connect to the HTTP server easily.
 }
 ```
 
-otherwise, if you are using DNS rebinding protection, you must set an origin header because Cursor/VSCode/etc, do not provide one:
+Otherwise, if you are using DNS rebinding protection, you must set an Origin header because Cursor/VSCode/etc. do not provide one:
 
 ```json
 {
@@ -111,7 +111,7 @@ otherwise, if you are using DNS rebinding protection, you must set an origin hea
         "my-mcp-server": {
             "url": "http://localhost:3001/mcp",
             "headers": {
-                "origin": "localhost"
+                "origin": "http://localhost:3001"
             }
         },
     }
@@ -200,10 +200,10 @@ src/
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
 │   │   └── mod.ts                          # Provides a single point of export for all the MCP prompts
 │   ├── resources/                             
+│   │   ├── counter.ts                      # A simple stateful resource example
 │   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
 │   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
-│   │   ├── mod.ts                          # Provides a single point of export for all the MCP resources
-│   │   └── schemas.ts                      # Zod schemas for MCP resources
+│   │   └── mod.ts                          # Provides a single point of export for all the MCP resources
 │   ├── tools/                             
 │   │   ├── domain.ts                       # A tool that fetches web domain information from the domainsdb API
 │   │   ├── mod.ts                          # Provides a single point of export for all the MCP tools
@@ -238,8 +238,8 @@ static/
 | -------------------- | -------------- | ----------- | ----------- |
 | MCP_NO_HTTP          | --no-http      | `false`     | Disable the HTTP server |
 | MCP_NO_STDIO         | --no-stdio     | `false`     | Disable the STDIO server |
-| MCP_HTTP_HOSTNAME    | -n             | "localhost" | The hostname to listen on for the HTTP server |
-| MCP_HTTP_PORT        | -p             | "3001"      | The port to listen on for the HTTP server |
+| MCP_HOSTNAME         | -n             | "localhost" | The hostname to listen on for the HTTP server |
+| MCP_PORT             | -p             | "3001"      | The port to listen on for the HTTP server |
 | MCP_HEADERS          | -H             |             | The headers to set for the HTTP server (CLI flag is a collection) |
 | MCP_JSON_RESPONSE    | --json-response| `false`     | Enable JSON-only responses (disable SSE streaming) |
 | MCP_DNS_REBINDING    | --dnsRebinding | `false`     | Enable DNS rebinding protection |
@@ -254,7 +254,7 @@ Run `deno task setup` to setup the project for your own use.
 
 ⚠️ You must grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information. (The setup task will do this for you.)
 
-⚠️ If using `--dnsRebinding`, you may need to add entries to `ALLOWED_ORIGINS` and `ALLOWED_HOSTS` in `src/constants/http.ts`, or pass `--origin` and `--host` to the server.
+⚠️ If using `--dnsRebinding`, you may need to add entries to `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` in `src/shared/constants/http.ts`, or pass `--origin` and `--host` to the server.
 
 ⚠️ `src/app/http/kvEventStore.ts` is a simple utility for session resumability. It is **not** suitable for production use.
 
@@ -264,7 +264,7 @@ Run `deno task setup` to setup the project for your own use.
 
 ℹ️  Remember to set any environment variables in both your Github repo settings and your Deno Deploy project settings (if applicable).
 
-ℹ️ Run `deno task prep` to run the formatter, linter, and code checker.
+ℹ️ Run `deno task ci` to run the formatter, linter, and code checker.
 
 ### Serving from JSR
 

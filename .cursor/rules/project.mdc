@@ -10,7 +10,7 @@ Deno version: ^2.4.0
 
 Start: `deno task start`
 Dev mode: `deno task dev`
-Format, lint, and type-check code: `deno task prep`
+Format, lint, and type-check code: `deno task ci`
 
 ## Project Structure
 
@@ -36,10 +36,10 @@ src/
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
 │   │   └── mod.ts                          # Provides a single point of export for all the MCP prompts
 │   ├── resources/                             
+│   │   ├── counter.ts                      # A simple stateful resource example
 │   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
 │   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
-│   │   ├── mod.ts                          # Provides a single point of export for all the MCP resources
-│   │   └── schemas.ts                      # Zod schemas for MCP resources
+│   │   └── mod.ts                          # Provides a single point of export for all the MCP resources
 │   ├── tools/                             
 │   │   ├── domain.ts                       # A tool that fetches web domain information from the domainsdb API
 │   │   ├── mod.ts                          # Provides a single point of export for all the MCP tools

@@ -94,18 +94,14 @@ export class RPCError extends Error {
     requestId: RequestId,
     additionalData?: unknown,
   ): RPCError {
-    const data = {
-      originalError: error.message,
-      errorType: error.constructor.name,
-      stack: error.stack,
-      ...(additionalData as Record<string, unknown> || {}),
-    };
+    const additionalContext = (additionalData as Record<string, unknown> | undefined) ?? undefined;
+    const message = code === -32603 ? "Internal error" : error.message;
 
     return new RPCError({
       code,
-      message: error.message,
+      message,
       requestId,
-      data,
+      data: additionalContext,
       options: { cause: error },
     });
   }

@@ -20,12 +20,14 @@ function handleMCPError(c: Context, error?: unknown): Response {
   if (error instanceof RPCError) {
     rpcError = error;
   } else if (error instanceof Error) {
+    console.error("Unhandled MCP request error", error);
     rpcError = RPCError.fromError(
       error,
       RPC_ERROR_CODES.INTERNAL_ERROR,
       sessionId,
     );
   } else {
+    console.error("Unhandled MCP request error", error);
     rpcError = RPCError.internalError(sessionId);
   }
 

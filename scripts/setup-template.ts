@@ -141,7 +141,7 @@ async function main(): Promise<void> {
     console.log("1. Review the updated files and the rest of the repo.");
     console.log("2. Update the files in static/.well-known to reflect your server.");
     console.log("3. Update any GitHub repo & Deno Deploy settings and secrets");
-    console.log("4. Run `deno task prep` to format and check the code");
+    console.log("4. Run `deno task ci` to format and check the code");
     console.log("5. Start coding your MCP server!");
   } catch (error) {
     console.error("❌ Setup failed:", error);

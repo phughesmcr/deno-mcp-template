@@ -5,6 +5,17 @@ import type { HttpServerConfig, Transport } from "$/shared/types.ts";
 import { createHonoApp } from "./hono.ts";
 import { createHTTPTransportManager } from "./transport.ts";
 
+function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undefined {
+  const remoteAddr = info.remoteAddr;
+  if ("hostname" in remoteAddr) {
+    return remoteAddr.hostname;
+  }
+  if ("path" in remoteAddr) {
+    return remoteAddr.path;
+  }
+  return undefined;
+}
+
 /**
  * Creates a HTTP server using Hono and Deno.serve
  * @param mcp - The MCP server instance
@@ -25,7 +36,10 @@ export function createHttpServer(mcp: McpServer, config: HttpServerConfig): Tran
       onListen: () => {
         console.error(`${APP_NAME} listening on ${hostname}:${port}`);
       },
-    }, hono.fetch);
+    }, (request, info) => {
+      const clientIp = resolveClientIp(info);
+      return hono.fetch(request, { clientIp });
+    });
   };
 
   const disconnect = async () => {

@@ -39,10 +39,10 @@
         "zod-validation-error": "npm:zod-validation-error@^5.0.0"
     },
     "tasks": {
-        "prep": "deno fmt && deno lint --fix && deno check main.ts && deno check src/**/*.ts",
         "start": "deno run -A main.ts",
-        "dev": "ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run -A --watch main.ts -l=debug",
-        "ci": "deno task prep",
+        "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run -A --watch main.ts -l=debug",
+        "test:integration": "deno test -A test",
+        "ci": "CI=1 deno fmt && deno lint --fix && deno check main.ts && deno check src/**/*.ts && deno task test:integration",
         "clean:dist": "deno run -A scripts/clean-dist.ts",
         "compile:win": {
             "description": "Create a binary for Windows",

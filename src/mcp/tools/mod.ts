@@ -48,6 +48,7 @@ export class ToolManager {
     if (this.#tools.has(tool[0])) return;
     const plugin = this.#createPlugin(tool);
     this.#mcp.registerTool(...plugin);
+    this.#tools.set(tool[0], plugin);
   }
 }
 

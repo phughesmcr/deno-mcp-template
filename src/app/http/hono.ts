@@ -27,13 +27,44 @@ import type { AppConfig } from "$/shared/types.ts";
 import { createGetAndDeleteHandler, createPostHandler } from "./handlers.ts";
 import type { HTTPTransportManager } from "./transport.ts";
 
+export interface HonoBindings {
+  clientIp?: string;
+}
+
+type HonoEnv = {
+  Bindings: HonoBindings;
+};
+
+interface RateLimitContextLike {
+  env: HonoBindings;
+  req: {
+    header: (name: string) => string | undefined;
+  };
+}
+
 export interface HonoAppSpec {
   mcp: McpServer;
   config: AppConfig["http"];
   transports: HTTPTransportManager;
 }
 
-function configureMiddleware(app: Hono, config: AppConfig["http"]): Hono {
+function getRateLimitKey(c: RateLimitContextLike): string {
+  const clientIp = c.env.clientIp?.trim();
+  if (clientIp) {
+    return `ip:${clientIp}`;
+  }
+
+  const sessionId = c.req.header(HEADER_KEYS.SESSION_ID)?.trim();
+  if (sessionId) {
+    return `session:${sessionId}`;
+  }
+
+  const host = c.req.header("host")?.trim() ?? "no-host";
+  const userAgent = c.req.header("user-agent")?.trim() ?? "no-user-agent";
+  return `fallback:${host}:${userAgent}`;
+}
+
+function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hono<HonoEnv> {
   app.use(secureHeaders());
   // Apply timeout to all routes except /mcp (SSE streams are long-lived)
   app.use("*", async (c, next) => {
@@ -61,17 +92,12 @@ function configureMiddleware(app: Hono, config: AppConfig["http"]): Hono {
   );
 
   app.use(
-    // @ts-expect-error - rateLimiter is not typed correctly for Deno Hono
+    // @ts-expect-error - rateLimiter does not preserve generic Hono env typing
     rateLimiter({
       windowMs: RATE_LIMIT_WINDOW,
       limit: RATE_LIMIT,
       standardHeaders: "draft-7",
-      keyGenerator: (c) =>
-        c.req.header(HEADER_KEYS.SESSION_ID) ||
-        c.req.header("x-forwarded-for") ||
-        c.req.header("x-real-ip") ||
-        c.req.header("mcp-session-id") ||
-        "unknown",
+      keyGenerator: (c) => getRateLimitKey(c as RateLimitContextLike),
     }),
   );
 
@@ -101,7 +127,7 @@ function configureMiddleware(app: Hono, config: AppConfig["http"]): Hono {
   return app;
 }
 
-function createRoutes(app: Hono, mcp: McpServer, transports: HTTPTransportManager) {
+function createRoutes(app: Hono<HonoEnv>, mcp: McpServer, transports: HTTPTransportManager) {
   // MCP POST route
   const postHandler = createPostHandler(mcp, transports);
   app.post("/mcp", postHandler);
@@ -128,15 +154,16 @@ function createRoutes(app: Hono, mcp: McpServer, transports: HTTPTransportManage
  * @param spec - The Hono application specification
  * @returns The configured Hono application
  */
-export function createHonoApp({ mcp, config, transports }: HonoAppSpec): Hono {
-  const app = new Hono();
+export function createHonoApp({ mcp, config, transports }: HonoAppSpec): Hono<HonoEnv> {
+  const app = new Hono<HonoEnv>();
   configureMiddleware(app, config);
   createRoutes(app, mcp, transports);
   app.onError((err, c) => {
+    console.error("Unhandled HTTP route error", err);
     const path = c.req.path;
     if (path === "/mcp") {
       return c.json({
-        content: [{ type: "text", text: err.message }],
+        content: [{ type: "text", text: "Internal error" }],
         isError: true,
       }, HTTP_STATUS.INTERNAL_SERVER_ERROR);
     }
