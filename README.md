@@ -280,11 +280,31 @@ If you do not want to publish on JSR, remove `.github/workflows/publish.yml`.
 
 ### Hosting on Deno Deploy
 
-Using Deno Deploy is not necessary if you only want your server to be published through JSR, or locally. However, implementing a simple server using Deno Deploy can be useful in several ways. For example, hosting an [`llms.txt`](./static/.well-known/llms.txt) file to describe your server to LLMs; adding an auth route; etc.
+Using Deno Deploy is optional if you only plan to run locally or publish through JSR. If you do deploy this template, use the modern `deno deploy` CLI flow.
 
-For this to work, you will need to setup your [Deno Deploy](https://deno.com/deploy) account,and replace the relevant values in the codebase to match your package name.
+1. Create an app (one-time):
 
-If you do not plan on using Deno Deploy, remove `.github/workflows/deploy.yml`.
+```bash
+deno deploy create \
+  --org <YOUR_ORG> \
+  --app <YOUR_APP> \
+  --source local \
+  --runtime-mode dynamic \
+  --entrypoint main.ts \
+  --build-timeout 5 \
+  --build-memory-limit 1024 \
+  --region us
+```
+
+2. Configure GitHub Actions secrets/variables if you want automatic deploys:
+   - Secret: `DENO_DEPLOY_TOKEN`
+   - Variables: `DENO_DEPLOY_ORG`, `DENO_DEPLOY_APP`
+
+3. Deploy:
+   - Preview: `deno deploy`
+   - Production: `deno deploy --prod`
+
+If you are not using Deno Deploy, remove `.github/workflows/deploy.yml`.
 
 ### DB with Deno KV
 
@@ -312,6 +332,8 @@ The repo includes the following quality-of-life files which aren't necessary for
 ## Acknowledgements
 
 If you use this template, please contribute fixes and features, star the repo, and consider sponsoring.
+
+This is not an official Deno project and I am not affiliated with Deno Land Inc. in any way.
 
 ## License
 

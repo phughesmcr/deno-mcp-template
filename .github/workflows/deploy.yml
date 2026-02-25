@@ -1,9 +1,9 @@
 name: Deploy
 on:
   push:
-    branches: main
-  pull_request:
-    branches: main
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      id-token: write # Needed for auth with Deno Deploy
       contents: read # Needed to clone the repository
 
     steps:
@@ -23,8 +22,14 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Upload to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: deno-mcp-template
-          entrypoint: main.ts
+      - name: Deploy to Deno Deploy production
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
+          DENO_DEPLOY_APP: ${{ vars.DENO_DEPLOY_APP }}
+        run: |
+          if [ -z "$DENO_DEPLOY_TOKEN" ] || [ -z "$DENO_DEPLOY_ORG" ] || [ -z "$DENO_DEPLOY_APP" ]; then
+            echo "Missing DENO_DEPLOY_TOKEN secret or DENO_DEPLOY_ORG / DENO_DEPLOY_APP repository variables."
+            exit 1
+          fi
+          deno deploy --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" --prod
