@@ -329,6 +329,8 @@ The repo includes the following quality-of-life files which aren't necessary for
 
 [The ModelContextProtocol Github](https://github.com/modelcontextprotocol).
 
+[Deno Agent Skills](https://github.com/denoland/skills).
+
 ## Acknowledgements
 
 If you use this template, please contribute fixes and features, star the repo, and consider sponsoring.
