@@ -103,9 +103,6 @@
             "dependencies": ["compile:all", "dxt:pack"]
         }
     },
-    "deploy": {
-        "entrypoint": "main.ts"
-    },
     "compilerOptions": {
         "strict": true,
         "erasableSyntaxOnly": true,
