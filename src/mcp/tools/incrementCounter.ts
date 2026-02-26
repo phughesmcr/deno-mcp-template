@@ -21,7 +21,7 @@ const config: ToolConfig<typeof schema.shape, any> = {
 };
 
 // deno-lint-ignore no-explicit-any
-const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> => {
+const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult> => {
   const parsed = schema.safeParse(args ?? {});
   if (!parsed.success) {
     return createCallToolErrorResponse({
@@ -33,8 +33,6 @@ const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> 
 
   const delta = parsed.data.delta ?? 1;
   const value = await incrementCounterValue(delta);
-
-  await mcp.server.sendResourceUpdated({ uri: COUNTER_URI });
 
   return createCallToolTextResponse({
     value,

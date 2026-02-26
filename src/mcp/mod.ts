@@ -4,14 +4,25 @@ import {
   UnsubscribeRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
+import { createKvWatcher } from "$/app/kv/mod.ts";
 import { SERVER_CAPABILITIES, SERVER_INFO } from "$/shared/constants.ts";
-import { KvTaskStore } from "./tasks/mod.ts";
 import { prompts } from "./prompts/mod.ts";
+import { RESOURCE_KV_KEYS } from "./resources/kvKeys.ts";
 import { resources } from "./resources/mod.ts";
+import { KvTaskStore } from "./tasks/mod.ts";
 import { registerTaskTools, ToolManager, tools } from "./tools/mod.ts";
 
 /** Tracks resource subscriptions by URI */
 const subscriptions = new Set<string>();
+const watcher = createKvWatcher();
+const resourceUpdateNotifiers = new Set<(uri: string) => Promise<void>>();
+
+async function notifyResourceSubscribers(uri: string): Promise<void> {
+  if (!resourceUpdateNotifiers.size) return;
+  await Promise.allSettled(
+    Array.from(resourceUpdateNotifiers, (notify) => notify(uri)),
+  );
+}
 
 /** Check if a URI is subscribed */
 export function isSubscribed(uri: string): boolean {
@@ -33,6 +44,15 @@ export function createMcpServer(): McpServer {
     capabilities: SERVER_CAPABILITIES,
     taskStore: new KvTaskStore(),
   });
+  const notifyForServer = async (uri: string): Promise<void> => {
+    try {
+      await server.server.sendResourceUpdated({ uri });
+    } catch {
+      // Drop stale notifier when the underlying transport is no longer connected.
+      resourceUpdateNotifiers.delete(notifyForServer);
+    }
+  };
+  resourceUpdateNotifiers.add(notifyForServer);
 
   // Prompt handlers
   if ("prompts" in SERVER_CAPABILITIES) {
@@ -66,15 +86,24 @@ export function createMcpServer(): McpServer {
     if (
       resourceCapabilities && "subscribe" in resourceCapabilities && resourceCapabilities.subscribe
     ) {
-      server.server.setRequestHandler(SubscribeRequestSchema, (request) => {
+      server.server.setRequestHandler(SubscribeRequestSchema, async (request) => {
         const uri = request.params.uri;
+        const wasSubscribed = subscriptions.has(uri);
         subscriptions.add(uri);
+        const key = RESOURCE_KV_KEYS.get(uri);
+        if (!wasSubscribed && key) {
+          await watcher.watch(uri, key, async () => {
+            if (!subscriptions.has(uri)) return;
+            await notifyResourceSubscribers(uri);
+          });
+        }
         return {};
       });
 
-      server.server.setRequestHandler(UnsubscribeRequestSchema, (request) => {
+      server.server.setRequestHandler(UnsubscribeRequestSchema, async (request) => {
         const uri = request.params.uri;
         subscriptions.delete(uri);
+        await watcher.unwatch(uri);
         return {};
       });
     }
