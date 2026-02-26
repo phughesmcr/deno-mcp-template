@@ -139,4 +139,4 @@ dist
 scratch/
 *.exe
 
-.cursor/skills
+.cursor/skills/deno-*

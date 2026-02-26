@@ -347,11 +347,24 @@ For the full annotated tree, transport internals, feature reference, and develop
 Included quality-of-life files:
 
 - `.cursor/rules/` -- Cursor agent rules for this project
+- `.cursor/skills/` -- Agent skills for implementing tools, resources, and prompts (see below)
 - `.cursorignore` -- tells Cursor to exclude files in addition to `.gitignore`
 - `.vscode/` -- recommended extensions, Deno as default formatter
 - `.github/` -- CI/CD workflows, sponsors config, issue templates
 - `CLAUDE.md` -- optional Claude Code project context
 - `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, etc. -- community management files for GitHub
+
+### Skills
+
+The `.cursor/skills/` directory contains agent skills that guide Cursor through implementing MCP features in this template. Each skill provides file templates, registration steps, type signatures, and working examples.
+
+| Skill | What it covers |
+| --- | --- |
+| [`implementing-mcp-tools`](.cursor/skills/implementing-mcp-tools/SKILL.md) | Standard tools, sampling, elicitation, resource-backed tools, notifications |
+| [`implementing-mcp-resources`](.cursor/skills/implementing-mcp-resources/SKILL.md) | Static resources, KV-backed resources, resource templates, subscriptions |
+| [`implementing-mcp-prompts`](.cursor/skills/implementing-mcp-prompts/SKILL.md) | Prompts with static arguments or dynamic completions |
+
+These skills are picked up automatically by Cursor when relevant. Ask the agent to "add a new tool" or "create a resource" and it will follow the project's patterns.
 
 ## References
 
