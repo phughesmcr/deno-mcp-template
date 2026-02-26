@@ -15,7 +15,7 @@
     "jsr:@std/semver@^1.0.8": "1.0.8",
     "jsr:@std/text@^1.0.17": "1.0.17",
     "jsr:@std/ulid@1": "1.0.0",
-    "npm:@modelcontextprotocol/sdk@^1.25.3": "1.27.1_zod@4.3.6_hono@4.12.2_ajv@8.18.0_express@5.2.1",
+    "npm:@modelcontextprotocol/sdk@^1.27.1": "1.27.1_zod@4.3.6_hono@4.12.2_ajv@8.18.0_express@5.2.1",
     "npm:hono-rate-limiter@~0.5.3": "0.5.3_hono@4.12.2",
     "npm:zod-validation-error@5": "5.0.0_zod@4.3.6",
     "npm:zod@^4.3.6": "4.3.6"
@@ -617,7 +617,7 @@
       "jsr:@std/dotenv@~0.225.6",
       "jsr:@std/path@^1.1.4",
       "jsr:@std/ulid@1",
-      "npm:@modelcontextprotocol/sdk@^1.25.3",
+      "npm:@modelcontextprotocol/sdk@^1.27.1",
       "npm:hono-rate-limiter@~0.5.3",
       "npm:zod-validation-error@5",
       "npm:zod@^4.3.6"

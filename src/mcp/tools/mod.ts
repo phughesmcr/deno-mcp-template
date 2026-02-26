@@ -11,6 +11,7 @@ import type { ToolModule, ToolPlugin } from "$/shared/types.ts";
 import collectUserInfo from "./collectUserInfo.ts";
 import { registerDelayedEchoTask } from "./delayedEchoTask.ts";
 import domain from "./domain.ts";
+import { registerGuidedPoemTask } from "./guidedPoemTask.ts";
 import incrementCounter from "./incrementCounter.ts";
 import logMessage from "./logMessage.ts";
 import notifyListChanged from "./notifyListChanged.ts";
@@ -55,4 +56,5 @@ export class ToolManager {
 // WARNING: Task tools use experimental MCP APIs and may change without notice.
 export function registerTaskTools(mcp: McpServer): void {
   registerDelayedEchoTask(mcp);
+  registerGuidedPoemTask(mcp);
 }
