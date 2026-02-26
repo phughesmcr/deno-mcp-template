@@ -10,7 +10,7 @@ import { getKvStore } from "$/app/kv/mod.ts";
 const PAGE_SIZE = 10;
 const MAX_CONCURRENCY_RETRIES = 5;
 
-const TASK_META_PREFIX = ["task", "meta"] as const;
+export const TASK_META_PREFIX = ["task", "meta"] as const;
 const TASK_RESULT_PREFIX = ["task", "result"] as const;
 
 type TaskMetaRecord = {
