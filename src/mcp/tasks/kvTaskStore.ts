@@ -8,6 +8,7 @@ import type { Request, RequestId, Result, Task } from "@modelcontextprotocol/sdk
 import { getKvStore } from "$/app/kv/mod.ts";
 
 const PAGE_SIZE = 10;
+const MAX_CONCURRENCY_RETRIES = 5;
 
 const TASK_META_PREFIX = ["task", "meta"] as const;
 const TASK_RESULT_PREFIX = ["task", "result"] as const;
@@ -57,9 +58,10 @@ function getRemainingExpiry(record: TaskMetaRecord): number | undefined {
   return remaining > 0 ? remaining : 1;
 }
 
-async function getMetaRecord(kv: Deno.Kv, taskId: string): Promise<TaskMetaRecord | null> {
-  const entry = await kv.get<TaskMetaRecord>(createTaskMetaKey(taskId));
-  return entry.value ?? null;
+type TaskMetaEntry = Deno.KvEntryMaybe<TaskMetaRecord>;
+
+async function getMetaEntry(kv: Deno.Kv, taskId: string): Promise<TaskMetaEntry> {
+  return await kv.get<TaskMetaRecord>(createTaskMetaKey(taskId));
 }
 
 export class KvTaskStore implements TaskStore {
@@ -110,8 +112,8 @@ export class KvTaskStore implements TaskStore {
 
   async getTask(taskId: string, _sessionId?: string): Promise<Task | null> {
     const kv = await getKvStore();
-    const record = await getMetaRecord(kv, taskId);
-    return record ? cloneTask(record.task) : null;
+    const entry = await getMetaEntry(kv, taskId);
+    return entry.value ? cloneTask(entry.value.task) : null;
   }
 
   async storeTaskResult(
@@ -121,51 +123,65 @@ export class KvTaskStore implements TaskStore {
     _sessionId?: string,
   ): Promise<void> {
     const kv = await getKvStore();
-    const record = await getMetaRecord(kv, taskId);
-    if (!record) {
-      throw new Error(`Task with ID ${taskId} not found`);
-    }
+    const taskMetaKey = createTaskMetaKey(taskId);
+    const taskResultKey = createTaskResultKey(taskId);
+    for (let attempt = 0; attempt < MAX_CONCURRENCY_RETRIES; attempt++) {
+      const entry = await getMetaEntry(kv, taskId);
+      const record = entry.value;
+      if (!record) {
+        throw new Error(`Task with ID ${taskId} not found`);
+      }
 
-    if (isTerminal(record.task.status)) {
-      throw new Error(
-        `Cannot store result for task ${taskId} in terminal status '${record.task.status}'.`,
+      if (isTerminal(record.task.status)) {
+        throw new Error(
+          `Cannot store result for task ${taskId} in terminal status '${record.task.status}'.`,
+        );
+      }
+
+      const updatedTask: Task = {
+        ...record.task,
+        status,
+        lastUpdatedAt: nextTimestamp(),
+      };
+
+      const resetExpiry = toExpiry(updatedTask.ttl);
+      const expiresAt = resetExpiry ? Date.now() + resetExpiry : undefined;
+      const updatedRecord: TaskMetaRecord = {
+        ...record,
+        task: updatedTask,
+        expiresAt,
+      };
+      const versionstamp = entry.versionstamp;
+      if (!versionstamp) {
+        throw new Error(`Task with ID ${taskId} not found`);
+      }
+
+      let atomic = kv.atomic().check({ key: taskMetaKey, versionstamp });
+      atomic = withOptionalExpiry(
+        atomic,
+        taskMetaKey,
+        updatedRecord,
+        resetExpiry,
       );
+      atomic = withOptionalExpiry(
+        atomic,
+        taskResultKey,
+        result,
+        resetExpiry,
+      );
+      const commitResult = await atomic.commit();
+      if (commitResult.ok) {
+        return;
+      }
     }
 
-    const updatedTask: Task = {
-      ...record.task,
-      status,
-      lastUpdatedAt: nextTimestamp(),
-    };
-
-    const resetExpiry = toExpiry(updatedTask.ttl);
-    const expiresAt = resetExpiry ? Date.now() + resetExpiry : undefined;
-    const updatedRecord: TaskMetaRecord = {
-      ...record,
-      task: updatedTask,
-      expiresAt,
-    };
-
-    let atomic = kv.atomic();
-    atomic = withOptionalExpiry(
-      atomic,
-      createTaskMetaKey(taskId),
-      updatedRecord,
-      resetExpiry,
-    );
-    atomic = withOptionalExpiry(
-      atomic,
-      createTaskResultKey(taskId),
-      result,
-      resetExpiry,
-    );
-    await atomic.commit();
+    throw new Error(`Failed to store task result for ${taskId} due to concurrent updates`);
   }
 
   async getTaskResult(taskId: string, _sessionId?: string): Promise<Result> {
     const kv = await getKvStore();
-    const task = await getMetaRecord(kv, taskId);
-    if (!task) {
+    const taskEntry = await getMetaEntry(kv, taskId);
+    if (!taskEntry.value) {
       throw new Error(`Task with ID ${taskId} not found`);
     }
 
@@ -183,44 +199,57 @@ export class KvTaskStore implements TaskStore {
     _sessionId?: string,
   ): Promise<void> {
     const kv = await getKvStore();
-    const record = await getMetaRecord(kv, taskId);
-    if (!record) {
-      throw new Error(`Task with ID ${taskId} not found`);
+    const taskMetaKey = createTaskMetaKey(taskId);
+    for (let attempt = 0; attempt < MAX_CONCURRENCY_RETRIES; attempt++) {
+      const entry = await getMetaEntry(kv, taskId);
+      const record = entry.value;
+      if (!record) {
+        throw new Error(`Task with ID ${taskId} not found`);
+      }
+
+      if (isTerminal(record.task.status)) {
+        throw new Error(
+          `Cannot update task ${taskId} from terminal status '${record.task.status}' to '${status}'.`,
+        );
+      }
+
+      const updatedTask: Task = {
+        ...record.task,
+        status,
+        lastUpdatedAt: nextTimestamp(),
+        ...(statusMessage ? { statusMessage } : {}),
+      };
+
+      let expiresAt = record.expiresAt;
+      let expireIn = getRemainingExpiry(record);
+      if (isTerminal(status)) {
+        const ttl = toExpiry(updatedTask.ttl);
+        expiresAt = ttl ? Date.now() + ttl : undefined;
+        expireIn = ttl;
+      }
+
+      const updatedRecord: TaskMetaRecord = {
+        ...record,
+        task: updatedTask,
+        expiresAt,
+      };
+      const versionstamp = entry.versionstamp;
+      if (!versionstamp) {
+        throw new Error(`Task with ID ${taskId} not found`);
+      }
+
+      const commitResult = await withOptionalExpiry(
+        kv.atomic().check({ key: taskMetaKey, versionstamp }),
+        taskMetaKey,
+        updatedRecord,
+        expireIn,
+      ).commit();
+      if (commitResult.ok) {
+        return;
+      }
     }
 
-    if (isTerminal(record.task.status)) {
-      throw new Error(
-        `Cannot update task ${taskId} from terminal status '${record.task.status}' to '${status}'.`,
-      );
-    }
-
-    const updatedTask: Task = {
-      ...record.task,
-      status,
-      lastUpdatedAt: nextTimestamp(),
-      ...(statusMessage ? { statusMessage } : {}),
-    };
-
-    let expiresAt = record.expiresAt;
-    let expireIn = getRemainingExpiry(record);
-    if (isTerminal(status)) {
-      const ttl = toExpiry(updatedTask.ttl);
-      expiresAt = ttl ? Date.now() + ttl : undefined;
-      expireIn = ttl;
-    }
-
-    const updatedRecord: TaskMetaRecord = {
-      ...record,
-      task: updatedTask,
-      expiresAt,
-    };
-
-    await withOptionalExpiry(
-      kv.atomic(),
-      createTaskMetaKey(taskId),
-      updatedRecord,
-      expireIn,
-    ).commit();
+    throw new Error(`Failed to update task ${taskId} due to concurrent updates`);
   }
 
   async listTasks(
