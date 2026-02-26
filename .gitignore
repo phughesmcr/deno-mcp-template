@@ -1,6 +1,3 @@
-# Deno lock files
-deno.lock
-
 # Logs
 logs
 *.log

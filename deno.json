@@ -42,33 +42,35 @@
         "setup": "deno run -A scripts/setup-template.ts",
         "start": "deno run -A main.ts",
         "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run -A --watch main.ts -l=debug",
-        "test:integration": "deno test -A test",
-        "ci": "CI=1 deno fmt && deno lint --fix && deno check main.ts && deno check src/**/*.ts && deno task test:integration",
+        "test:integration": "deno test --frozen -A test",
+        "test:coverage": "deno test --frozen -A --coverage=coverage test && deno coverage coverage --lcov --output=coverage/lcov.info",
+        "bench": "deno bench --frozen --allow-env --allow-read --allow-write --allow-net --allow-sys test",
+        "ci": "CI=1 deno fmt && deno lint --fix && deno check --frozen main.ts && deno check --frozen src/**/*.ts && deno task test:integration",
         "clean:dist": "deno run -A scripts/clean-dist.ts",
         "compile:win": {
             "description": "Create a binary for Windows",
             "dependencies": ["clean:dist"],
-            "command": "deno compile -A -o ./dist/server/server.exe main.ts --target x86_64-pc-windows-msvc --icon=./static/icon.ico"
+            "command": "deno compile -A --include ./static -o ./dist/server/server.exe main.ts --target x86_64-pc-windows-msvc --icon=./static/icon.ico"
         },
         "compile:mac:arm64": {
             "description": "Create a binary for Apple silicon macs (M1, M2, etc.)",
             "dependencies": ["clean:dist"],
-            "command": "deno compile -A -o ./dist/server/server_mac_arm64 main.ts --target aarch64-apple-darwin"
+            "command": "deno compile -A --include ./static -o ./dist/server/server_mac_arm64 main.ts --target aarch64-apple-darwin"
         },
         "compile:mac:x64": {
             "description": "Create a binary for Intel macs",
             "dependencies": ["clean:dist"],
-            "command": "deno compile -A -o ./dist/server/server_mac_x64 main.ts --target x86_64-apple-darwin"
+            "command": "deno compile -A --include ./static -o ./dist/server/server_mac_x64 main.ts --target x86_64-apple-darwin"
         },
         "compile:linux:x64": {
             "description": "Create a binary for Linux (x64)",
             "dependencies": ["clean:dist"],
-            "command": "deno compile -A -o ./dist/server/server_linux_x64 main.ts --target x86_64-unknown-linux-gnu"
+            "command": "deno compile -A --include ./static -o ./dist/server/server_linux_x64 main.ts --target x86_64-unknown-linux-gnu"
         },
         "compile:linux:arm64": {
             "description": "Create a binary for Linux (arm64)",
             "dependencies": ["clean:dist"],
-            "command": "deno compile -A -o ./dist/server/server_linux_arm64 main.ts --target aarch64-unknown-linux-gnu"
+            "command": "deno compile -A --include ./static -o ./dist/server/server_linux_arm64 main.ts --target aarch64-unknown-linux-gnu"
         },
         "compile:all": {
             "description": "Create binaries for all available platforms",
@@ -151,6 +153,10 @@
                 "no-useless-rename"
             ]
         }
+    },
+    "lock": {
+        "path": "./deno.lock",
+        "frozen": false
     },
     "unstable": [
         "kv"
