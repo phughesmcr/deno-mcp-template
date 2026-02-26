@@ -33,7 +33,7 @@ function createAppWithAllowedOrigin(origin: string) {
   };
 
   return createHonoApp({
-    mcp: {} as McpServer,
+    createMcpServer: () => ({}) as McpServer,
     config: httpConfig,
     transports: noopTransports,
   });

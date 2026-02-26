@@ -32,7 +32,7 @@ const noopTransports: HTTPTransportManager = {
 
 function createTestApp() {
   return createHonoApp({
-    mcp: {} as McpServer,
+    createMcpServer: () => ({}) as McpServer,
     config: defaultHttpConfig,
     transports: noopTransports,
   });

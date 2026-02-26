@@ -29,7 +29,7 @@ const defaultHttpConfig: AppConfig["http"] = {
 
 function createTestApp(transports: HTTPTransportManager) {
   return createHonoApp({
-    mcp: {} as McpServer,
+    createMcpServer: () => ({}) as McpServer,
     config: defaultHttpConfig,
     transports,
   });

@@ -1,4 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { fromFileUrl, join } from "@std/path";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
@@ -24,7 +26,11 @@ import {
   TIMEOUT,
 } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
-import { createGetAndDeleteHandler, createPostHandler } from "./handlers.ts";
+import {
+  createGetAndDeleteHandler,
+  createPostHandler,
+  type EnsureTransportConnected,
+} from "./handlers.ts";
 import type { HTTPTransportManager } from "./transport.ts";
 
 export interface HonoBindings {
@@ -43,9 +49,19 @@ interface RateLimitContextLike {
 }
 
 export interface HonoAppSpec {
-  mcp: McpServer;
+  createMcpServer: () => McpServer;
   config: AppConfig["http"];
   transports: HTTPTransportManager;
+}
+
+const STATIC_ROOT = fromFileUrl(new URL("../../../static/", import.meta.url));
+
+function getNotFoundPageHtml(): string {
+  try {
+    return Deno.readTextFileSync(join(STATIC_ROOT, "404.html"));
+  } catch {
+    return "<h1>404 Not Found</h1>";
+  }
 }
 
 function getRateLimitKey(c: RateLimitContextLike): string {
@@ -127,26 +143,70 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
   return app;
 }
 
-function createRoutes(app: Hono<HonoEnv>, mcp: McpServer, transports: HTTPTransportManager) {
+function createEnsureTransportConnected(
+  createMcpServer: () => McpServer,
+): EnsureTransportConnected {
+  const mcpByTransport = new WeakMap<WebStandardStreamableHTTPServerTransport, McpServer>();
+  const connectionByTransport = new WeakMap<
+    WebStandardStreamableHTTPServerTransport,
+    Promise<void>
+  >();
+
+  return async (transport: WebStandardStreamableHTTPServerTransport): Promise<void> => {
+    const existingConnection = connectionByTransport.get(transport);
+    if (existingConnection) {
+      await existingConnection;
+      return;
+    }
+
+    let mcp = mcpByTransport.get(transport);
+    if (!mcp) {
+      mcp = createMcpServer();
+      mcpByTransport.set(transport, mcp);
+    }
+
+    const connection = mcp.connect(transport);
+    connectionByTransport.set(transport, connection);
+
+    try {
+      await connection;
+    } catch (error) {
+      connectionByTransport.delete(transport);
+      mcpByTransport.delete(transport);
+      throw error;
+    }
+  };
+}
+
+function createRoutes(
+  app: Hono<HonoEnv>,
+  createMcpServer: () => McpServer,
+  transports: HTTPTransportManager,
+) {
+  const ensureTransportConnected = createEnsureTransportConnected(createMcpServer);
+
   // MCP POST route
-  const postHandler = createPostHandler(mcp, transports);
+  const postHandler = createPostHandler(transports, ensureTransportConnected);
   app.post("/mcp", postHandler);
 
   // MCP GET and DELETE routes
-  const getAndDeleteHandler = createGetAndDeleteHandler(mcp, transports);
+  const getAndDeleteHandler = createGetAndDeleteHandler(
+    transports,
+    ensureTransportConnected,
+  );
   app.on(["GET", "DELETE"], "/mcp", getAndDeleteHandler);
 
   // Static Routes
-  app.use("/static/*", serveStatic({ root: "./static" }));
-  app.use("/.well-known/*", serveStatic({ root: "./static" }));
-  app.use("/favicon.ico", serveStatic({ path: "./static/favicon.ico" }));
+  app.use("/static/*", serveStatic({ root: STATIC_ROOT }));
+  app.use("/.well-known/*", serveStatic({ root: STATIC_ROOT }));
+  app.use("/favicon.ico", serveStatic({ path: join(STATIC_ROOT, "favicon.ico") }));
   app.get("/llms.txt", (c) => c.redirect("/.well-known/llms.txt"));
   app.get("/openapi.yaml", (c) => c.redirect("/.well-known/openapi.yaml"));
   // ... add more static routes here
   app.get("/", (c) => c.text(`${APP_NAME} running. See \`/llms.txt\` for machine-readable docs.`));
 
   // 404 Route
-  app.notFound((c) => c.html(Deno.readTextFileSync("./static/404.html"), 404));
+  app.notFound((c) => c.html(getNotFoundPageHtml(), 404));
 }
 
 /**
@@ -154,10 +214,10 @@ function createRoutes(app: Hono<HonoEnv>, mcp: McpServer, transports: HTTPTransp
  * @param spec - The Hono application specification
  * @returns The configured Hono application
  */
-export function createHonoApp({ mcp, config, transports }: HonoAppSpec): Hono<HonoEnv> {
+export function createHonoApp({ createMcpServer, config, transports }: HonoAppSpec): Hono<HonoEnv> {
   const app = new Hono<HonoEnv>();
   configureMiddleware(app, config);
-  createRoutes(app, mcp, transports);
+  createRoutes(app, createMcpServer, transports);
   app.onError((err, c) => {
     console.error("Unhandled HTTP route error", err);
     const path = c.req.path;

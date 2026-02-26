@@ -18,14 +18,17 @@ function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undef
 
 /**
  * Creates a HTTP server using Hono and Deno.serve
- * @param mcp - The MCP server instance
+ * @param createMcpServer - Factory that creates MCP server instances
  * @param config - The HTTP server configuration
  * @returns The HTTP transport instance
  */
-export function createHttpServer(mcp: McpServer, config: HttpServerConfig): Transport {
+export function createHttpServer(
+  createMcpServer: () => McpServer,
+  config: HttpServerConfig,
+): Transport {
   const { enabled, hostname, port } = config;
   const transports = createHTTPTransportManager(config);
-  const hono = createHonoApp({ mcp, config, transports });
+  const hono = createHonoApp({ createMcpServer, config, transports });
   let server: Deno.HttpServer | null = null;
 
   const connect = () => {

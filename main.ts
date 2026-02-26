@@ -60,7 +60,6 @@ import "@std/dotenv/load";
 
 if (import.meta.main) {
   const config = await handleCliArgs();
-  const mcp = createMcpServer();
-  const app = createApp(mcp, config);
+  const app = createApp(createMcpServer, config);
   await app.start();
 }
