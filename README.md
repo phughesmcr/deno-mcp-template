@@ -6,7 +6,7 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/publish.yml?label=publish)
 
 ![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
-![Version](https://img.shields.io/badge/version-0.5.3-blue)
+![Version](https://img.shields.io/github/package-json/v/phughesmcr/deno-mcp-template?filename=deno.json)
 ![Repo Size](https://img.shields.io/github/languages/code-size/phughesmcr/deno-mcp-template)
 ![License](https://img.shields.io/github/license/phughesmcr/deno-mcp-template)
 
@@ -24,7 +24,7 @@ Using Deno allows you to publish your MCP server using [JSR.io](https://jsr.io),
 
 ### MCP Server
 
-The MCP server is in `src/mcp/`. It currently implements prompts, resources (including dynamic resources), and tools (including sampling). These are mostly the official examples from the [MCP Documentation](https://modelcontextprotocol.io/), giving a good starting point for your own features.
+The MCP server is in `src/mcp/`. It currently implements prompts, resources (including dynamic resources), tools (including sampling and elicitation), and task-based workflows. These are mostly the official examples from the [MCP Documentation](https://modelcontextprotocol.io/), giving a good starting point for your own features.
 
 ### App
 
@@ -66,7 +66,7 @@ deno task start
 deno task dev
 ```
 
-Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/constants/**.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/http/hono.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
+Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/shared/constants/**.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/http/hono.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
 
 ## Using your MCP server
 
@@ -193,24 +193,43 @@ src/
 │   │   ├── kvEventStore.ts         # Simple Deno KV event store for for session resumability
 │   │   ├── mod.ts                  # The main entrypoint for the HTTP server
 │   │   └── transport.ts            # Manages the StreamableHTTPServerTransports
-│   ├── app.ts                  # The main application class
-│   ├── cli.ts                  # Parses CLI args and env vars into an AppConfig object
-│   ├── signals.ts              # Signal handling for SIGINT, SIGTERM, etc.
-│   └── stdio.ts                # The STDIO transport & state manager
+│   ├── kv/
+│   │   ├── mod.ts                  # Exports Deno KV store and watcher helpers
+│   │   ├── store.ts                # Deno KV open/close lifecycle and config
+│   │   └── watch.ts                # Subscription watcher for resource updates
+│   ├── app.ts                      # The main application class
+│   ├── cli.ts                      # Parses CLI args and env vars into an AppConfig object
+│   ├── cron.ts                     # Scheduled jobs (e.g., stale task cleanup)
+│   ├── permissions.ts              # Runtime permission preflight checks
+│   ├── signals.ts                  # Signal handling for SIGINT, SIGTERM, etc.
+│   └── stdio.ts                    # The STDIO transport & state manager
 ├── mcp/ 
 │   ├── prompts/                             
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
-│   │   └── mod.ts                          # Provides a single point of export for all the MCP prompts
+│   │   ├── languagePrompt.ts               # A prompt example with arguments
+│   │   └── mod.ts                          # Provides a single point of export for all MCP prompts
 │   ├── resources/                             
 │   │   ├── counter.ts                      # A simple stateful resource example
+│   │   ├── counterStore.ts                 # Persistence for counter resource state
 │   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
 │   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
-│   │   └── mod.ts                          # Provides a single point of export for all the MCP resources
+│   │   ├── kvKeys.ts                       # Shared keys used for KV-backed resources
+│   │   └── mod.ts                          # Provides a single point of export for all MCP resources
+│   ├── tasks/
+│   │   ├── kvTaskStore.ts                  # Durable task state storage in Deno KV
+│   │   ├── queue.ts                        # Delayed task queue worker
+│   │   └── mod.ts                          # Exports task queue and task store
 │   ├── tools/                             
-│   │   ├── domain.ts                       # A tool that fetches web domain information from the domainsdb API
-│   │   ├── mod.ts                          # Provides a single point of export for all the MCP tools
-│   │   └── poem.ts                         # A tool that showcases sampling
-│   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
+│   │   ├── collectUserInfo.ts              # Elicitation tool example
+│   │   ├── delayedEchoTask.ts              # Task-based async tool example
+│   │   ├── domain.ts                       # Tool fetching domain info from external API
+│   │   ├── guidedPoemTask.ts               # Task + sampling workflow example
+│   │   ├── incrementCounter.ts             # Tool that updates resource-backed counter
+│   │   ├── logMessage.ts                   # Logging notification example
+│   │   ├── notifyListChanged.ts            # List-changed notification example
+│   │   ├── poem.ts                         # Sampling tool example
+│   │   └── mod.ts                          # Provides a single point of export for all MCP tools
+│   └── mod.ts                              # Creates and configures the MCP server
 ├── shared/
 │   ├── constants/  
 │   │   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
@@ -238,16 +257,18 @@ static/
 
 | Environment Variable | Flag           | Default     | Description |
 | -------------------- | -------------- | ----------- | ----------- |
-| MCP_NO_HTTP          | --no-http      | `false`     | Disable the HTTP server |
-| MCP_NO_STDIO         | --no-stdio     | `false`     | Disable the STDIO server |
-| MCP_HOSTNAME         | -n             | "localhost" | The hostname to listen on for the HTTP server |
-| MCP_PORT             | -p             | "3001"      | The port to listen on for the HTTP server |
-| MCP_HEADERS          | -H             |             | The headers to set for the HTTP server (CLI flag is a collection) |
-| MCP_JSON_RESPONSE    | --json-response| `false`     | Enable JSON-only responses (disable SSE streaming) |
-| MCP_DNS_REBINDING    | --dnsRebinding | `false`     | Enable DNS rebinding protection |
-| MCP_ALLOWED_ORIGINS  | --origin       |             | The allowed origins for the HTTP server (CLI flag is a collection) |
-| MCP_ALLOWED_HOSTS    | --host         |             | The allowed hosts for the HTTP server (CLI flag is a collection) |
-| MCP_KV_PATH          | --kv-path      |             | Optional path to a Deno KV database file |
+| MCP_NO_HTTP          | --no-http       | `false`     | Disable the HTTP server |
+| MCP_NO_STDIO         | --no-stdio      | `false`     | Disable the STDIO server |
+| MCP_HOSTNAME         | -n              | "localhost" | The hostname to listen on for the HTTP server |
+| MCP_PORT             | -p              | "3001"      | The port to listen on for the HTTP server |
+| MCP_TLS_CERT         | --tls-cert      |             | Path to TLS certificate file (PEM). Requires `--tls-key` |
+| MCP_TLS_KEY          | --tls-key       |             | Path to TLS private key file (PEM). Requires `--tls-cert` |
+| MCP_HEADERS          | -H              |             | The headers to set for the HTTP server (CLI flag is a collection) |
+| MCP_JSON_RESPONSE    | --json-response | `false`     | Enable JSON-only responses (disable SSE streaming) |
+| MCP_DNS_REBINDING    | --dnsRebinding  | `false`     | Enable DNS rebinding protection |
+| MCP_ALLOWED_ORIGINS  | --origin        |             | The allowed origins for the HTTP server (CLI flag is a collection) |
+| MCP_ALLOWED_HOSTS    | --host          |             | The allowed hosts for the HTTP server (CLI flag is a collection) |
+| MCP_KV_PATH          | --kv-path       |             | Optional path to a Deno KV database file |
 
 ⚠️ CLI flags take precedence over environment variables, except in collections (e.g. `-H`, `--origin` and `--host`), where the two are merged.
 
