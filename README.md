@@ -13,7 +13,7 @@
 ![Sponsor](https://img.shields.io/github/sponsors/phughesmcr)
 
 <div align="center">
-    <img src="static/banner_480.png" alt="Repo Logo - a long-necked orange dinosaur walks in-front of a cliff-face with the letters M C P carved into it" width="320" />
+    <img src="static/banner_480.png" alt="Repo Logo - a happy dinosaur with a happy robot on its back walks in-front of a cliff-face with the letters M C P carved into it" width="320" />
 </div>
 
 **The batteries-included starting point for building production MCP servers in TypeScript.**
