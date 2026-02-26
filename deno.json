@@ -42,7 +42,7 @@
     "tasks": {
         "setup": "deno run -A scripts/setup-template.ts",
         "start": "deno run --env-file=.env -A main.ts",
-        "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts -l=debug",
+        "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts -l=debug",
         "test:integration": "deno test --frozen -P",
         "test:coverage": "deno test --frozen -P --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
         "bench": "deno bench --frozen -P",
