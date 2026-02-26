@@ -229,34 +229,21 @@ export class KvTaskStore implements TaskStore {
   ): Promise<{ tasks: Task[]; nextCursor?: string }> {
     const kv = await getKvStore();
     const tasks: Task[] = [];
+    const iterator = kv.list<TaskMetaRecord>(
+      { prefix: TASK_META_PREFIX },
+      { limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) },
+    );
 
-    for await (const entry of kv.list<TaskMetaRecord>({ prefix: TASK_META_PREFIX })) {
+    for await (const entry of iterator) {
       const task = entry.value?.task;
       if (task) {
         tasks.push(cloneTask(task));
       }
     }
-
-    tasks.sort((a, b) => {
-      const byCreatedAt = a.createdAt.localeCompare(b.createdAt);
-      if (byCreatedAt !== 0) return byCreatedAt;
-      return a.taskId.localeCompare(b.taskId);
-    });
-
-    let startIndex = 0;
-    if (cursor) {
-      const cursorIndex = tasks.findIndex((task) => task.taskId === cursor);
-      if (cursorIndex === -1) {
-        throw new Error(`Invalid cursor: ${cursor}`);
-      }
-      startIndex = cursorIndex + 1;
-    }
-
-    const page = tasks.slice(startIndex, startIndex + PAGE_SIZE);
-    const nextCursor = startIndex + PAGE_SIZE < tasks.length ? page.at(-1)?.taskId : undefined;
+    const nextCursor = tasks.length === PAGE_SIZE ? iterator.cursor : undefined;
 
     return {
-      tasks: page,
+      tasks,
       nextCursor,
     };
   }
