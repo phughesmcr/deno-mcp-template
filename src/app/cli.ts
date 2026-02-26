@@ -81,6 +81,18 @@ function createCommand() {
       }
     })
     .env("MCP_HOSTNAME=<value:string>", "Set the hostname.", { prefix })
+    // TLS certificate
+    .option("--tls-cert <path:string>", "Path to TLS certificate file (PEM).", {
+      conflicts: ["no-http"],
+      depends: ["tls-key"],
+    })
+    .env("MCP_TLS_CERT=<value:string>", "Path to TLS certificate file (PEM).", { prefix })
+    // TLS private key
+    .option("--tls-key <path:string>", "Path to TLS private key file (PEM).", {
+      conflicts: ["no-http"],
+      depends: ["tls-cert"],
+    })
+    .env("MCP_TLS_KEY=<value:string>", "Path to TLS private key file (PEM).", { prefix })
     // KV path
     .option("--kv-path <path:string>", "Path to the Deno KV database file.")
     .env("MCP_KV_PATH=<value:string>", "Path to the Deno KV database file.", { prefix })

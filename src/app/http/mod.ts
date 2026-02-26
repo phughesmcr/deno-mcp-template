@@ -26,20 +26,32 @@ export function createHttpServer(
   createMcpServer: () => McpServer,
   config: HttpServerConfig,
 ): Transport {
-  const { enabled, hostname, port } = config;
+  const { enabled, hostname, port, tlsCert, tlsKey } = config;
   const transports = createHTTPTransportManager(config);
   const hono = createHonoApp({ createMcpServer, config, transports });
   let server: Deno.HttpServer | null = null;
 
   const connect = () => {
     if (!enabled || server !== null) return;
-    server = Deno.serve({
-      hostname,
-      port,
-      onListen: () => {
-        console.error(`${APP_NAME} listening on ${hostname}:${port}`);
-      },
-    }, (request, info) => {
+    const isTlsEnabled = !!tlsCert && !!tlsKey;
+    const serveOptions = isTlsEnabled ?
+      {
+        hostname,
+        port,
+        cert: Deno.readTextFileSync(tlsCert),
+        key: Deno.readTextFileSync(tlsKey),
+        onListen: () => {
+          console.error(`${APP_NAME} listening on https://${hostname}:${port}`);
+        },
+      } :
+      {
+        hostname,
+        port,
+        onListen: () => {
+          console.error(`${APP_NAME} listening on http://${hostname}:${port}`);
+        },
+      };
+    server = Deno.serve(serveOptions, (request, info) => {
       const clientIp = resolveClientIp(info);
       return hono.fetch(request, { clientIp });
     });
