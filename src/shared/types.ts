@@ -122,8 +122,15 @@ export type StdioConfig = {
   enabled: boolean;
 };
 
+/** The configuration for Deno KV */
+export type KvConfig = {
+  /** Optional file path for Deno KV storage */
+  path?: string;
+};
+
 /** Public app config */
 export interface AppConfig {
   http: HttpServerConfig;
   stdio: StdioConfig;
+  kv: KvConfig;
 }

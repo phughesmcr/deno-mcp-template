@@ -18,6 +18,7 @@ export type CliOptions = Prettify<
   & {
     http: boolean;
     stdio: boolean;
+    kvPath?: string;
     headers: string[];
     allowedOrigins: string[];
     allowedHosts: string[];
@@ -80,6 +81,9 @@ function createCommand() {
       }
     })
     .env("MCP_HOSTNAME=<value:string>", "Set the hostname.", { prefix })
+    // KV path
+    .option("--kv-path <path:string>", "Path to the Deno KV database file.")
+    .env("MCP_KV_PATH=<value:string>", "Path to the Deno KV database file.", { prefix })
     // Headers
     .option("-H, --header <header:string>", "Set a custom header.", {
       collect: true,

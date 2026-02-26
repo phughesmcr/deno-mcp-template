@@ -1,5 +1,5 @@
 import type { CliOptions } from "$/app/cli.ts";
-import type { AppConfig, HttpServerConfig, StdioConfig } from "$/shared/types.ts";
+import type { AppConfig, HttpServerConfig, KvConfig, StdioConfig } from "$/shared/types.ts";
 import {
   validateHeaders,
   validateHostname,
@@ -88,6 +88,27 @@ export function validateStdioConfig(config: CliOptions): ValidationResult<StdioC
 }
 
 /**
+ * Validates Deno KV configuration from CLI options
+ * @param config - The CLI options to validate
+ * @returns The validation result with KV config or error
+ */
+export function validateKvConfig(config: CliOptions): ValidationResult<KvConfig> {
+  const kvPath = config.kvPath?.trim();
+  if (config.kvPath !== undefined && !kvPath) {
+    return {
+      success: false,
+      error: new Error("Invalid KV path: value cannot be empty."),
+    };
+  }
+  return {
+    success: true,
+    value: {
+      path: kvPath,
+    },
+  };
+}
+
+/**
  * Validates the complete application configuration from CLI options
  * @param config - The CLI options to validate
  * @returns The validation result with app config or error
@@ -100,6 +121,9 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
     const validatedStdio = validateStdioConfig(config);
     if (!validatedStdio.success) throw validatedStdio.error;
 
+    const validatedKv = validateKvConfig(config);
+    if (!validatedKv.success) throw validatedKv.error;
+
     if (!config.stdio && !config.http) {
       throw new Error(
         "Both the HTTP and STDIO servers are disabled. Please enable at least one server.",
@@ -109,9 +133,9 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
     return {
       success: true,
       value: {
-        ...config,
-        http: { ...validatedHttp.value },
-        stdio: { ...validatedStdio.value },
+        http: validatedHttp.value,
+        stdio: validatedStdio.value,
+        kv: validatedKv.value,
       },
     };
   } catch (error) {
