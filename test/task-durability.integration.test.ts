@@ -3,7 +3,11 @@ import { delay } from "@std/async/delay";
 
 import { closeKvStore, configureKvPath, openKvStore } from "$/app/kv/mod.ts";
 import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
-import { enqueueDelayedEchoTask, startTaskQueueWorker, stopTaskQueueWorker } from "$/mcp/tasks/queue.ts";
+import {
+  enqueueDelayedEchoTask,
+  startTaskQueueWorker,
+  stopTaskQueueWorker,
+} from "$/mcp/tasks/queue.ts";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {

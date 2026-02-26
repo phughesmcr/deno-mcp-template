@@ -115,7 +115,10 @@ Deno.test("subscription tracker drops failing notifiers without affecting others
 
   await watcher.trigger(COUNTER_URI);
   assertEquals(healthyUpdates, 1);
-  assert(tracker.isSubscribed(COUNTER_URI), "Expected healthy subscription to remain after notifier failure");
+  assert(
+    tracker.isSubscribed(COUNTER_URI),
+    "Expected healthy subscription to remain after notifier failure",
+  );
 
   await tracker.unsubscribe(healthyNotifier, COUNTER_URI);
   assertEquals(watcher.unwatchCalls.length, 1);

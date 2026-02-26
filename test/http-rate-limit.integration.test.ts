@@ -52,23 +52,23 @@ Deno.test({
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
-  const app = createTestApp();
-  const clientIp = "10.10.10.10";
+    const app = createTestApp();
+    const clientIp = "10.10.10.10";
 
-  for (let i = 0; i < 100; i++) {
-    const response = await performRequest(app, clientIp, {
-      "x-forwarded-for": `203.0.113.${i}`,
-      "x-real-ip": `198.51.100.${i}`,
+    for (let i = 0; i < 100; i++) {
+      const response = await performRequest(app, clientIp, {
+        "x-forwarded-for": `203.0.113.${i}`,
+        "x-real-ip": `198.51.100.${i}`,
+      });
+      assertEquals(response.status, 200);
+    }
+
+    const blocked = await performRequest(app, clientIp, {
+      "x-forwarded-for": "192.0.2.250",
+      "x-real-ip": "192.0.2.251",
     });
-    assertEquals(response.status, 200);
-  }
 
-  const blocked = await performRequest(app, clientIp, {
-    "x-forwarded-for": "192.0.2.250",
-    "x-real-ip": "192.0.2.251",
-  });
-
-  assertEquals(blocked.status, 429);
+    assertEquals(blocked.status, 429);
   },
 });
 
@@ -77,14 +77,14 @@ Deno.test({
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
-  const app = createTestApp();
+    const app = createTestApp();
 
-  for (let i = 0; i < 100; i++) {
-    const response = await performRequest(app, "10.0.0.1");
-    assertEquals(response.status, 200);
-  }
+    for (let i = 0; i < 100; i++) {
+      const response = await performRequest(app, "10.0.0.1");
+      assertEquals(response.status, 200);
+    }
 
-  const otherClient = await performRequest(app, "10.0.0.2");
-  assertEquals(otherClient.status, 200);
+    const otherClient = await performRequest(app, "10.0.0.2");
+    assertEquals(otherClient.status, 200);
   },
 });

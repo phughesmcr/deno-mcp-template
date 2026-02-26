@@ -4,10 +4,10 @@
  * @description Setup script to customize the template for new projects
  * @author      P. Hughes <github@phugh.es>
  * @license     MIT
- * 
+ *
  * This script helps users quickly customize the template by replacing
  * placeholder values with their own project information.
- * 
+ *
  * @module
  */
 
@@ -29,8 +29,14 @@ const REPLACEMENTS = [
   { find: "phughesmcr", replace: (info: ProjectInfo) => info.githubUsername },
   { find: "deno-mcp-template", replace: (info: ProjectInfo) => info.projectName },
   { find: "Deno MCP Template", replace: (info: ProjectInfo) => info.projectDisplayName },
-  { find: "A demo package for MCP servers in Deno", replace: (info: ProjectInfo) => info.projectDescription },
-  { find: "@phughesmcr/deno-mcp-template", replace: (info: ProjectInfo) => `@${info.jsrScope || info.githubUsername}/${info.projectName}` },
+  {
+    find: "A demo package for MCP servers in Deno",
+    replace: (info: ProjectInfo) => info.projectDescription,
+  },
+  {
+    find: "@phughesmcr/deno-mcp-template",
+    replace: (info: ProjectInfo) => `@${info.jsrScope || info.githubUsername}/${info.projectName}`,
+  },
   { find: "https://www.phugh.es", replace: (info: ProjectInfo) => info.url || "" },
 ];
 
@@ -59,7 +65,7 @@ function promptUser(question: string, defaultValue?: string): string {
 
 function collectProjectInfo(): ProjectInfo {
   console.log("🚀 Setting up your MCP server template...\n");
-  
+
   const authorName = promptUser("Your full name", "Your Name");
   const authorEmail = promptUser("Your email address", "you@example.com");
   const githubUsername = promptUser("Your GitHub username");
@@ -68,7 +74,7 @@ function collectProjectInfo(): ProjectInfo {
   const projectDescription = promptUser("Project description", "My custom MCP server");
   const jsrScope = promptUser("JSR scope (optional, will use GitHub username if empty)");
   const url = promptUser("Project URL (optional)", "");
-  
+
   return {
     authorName,
     authorEmail,
@@ -85,7 +91,7 @@ async function updateFile(filePath: string, info: ProjectInfo): Promise<void> {
   try {
     let content = await Deno.readTextFile(filePath);
     let updated = false;
-    
+
     for (const { find, replace } of REPLACEMENTS) {
       const newValue = replace(info);
       if (content.includes(find)) {
@@ -93,7 +99,7 @@ async function updateFile(filePath: string, info: ProjectInfo): Promise<void> {
         updated = true;
       }
     }
-    
+
     if (updated) {
       await Deno.writeTextFile(filePath, content);
       console.log(`✅ Updated ${filePath}`);
@@ -119,7 +125,7 @@ async function updateAllFiles(info: ProjectInfo): Promise<void> {
 async function main(): Promise<void> {
   try {
     const info = collectProjectInfo();
-    
+
     console.log("\n📋 Project Information:");
     console.log(`   Name: ${info.projectName}`);
     console.log(`   Author: ${info.authorName} <${info.authorEmail}>`);
@@ -133,9 +139,9 @@ async function main(): Promise<void> {
       console.log("Setup cancelled.");
       return;
     }
-    
+
     await updateAllFiles(info);
-    
+
     console.log("\n🎉 Template setup complete!");
     console.log("\nNext steps:");
     console.log("1. Review the updated files and the rest of the repo.");
@@ -154,9 +160,9 @@ async function main(): Promise<void> {
 async function cleanup(): Promise<void> {
   // remove setup task from deno.json
   const denoJson = await Deno.readTextFile("deno.json");
-  const denoJsonUpdated = denoJson.replace("\"setup\": \"deno run -A scripts/setup-template.ts\",", "");
+  const denoJsonUpdated = denoJson.replace('"setup": "deno run -A scripts/setup-template.ts",', "");
   await Deno.writeTextFile("deno.json", denoJsonUpdated);
-  
+
   // delete this script and scripts folder
   await Deno.remove("scripts/setup-template.ts");
 }
@@ -164,4 +170,4 @@ async function cleanup(): Promise<void> {
 if (import.meta.main) {
   await main();
   await cleanup();
-} 
+}

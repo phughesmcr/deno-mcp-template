@@ -39,7 +39,8 @@ class FakeTransport {
 }
 
 Deno.test({
-  name: "HTTP route handler does not reuse a single MCP protocol instance across independent sessions",
+  name:
+    "HTTP route handler does not reuse a single MCP protocol instance across independent sessions",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
@@ -114,6 +115,9 @@ Deno.test({
       }),
       { clientIp: "127.0.0.2" },
     );
-    assert(secondResponse.status === 200, `expected second session to initialize, got ${secondResponse.status}`);
+    assert(
+      secondResponse.status === 200,
+      `expected second session to initialize, got ${secondResponse.status}`,
+    );
   },
 });

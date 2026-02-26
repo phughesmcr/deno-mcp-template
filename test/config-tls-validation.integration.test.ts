@@ -52,8 +52,14 @@ Deno.test("validateHttpConfig accepts valid TLS cert and key paths", async () =>
   const certPath = await Deno.makeTempFile({ suffix: ".pem" });
   const keyPath = await Deno.makeTempFile({ suffix: ".pem" });
   try {
-    await Deno.writeTextFile(certPath, "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----");
-    await Deno.writeTextFile(keyPath, "-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----");
+    await Deno.writeTextFile(
+      certPath,
+      "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----",
+    );
+    await Deno.writeTextFile(
+      keyPath,
+      "-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----",
+    );
     const options = createBaseCliOptions();
     const result = validateHttpConfig({
       ...options,
