@@ -1,9 +1,9 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@cliffy/command@^1.0.0-rc.8": "1.0.0",
+    "jsr:@cliffy/command@1": "1.0.0",
+    "jsr:@cliffy/flags@1": "1.0.0",
     "jsr:@cliffy/flags@1.0.0": "1.0.0",
-    "jsr:@cliffy/flags@^1.0.0-rc.8": "1.0.0",
     "jsr:@cliffy/internal@1.0.0": "1.0.0",
     "jsr:@cliffy/table@1.0.0": "1.0.0",
     "jsr:@hono/hono@^4.11.7": "4.12.2",
@@ -610,8 +610,8 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@cliffy/command@^1.0.0-rc.8",
-      "jsr:@cliffy/flags@^1.0.0-rc.8",
+      "jsr:@cliffy/command@1",
+      "jsr:@cliffy/flags@1",
       "jsr:@hono/hono@^4.11.7",
       "jsr:@std/cli@^1.0.26",
       "jsr:@std/dotenv@~0.225.6",
