@@ -1,10 +1,16 @@
 import { getKvStore } from "$/app/kv/mod.ts";
 
-const COUNTER_KEY: Deno.KvKey = ["resource", "counter", "value"];
+export const COUNTER_KEY: Deno.KvKey = ["resource", "counter", "value"];
 
 function ensureNumber(value: unknown): number {
   if (value === null || value === undefined) return 0;
-  if (typeof value === "number") return value;
+  if (value instanceof Deno.KvU64) {
+    const asNumber = Number(value.value);
+    if (!Number.isSafeInteger(asNumber)) {
+      throw new Error("Counter value in KV exceeds Number.MAX_SAFE_INTEGER");
+    }
+    return asNumber;
+  }
   throw new Error("Counter value in KV is not a number");
 }
 
@@ -15,23 +21,15 @@ export async function getPersistedCounterValue(): Promise<number> {
 }
 
 export async function incrementPersistedCounterValue(delta: number): Promise<number> {
-  const kv = await getKvStore();
-
-  for (let attempt = 0; attempt < 100; attempt++) {
-    const currentEntry = await kv.get<unknown>(COUNTER_KEY);
-    const current = ensureNumber(currentEntry.value);
-    const next = current + delta;
-
-    const result = await kv.atomic()
-      .check({ key: COUNTER_KEY, versionstamp: currentEntry.versionstamp })
-      .set(COUNTER_KEY, next)
-      .commit();
-
-    if (result.ok) return next;
-
-    // High-contention retries: yield briefly before trying again.
-    await new Promise((resolve) => setTimeout(resolve, Math.min(5, attempt + 1)));
+  if (!Number.isSafeInteger(delta) || delta < 0) {
+    throw new Error("Counter delta must be a non-negative safe integer");
   }
 
-  throw new Error("Failed to increment counter after repeated retries");
+  const kv = await getKvStore();
+  const result = await kv.atomic().sum(COUNTER_KEY, BigInt(delta)).commit();
+  if (!result.ok) {
+    throw new Error("Failed to increment counter atomically");
+  }
+  const entry = await kv.get<unknown>(COUNTER_KEY);
+  return ensureNumber(entry.value);
 }
