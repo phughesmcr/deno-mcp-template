@@ -76,11 +76,12 @@ const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult>
       stderr: "piped",
     });
 
-    const timeoutId = setTimeout(() => child.kill(), timeoutMs);
+    const killTimerId = setTimeout(() => child.kill(), timeoutMs);
     let timedOut = false;
+    let rejectTimerId: ReturnType<typeof setTimeout>;
 
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
+      rejectTimerId = setTimeout(() => {
         timedOut = true;
         reject(new Error(`Execution timed out after ${timeoutMs}ms`));
       }, timeoutMs + 500);
@@ -88,7 +89,8 @@ const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult>
 
     try {
       const output = await Promise.race([child.output(), timeoutPromise]);
-      clearTimeout(timeoutId);
+      clearTimeout(killTimerId);
+      clearTimeout(rejectTimerId!);
 
       const executionTimeMs = Math.round(performance.now() - start);
       const stdout = output.stdoutText?.trim() ?? "";
@@ -111,7 +113,8 @@ const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult>
         executionTimeMs,
       });
     } catch (raceError) {
-      clearTimeout(timeoutId);
+      clearTimeout(killTimerId);
+      clearTimeout(rejectTimerId!);
       if (timedOut) {
         return createCallToolErrorResponse({
           error: `Execution timed out after ${timeoutMs}ms`,

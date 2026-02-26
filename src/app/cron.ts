@@ -1,9 +1,7 @@
 import type { Task } from "@modelcontextprotocol/sdk/types.js";
 
 import { getKvStore } from "$/app/kv/mod.ts";
-import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
-
-const TASK_META_PREFIX = ["task", "meta"] as const;
+import { KvTaskStore, TASK_META_PREFIX } from "$/mcp/tasks/kvTaskStore.ts";
 const STALE_TASK_THRESHOLD_MS = 15 * 60 * 1000;
 const STALE_TASK_STATUS_MESSAGE = "Timed out by maintenance cron after inactivity";
 
