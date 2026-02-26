@@ -34,9 +34,9 @@ The "app" component, found in `src/app/`, wraps the MCP server in some convenien
 
 The app uses `Deno.serve` to start an HTTP server built with [Hono](https://hono.dev/). The server features comprehensive middleware including rate limiting, CORS protection, security headers, request timeouts, and session management.
 
-ℹ️ For DNS rebinding protection, you can set the `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` variables (see [Config](#config))
+ℹ️ DNS rebinding protection is disabled by default. Enable it with `MCP_DNS_REBINDING=true` (or `--dnsRebinding`) and configure `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` (see [Config](#config)).
 
-⚠️ If no allowed hosts or origins are set, the server will allow all origins and hosts.
+⚠️ CORS allowed origins default to an empty list. Browser clients will need `MCP_ALLOWED_ORIGINS` (or `--origin`) configured to receive cross-origin responses.
 
 ℹ️ You can disable the HTTP server by setting `MCP_NO_HTTP=true` in your `.env` file, or by passing `--no-http` to the server.
 
@@ -214,6 +214,7 @@ src/
 │   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
 │   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
 │   │   ├── kvKeys.ts                       # Shared keys used for KV-backed resources
+│   │   ├── subscriptionTracker.ts          # Tracks active resource subscriptions
 │   │   └── mod.ts                          # Provides a single point of export for all MCP resources
 │   ├── tasks/
 │   │   ├── kvTaskStore.ts                  # Durable task state storage in Deno KV
@@ -251,6 +252,7 @@ static/
 ├── .well-known/    
 │   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
 │   └── openapi.yaml            # An example OpenAPI specification for the server 
+├── 404.html                    # Default static 404 page
 └── dxt-manifest.json           # The manifest for the DXT package
 ```
 
@@ -290,7 +292,7 @@ This template now tracks `deno.lock` for deterministic dependency resolution.
 - Verify locked resolution (CI style): `deno install --frozen --entrypoint main.ts`
 - Commit `deno.lock` with dependency changes.
 
-⚠️ You must grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information. (The setup task will do this for you.)
+⚠️ You should grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information. `deno task setup` updates core template files, but run a final repo-wide pass (including docs/workflows) before publishing.
 
 ⚠️ If using `--dnsRebinding`, you may need to add entries to `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` in `src/shared/constants/http.ts`, or pass `--origin` and `--host` to the server.
 
@@ -358,6 +360,18 @@ This template uses Deno KV for HTTP event resumability, durable task state/resul
 
 This template includes an `execute-code` tool that runs user-submitted TypeScript or JavaScript inside a [Deno Sandbox](https://docs.deno.com/sandbox/) -- an isolated Linux microVM powered by Firecracker (the same technology behind AWS Lambda). Each invocation spins up a fresh VM, executes the code with no permissions, and tears it down automatically.
 
+
+#### Maintenance Cron
+
+Deno Cron is Deno's built-in scheduler API (`Deno.cron`) for running code on a cron schedule
+(for example, every 15 minutes) without extra dependencies.
+
+This template starts maintenance crons during app startup (`src/app/app.ts`). The scheduled job in
+`src/app/cron.ts` runs `cleanup-stale-tasks` every 15 minutes (`*/15 * * * *`) and marks stale
+`"working"` tasks as `"failed"` after inactivity.
+
+`deno.json` enables this with `"unstable": ["kv", "cron"]`.
+
 **Setup:**
 
 1. Create an access token in the [Deno Deploy dashboard](https://console.deno.com/) under Settings > Organization Tokens.
@@ -381,8 +395,8 @@ The repo includes the following quality-of-life files which aren't necessary for
 - `.github/` adds Github sponsors info to your repo, and other Github features such as workflows.
 - `.vscode/` has some recommended extensions and makes Deno the default formatter.
 - `.cursorignore` tells Cursor to exclude files in addition to `.gitignore`.
-- `CLAUDE.md` is a starter file for Claude Code. Run `claude init` after your first changes to keep it up-to-date.
-- `*.md`. These markdown files, e.g. "CODE_OF_CONDUCT.md", add various tabs and tags to you Github repo and help with community management.
+- `CLAUDE.md` is optional for Claude Code. Run `claude init` to create it (or refresh it) for your project.
+- `*.md`. These markdown files, e.g. "CODE_OF_CONDUCT.md", add various tabs and tags to your Github repo and help with community management.
 
 ## More Information
 
