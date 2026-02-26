@@ -5,6 +5,7 @@ import { startTaskQueueWorker, stopTaskQueueWorker } from "$/mcp/tasks/mod.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { getRejected } from "$/shared/utils.ts";
+import { startMaintenanceCrons } from "./cron.ts";
 import { createHttpServer } from "./http/mod.ts";
 import { verifyRuntimePermissions } from "./permissions.ts";
 import { setupSignalHandlers } from "./signals.ts";
@@ -45,6 +46,7 @@ export function createApp(createMcpServer: () => McpServer, config: AppConfig): 
         console.error(`${APP_NAME} starting...`);
         await verifyRuntimePermissions(config);
         await openKvStore(config.kv.path);
+        startMaintenanceCrons();
         await startTaskQueueWorker();
         const results = await Promise.allSettled([
           stdio.connect(),
