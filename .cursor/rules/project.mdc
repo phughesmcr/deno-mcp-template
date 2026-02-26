@@ -41,7 +41,7 @@ src/
 │   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
 │   │   └── mod.ts                          # Provides a single point of export for all the MCP resources
 │   ├── tools/                             
-│   │   ├── domain.ts                       # A tool that fetches web domain information from the domainsdb API
+│   │   ├── domain.ts                       # A tool that fetches website info via HTTP HEAD request
 │   │   ├── mod.ts                          # Provides a single point of export for all the MCP tools
 │   │   ├── poem.ts                         # A tool that showcases sampling
 │   │   └── sandbox.ts                      # A tool that executes code in an isolated Deno Sandbox (microVM)

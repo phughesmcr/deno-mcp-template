@@ -21,7 +21,7 @@ import sandbox from "./sandbox.ts";
 // deno-lint-ignore no-explicit-any
 export const tools: ToolModule<any>[] = [
   collectUserInfo, // Elicitation tool
-  domain, // Async tool with external API call
+  domain, // Async tool with external HTTP request
   incrementCounter, // Resource updates + subscriptions
   logMessage, // Logging notification example
   notifyListChanged, // List-changed notification example

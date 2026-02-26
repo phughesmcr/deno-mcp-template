@@ -222,7 +222,7 @@ src/
 │   ├── tools/                             
 │   │   ├── collectUserInfo.ts              # Elicitation tool example
 │   │   ├── delayedEchoTask.ts              # Task-based async tool example
-│   │   ├── domain.ts                       # Tool fetching domain info from external API
+│   │   ├── domain.ts                       # Tool fetching website info via HTTP HEAD request
 │   │   ├── guidedPoemTask.ts               # Task + sampling workflow example
 │   │   ├── incrementCounter.ts             # Tool that updates resource-backed counter
 │   │   ├── logMessage.ts                   # Logging notification example
