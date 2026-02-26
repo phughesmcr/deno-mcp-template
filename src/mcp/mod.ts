@@ -35,7 +35,19 @@ export function createMcpServer(): McpServer {
   });
   const notifyForServer = (uri: string): Promise<void> =>
     server.server.sendResourceUpdated({ uri });
-  subscriptions.register(notifyForServer);
+  let isNotifierReleased = false;
+  const releaseNotifier = async (): Promise<void> => {
+    if (isNotifierReleased) return;
+    isNotifierReleased = true;
+    await subscriptions.unregister(notifyForServer);
+  };
+  const previousOnClose = server.server.onclose;
+  server.server.onclose = () => {
+    previousOnClose?.();
+    void releaseNotifier().catch((error) => {
+      console.error("Failed to clean up subscriptions for closed MCP server", error);
+    });
+  };
 
   // Prompt handlers
   if ("prompts" in SERVER_CAPABILITIES) {
