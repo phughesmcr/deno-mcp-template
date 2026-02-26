@@ -43,7 +43,8 @@ src/
 │   ├── tools/                             
 │   │   ├── domain.ts                       # A tool that fetches web domain information from the domainsdb API
 │   │   ├── mod.ts                          # Provides a single point of export for all the MCP tools
-│   │   └── poem.ts                         # A tool that showcases sampling
+│   │   ├── poem.ts                         # A tool that showcases sampling
+│   │   └── sandbox.ts                      # A tool that executes code in an isolated Deno Sandbox (microVM)
 │   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
 ├── shared/
 │   ├── constants/  

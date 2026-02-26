@@ -33,6 +33,7 @@
         "@std/cli": "jsr:@std/cli@^1.0.28",
         "@std/dotenv/load": "jsr:@std/dotenv@^0.225.6/load",
         "@std/path": "jsr:@std/path@^1.1.4",
+        "@deno/sandbox": "jsr:@deno/sandbox@^0.12.0",
         "@std/ulid": "jsr:@std/ulid@^1.0.0",
         "hono": "jsr:@hono/hono@^4.12.3",
         "hono-rate-limiter": "npm:hono-rate-limiter@^0.5.3",

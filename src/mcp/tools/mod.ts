@@ -16,6 +16,7 @@ import incrementCounter from "./incrementCounter.ts";
 import logMessage from "./logMessage.ts";
 import notifyListChanged from "./notifyListChanged.ts";
 import poem from "./poem.ts";
+import sandbox from "./sandbox.ts";
 
 // deno-lint-ignore no-explicit-any
 export const tools: ToolModule<any>[] = [
@@ -25,6 +26,7 @@ export const tools: ToolModule<any>[] = [
   logMessage, // Logging notification example
   notifyListChanged, // List-changed notification example
   poem, // Sampling tool
+  sandbox, // Sandboxed code execution
   // ... more tools
 ];
 

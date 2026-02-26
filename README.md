@@ -228,6 +228,7 @@ src/
 │   │   ├── logMessage.ts                   # Logging notification example
 │   │   ├── notifyListChanged.ts            # List-changed notification example
 │   │   ├── poem.ts                         # Sampling tool example
+│   │   ├── sandbox.ts                      # Sandboxed code execution via Deno Sandbox (microVM)
 │   │   └── mod.ts                          # Provides a single point of export for all MCP tools
 │   └── mod.ts                              # Creates and configures the MCP server
 ├── shared/
@@ -269,6 +270,7 @@ static/
 | MCP_ALLOWED_ORIGINS  | --origin        |             | The allowed origins for the HTTP server (CLI flag is a collection) |
 | MCP_ALLOWED_HOSTS    | --host          |             | The allowed hosts for the HTTP server (CLI flag is a collection) |
 | MCP_KV_PATH          | --kv-path       |             | Optional path to a Deno KV database file |
+| DENO_DEPLOY_TOKEN    |                 |             | Access token for Deno Deploy (required by the `execute-code` sandbox tool) |
 
 ⚠️ CLI flags take precedence over environment variables, except in collections (e.g. `-H`, `--origin` and `--host`), where the two are merged.
 
@@ -351,6 +353,25 @@ If you are not using Deno Deploy, remove `.github/workflows/deploy.yml`.
 Deno KV can be used without any additional dependencies or installs. Locally it will create a file-based database, and if you're using Deploy it is built right in, with no extra config.
 
 This template uses Deno KV for HTTP event resumability, durable task state/results, delayed task queue execution, and resource-backed counter persistence.
+
+### Sandboxed Code Execution
+
+This template includes an `execute-code` tool that runs user-submitted TypeScript or JavaScript inside a [Deno Sandbox](https://docs.deno.com/sandbox/) -- an isolated Linux microVM powered by Firecracker (the same technology behind AWS Lambda). Each invocation spins up a fresh VM, executes the code with no permissions, and tears it down automatically.
+
+**Setup:**
+
+1. Create an access token in the [Deno Deploy dashboard](https://console.deno.com/) under Settings > Organization Tokens.
+2. Add it to your `.env` file:
+
+```
+DENO_DEPLOY_TOKEN=your_token_here
+```
+
+**How it works:**
+
+The `execute-code` tool accepts `code`, an optional `language` (`"typescript"` or `"javascript"`), and an optional `timeoutMs` (default 5s, max 30s). Code runs with zero Deno permissions -- no network, filesystem, or environment access -- inside the sandbox. The tool returns `stdout`, `stderr`, `exitCode`, and `executionTimeMs`.
+
+See `src/mcp/tools/sandbox.ts` for the implementation, and the [Deno Sandbox docs](https://docs.deno.com/sandbox/) for more on the SDK.
 
 ## Extras
 
