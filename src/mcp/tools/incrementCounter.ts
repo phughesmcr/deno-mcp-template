@@ -32,7 +32,7 @@ const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> 
   }
 
   const delta = parsed.data.delta ?? 1;
-  const value = incrementCounterValue(delta);
+  const value = await incrementCounterValue(delta);
 
   await mcp.server.sendResourceUpdated({ uri: COUNTER_URI });
 
