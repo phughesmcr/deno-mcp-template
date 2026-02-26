@@ -8,9 +8,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ZodRawShape } from "zod/v3";
 
 import type { ToolModule, ToolPlugin } from "$/shared/types.ts";
-import collectUserInfo from "./collectUserInfo.ts";
 import { registerDelayedEchoTask } from "./delayedEchoTask.ts";
 import domain from "./domain.ts";
+import elicitInput from "./elicitInput.ts";
 import { registerGuidedPoemTask } from "./guidedPoemTask.ts";
 import incrementCounter from "./incrementCounter.ts";
 import logMessage from "./logMessage.ts";
@@ -20,7 +20,7 @@ import sandbox from "./sandbox.ts";
 
 // deno-lint-ignore no-explicit-any
 export const tools: ToolModule<any>[] = [
-  collectUserInfo, // Elicitation tool
+  elicitInput, // Elicitation tool
   domain, // Async tool with external HTTP request
   incrementCounter, // Resource updates + subscriptions
   logMessage, // Logging notification example

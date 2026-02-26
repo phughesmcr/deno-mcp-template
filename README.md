@@ -220,7 +220,7 @@ src/
 │   │   ├── queue.ts                        # Delayed task queue worker
 │   │   └── mod.ts                          # Exports task queue and task store
 │   ├── tools/                             
-│   │   ├── collectUserInfo.ts              # Elicitation tool example
+│   │   ├── elicitInput.ts                  # Elicitation tool example
 │   │   ├── delayedEchoTask.ts              # Task-based async tool example
 │   │   ├── domain.ts                       # Tool fetching website info via HTTP HEAD request
 │   │   ├── guidedPoemTask.ts               # Task + sampling workflow example
