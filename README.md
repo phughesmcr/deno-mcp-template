@@ -148,6 +148,8 @@ You can then use your binary like any other MCP server, for example:
 
 See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) for more information.
 
+ℹ️ Compile tasks include the `static/` directory, so standalone binaries keep the default static routes and 404 page without relying on the current working directory.
+
 ### Compile to a Claude Desktop Extension (DXT)
 
 Anthropic's [desktop extensions](https://www.anthropic.com/engineering/desktop-extensions) tool packages MCP servers into a single-click install for Claude Desktop.
@@ -245,6 +247,7 @@ static/
 | MCP_DNS_REBINDING    | --dnsRebinding | `false`     | Enable DNS rebinding protection |
 | MCP_ALLOWED_ORIGINS  | --origin       |             | The allowed origins for the HTTP server (CLI flag is a collection) |
 | MCP_ALLOWED_HOSTS    | --host         |             | The allowed hosts for the HTTP server (CLI flag is a collection) |
+| MCP_KV_PATH          | --kv-path      |             | Optional path to a Deno KV database file |
 
 ⚠️ CLI flags take precedence over environment variables, except in collections (e.g. `-H`, `--origin` and `--host`), where the two are merged.
 
@@ -252,19 +255,33 @@ static/
 
 Run `deno task setup` to setup the project for your own use.
 
+### Runtime permissions
+
+The app now validates required runtime permissions at startup and fails fast with actionable flag guidance if a required permission is missing.
+
+### Lockfile and reproducibility
+
+This template now tracks `deno.lock` for deterministic dependency resolution.
+
+- Refresh lock data intentionally: `deno install --entrypoint main.ts --frozen=false`
+- Verify locked resolution (CI style): `deno install --frozen --entrypoint main.ts`
+- Commit `deno.lock` with dependency changes.
+
 ⚠️ You must grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information. (The setup task will do this for you.)
 
 ⚠️ If using `--dnsRebinding`, you may need to add entries to `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` in `src/shared/constants/http.ts`, or pass `--origin` and `--host` to the server.
 
 ⚠️ `src/app/http/kvEventStore.ts` is a simple utility for session resumability. It is **not** suitable for production use.
 
-⚠️ The example server runs with `deno run -A` which enables all of Deno's permissions. You should [finetune the permissions](https://docs.deno.com/runtime/fundamentals/security/) before deploying to production.
+⚠️ `deno task start` still uses `deno run -A` for convenience. Before deploying to production, prefer explicit permission flags and [finetune permissions](https://docs.deno.com/runtime/fundamentals/security/).
 
 ℹ️ Remember to check all files in `static/` as some of these files (e.g. `openapi.yaml`, `dxt-manifest.json`) will need modifying to match your MCP server's capabilities / endpoints.
 
 ℹ️  Remember to set any environment variables in both your Github repo settings and your Deno Deploy project settings (if applicable).
 
-ℹ️ Run `deno task ci` to run the formatter, linter, and code checker.
+ℹ️ Run `deno task ci` to run the formatter, linter, type checks, and integration tests.
+
+ℹ️ For deeper quality checks you can also run `deno task test:coverage` and `deno task bench`.
 
 ### Serving from JSR
 
@@ -311,6 +328,8 @@ If you are not using Deno Deploy, remove `.github/workflows/deploy.yml`.
 >"Deno KV is a key-value database built directly into the Deno runtime, available in the `Deno.Kv` namespace. It can be used for many kinds of data storage use cases, but excels at storing simple data structures that benefit from very fast reads and writes. Deno KV is available in the Deno CLI and on Deno Deploy." - [Deno KV Manual](https://docs.deno.com/deploy/kv/manual/)
 
 Deno KV can be used without any additional dependencies or installs. Locally it will create a file-based database, and if you're using Deploy it is built right in, with no extra config.
+
+This template uses Deno KV for HTTP event resumability, durable task state/results, delayed task queue execution, and resource-backed counter persistence.
 
 ## Extras
 
