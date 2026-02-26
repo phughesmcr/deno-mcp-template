@@ -1,4 +1,4 @@
-# 🦖🤖 Deno MCP Server Template
+# Deno MCP Server Template
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/ci.yml?label=CI)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/release.yml?label=release)
@@ -16,342 +16,256 @@
     <img src="static/banner_480.png" alt="Repo Logo - a long-necked orange dinosaur walks in-front of a cliff-face with the letters M C P carved into it" width="320" />
 </div>
 
-This is a comprehensive template for writing MCP servers using [Deno](https://deno.com/).
+**The batteries-included starting point for building production MCP servers in TypeScript.**
 
-Using Deno allows you to publish your MCP server using [JSR.io](https://jsr.io), compile it to a standalone binary, desktop extension (DXT), or host it on [Deno Deploy](https://deno.com/deploy) and other platforms.
+Clone, run setup, start building. Ships with STDIO + HTTP transports, security middleware, persistent state, sandboxed execution, CI/CD workflows, and every distribution format you need -- JSR package, native binary, DXT extension, or hosted on Deno Deploy.
 
-## What's Inside?
+## Why This Template?
 
-### MCP Server
+**You get a working MCP server in under 2 minutes.** Not a toy -- a real server with rate limiting, CORS, session management, TLS support, and structured logging already wired up.
 
-The MCP server is in `src/mcp/`. It currently implements prompts, resources (including dynamic resources), tools (including sampling and elicitation), and task-based workflows. These are mostly the official examples from the [MCP Documentation](https://modelcontextprotocol.io/), giving a good starting point for your own features.
+**Deno gives you superpowers that other runtimes don't.** Built-in KV database (no Postgres/Redis to set up), native cron scheduling, sandboxed code execution in microVMs, compile-to-binary, and first-class Deploy hosting. This template puts all of them to work.
 
-### App
+**Ship anywhere, any way.** One codebase produces:
+- a local STDIO server for Cursor, Claude Desktop, or any MCP client
+- a remote HTTP server with Streamable HTTP transport
+- a JSR package anyone can `deno run` without cloning
+- a standalone native binary (no runtime needed)
+- a DXT extension for one-click Claude Desktop install
+- a Deno Deploy app for managed cloud hosting
 
-The "app" component, found in `src/app/`, wraps the MCP server in some convenience functions for serving HTTP routes, transport management, etc. It is designed to need only a few changes to get your MCP server up and running, so you don't have to worry about setting up best practices every time you start a new project, (see ⚠️ below).
-
-#### HTTP Server
-
-The app uses `Deno.serve` to start an HTTP server built with [Hono](https://hono.dev/). The server features comprehensive middleware including rate limiting, CORS protection, security headers, request timeouts, and session management.
-
-ℹ️ DNS rebinding protection is disabled by default. Enable it with `MCP_DNS_REBINDING=true` (or `--dnsRebinding`) and configure `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` (see [Config](#config)).
-
-⚠️ CORS allowed origins default to an empty list. Browser clients will need `MCP_ALLOWED_ORIGINS` (or `--origin`) configured to receive cross-origin responses.
-
-ℹ️ You can disable the HTTP server by setting `MCP_NO_HTTP=true` in your `.env` file, or by passing `--no-http` to the server.
-
-#### STDIO Server
-
-By default the app will automatically start listening for STDIO connections.
-
-ℹ️ You can disable the STDIO transport by setting `MCP_NO_STDIO=true` in your `.env` file, or by passing `--no-stdio` to the server.
+**AI-agent friendly codebase.** Small files (<200 LOC), feature-grouped structure, explicit types. Your coding agent can navigate and extend it without context overload.
 
 ## Quick Start
 
 ```bash
-# Install Deno
+# Install Deno (if needed)
 curl -fsSL https://deno.land/install.sh | sh
 
-# Clone the repo (replace `mcp-server` with your own server name)
-gh repo create mcp-server --template phughesmcr/deno-mcp-template
-cd mcp-server
+# Create your project from template
+gh repo create my-mcp-server --template phughesmcr/deno-mcp-template
+cd my-mcp-server
 
-# Setup the project variables for your needs
+# One-time setup -- renames placeholders, then self-destructs
 deno task setup
 
-# Start the server
+# Start the server (STDIO + HTTP on localhost:3001)
 deno task start
 
-# or run with the @modelcontextprotocol/inspector to test your server
+# Or launch with MCP Inspector for interactive testing
 deno task dev
 ```
 
-ℹ️ `deno task setup` is intentionally one-time. It updates template placeholders, then removes the
-`setup` task from `deno.json` and deletes `scripts/setup-template.ts` so it is not accidentally
-rerun later.
-
-Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/shared/constants/**.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/http/hono.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
-
-## Built-in MCP Examples
-
-The template includes working examples you can call immediately from an MCP client. Most end-users
-replace these with domain-specific implementations.
-
-### Prompts
-
-- `review-code`  
-  Creates a prompt message asking the model to review supplied code.
-- `language-snippet`  
-  Creates a prompt message to generate a short snippet for a language and goal.
-
-### Resources
-
-- `hello://world`  
-  Returns a static plain-text hello-world resource.
-- `greetings://{name}`  
-  Returns a dynamic greeting resource for the provided name.
-- `counter://value`  
-  Returns the current KV-backed counter value (supports subscription updates).
-
-### Tools
-
-- `elicit-input`  
-  Prompts the client for structured form input and returns the response.
-- `fetch-website-info`  
-  Performs an HTTP `HEAD` request and returns status and selected headers.
-- `increment-counter`  
-  Increments the KV-backed counter resource and returns the updated value.
-- `log-message`  
-  Sends a structured log notification to the connected client.
-- `notify-list-changed`  
-  Triggers tools/prompts/resources list-changed notifications.
-- `poem`  
-  Uses sampling to generate a poem from a text prompt.
-- `execute-code` 
-  Executes user-provided TypeScript/JavaScript, sandboxed through Deno Sandbox.
-
-### Task-based tools (experimental)
-
-- `delayed-echo`  
-  Creates a background task that echoes text after a configurable delay.
-- `guided-poem`  
-  Runs a task workflow that elicits poem details, then samples a poem.
-
-⚠️ Task-based tools require MCP task support in the client. If a client does not support tasks,
-these may not appear or execute.
-
-## Using your MCP server
-
-Replace the server name, and the package location in the following examples to correspond to your own MCP server.
-
-Your AI environment (Cursor, Claude, LMStudio, etc.) will have an MCP server configuration file (e.g. `claude-desktop-config.json` or `~/.cursor/mcp.json`) which you can edit to add your MCP server, like so:
-
-### Using the MCP server published on JSR
+Connect from any MCP client:
 
 ```json
 {
-    "mcpServers": {
-        "my-mcp-server": {
-            "command": "deno run -A jsr:@your-scope/your-package"
-        },
+  "mcpServers": {
+    "my-mcp-server": {
+      "command": "deno",
+      "args": ["run", "-A", "/absolute/path/to/main.ts"]
     }
+  }
 }
 ```
 
-### Using the HTTP server
+That's it. You have a running MCP server with tools, resources, prompts, and task workflows.
 
-Start the server using `deno task start`.
+## What's Included
 
-You can use the `mcp-remote` tool to connect to the HTTP server easily.
+### Out-of-the-box infrastructure
+
+| What | How | Where |
+| --- | --- | --- |
+| Dual transports | STDIO + Streamable HTTP from a single app | `src/app/` |
+| HTTP middleware | Rate limiting, CORS, security headers, timeouts, sessions | `src/app/http/hono.ts` |
+| Persistent state | Deno KV -- zero-config locally, built-in on Deploy | `src/app/kv/` |
+| Session resumability | KV-backed event store for stream recovery | `src/app/http/kvEventStore.ts` |
+| Background tasks | Durable async task queue with KV state | `src/mcp/tasks/` |
+| Scheduled jobs | `Deno.cron` for periodic maintenance | `src/app/cron.ts` |
+| Sandboxed execution | `@deno/sandbox` microVMs for untrusted code | `src/mcp/tools/sandbox.ts` |
+| CI/CD workflows | GitHub Actions for CI, release, deploy, JSR publish | `.github/workflows/` |
+| Config management | CLI flags + env vars with validation and merging | `src/app/cli.ts` |
+| Permission preflight | Fail-fast startup checks with actionable guidance | `src/app/permissions.ts` |
+
+### Example MCP features (replace with your own)
+
+**Prompts:** `review-code`, `language-snippet`
+
+**Resources:** `hello://world`, `greetings://{name}`, `counter://value` (KV-backed, subscribable)
+
+**Tools:** `elicit-input`, `fetch-website-info`, `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
+
+**Task workflows (experimental):** `delayed-echo`, `guided-poem` (elicitation + sampling pipeline)
+
+These cover prompts with arguments, static and dynamic resources, subscriptions, sampling, elicitation, notifications, list-changed events, KV persistence, sandboxed execution, and async task patterns. Use them as reference, then swap in your domain logic.
+
+## Make It Yours
+
+Run `deno task setup` first -- it rewrites package names, scopes, and metadata across the project in one pass.
+
+### Where to start editing
+
+1. **`src/shared/constants/`** -- server name, description, version, defaults
+2. **`src/mcp/tools/`** -- add your tools (follow existing patterns)
+3. **`src/mcp/resources/`** -- add your resources
+4. **`src/mcp/prompts/`** -- add your prompts
+5. **`src/mcp/mod.ts`** -- wire new features into the server
+6. **`src/app/http/hono.ts`** -- adjust CORS, middleware, routes
+
+### What to remove
+
+Delete the example files you don't need from `src/mcp/tools/`, `src/mcp/resources/`, and `src/mcp/prompts/`. Update the corresponding `mod.ts` barrel exports. Done.
+
+## Ship It
+
+### Choose your distribution
+
+| Goal | Command | Output |
+| --- | --- | --- |
+| Run locally via STDIO | `deno task start` | Direct process |
+| Serve over HTTP | `deno task start` | `localhost:3001/mcp` |
+| Publish as JSR package | `deno publish` | `jsr:@scope/package` |
+| Compile native binary | `deno task compile:all` | `dist/server/` |
+| Package as DXT | `deno task dxt:all` | `dist/server.dxt` |
+| Deploy to cloud | `deno deploy --prod` | Deno Deploy URL |
+
+Platform-specific compile/DXT tasks are also available: `compile:win`, `compile:mac:arm64`, `compile:mac:x64`, `compile:linux:x64`, `compile:linux:arm64` (and matching `dxt:*` variants).
+
+Compile tasks bundle the `static/` directory, so binaries serve static routes without depending on the working directory.
+
+**DXT prerequisite:** install the DXT CLI once with `npm install -g @anthropic-ai/dxt`. Update `static/dxt-manifest.json` before packaging.
+
+**JSR prerequisite:** you need a [JSR.io](https://jsr.io) account. If you don't plan to publish on JSR, remove `.github/workflows/publish.yml`.
+
+### Client configuration examples
+
+**STDIO** (Cursor, Claude Desktop, etc.):
 
 ```json
 {
-    "mcpServers": {
-        "my-mcp-server": {
-            "command": "npx",
-            "args": ["mcp-remote", "http://localhost:3001/mcp"]
-        },
+  "mcpServers": {
+    "my-mcp-server": {
+      "command": "deno",
+      "args": ["run", "-A", "/absolute/path/to/main.ts"]
     }
+  }
 }
 ```
 
-Otherwise, if you are using DNS rebinding protection, you must set an Origin header because Cursor/VSCode/etc. do not provide one:
+**HTTP with mcp-remote:**
 
 ```json
 {
-    "mcpServers": {
-        "my-mcp-server": {
-            "url": "http://localhost:3001/mcp",
-            "headers": {
-                "origin": "http://localhost:3001"
-            }
-        },
+  "mcpServers": {
+    "my-mcp-server": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:3001/mcp"]
     }
+  }
 }
 ```
 
-#### Raw HTTP clients (without `mcp-remote`)
-
-If you are integrating directly with `/mcp`:
-
-1. Send `POST /mcp` with a JSON-RPC `initialize` request.
-2. Read the `mcp-session-id` response header.
-3. Include `mcp-session-id` on all subsequent `POST /mcp`, `GET /mcp`, and `DELETE /mcp`
-   requests.
-4. For stream resumability, include `last-event-id` where applicable.
-5. If DNS rebinding protection is enabled, ensure request `Origin`/`Host` values are allowed.
-
-For most users, `mcp-remote` is still the easiest option.
-
-### Using the STDIO server
+**HTTP direct (clients with URL support):**
 
 ```json
 {
-    "mcpServers": {
-        "my-mcp-server": {
-            "command": "deno run -A absolute/path/to/main.ts"
-        },
+  "mcpServers": {
+    "my-mcp-server": {
+      "url": "http://localhost:3001/mcp",
+      "headers": { "origin": "http://localhost:3001" }
     }
+  }
 }
 ```
 
-### Compiling to a binary
-
-Run `deno task compile:all` (or `compile:win`, `compile:mac:arm64`, etc. for a specific platform).
-
-You can then use your binary like any other MCP server, for example:
+**JSR package:**
 
 ```json
 {
-    "mcpServers": {
-        "my-mcp-server": {
-            "command": "absolute/path/to/binary"
-        },
+  "mcpServers": {
+    "my-mcp-server": {
+      "command": "deno",
+      "args": ["run", "-A", "jsr:@your-scope/your-package"]
     }
+  }
 }
 ```
 
-See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) for more information.
+**Compiled binary:**
 
-ℹ️ Compile tasks include the `static/` directory, so standalone binaries keep the default static routes and 404 page without relying on the current working directory.
+```json
+{
+  "mcpServers": {
+    "my-mcp-server": {
+      "command": "/absolute/path/to/binary"
+    }
+  }
+}
+```
 
-### Compile to a Claude Desktop Extension (DXT)
-
-Anthropic's [desktop extensions](https://www.anthropic.com/engineering/desktop-extensions) tool packages MCP servers into a single-click install for Claude Desktop.
-
-Install the DXT CLI once:
+**Claude Code:**
 
 ```bash
-npm install -g @anthropic-ai/dxt
-dxt --version
-```
-
-Run `deno task dxt:all` to compile the server to a DXT package for all platforms (Windows, Mac, Linux).
-
-You can replace `dxt:all` with `dxt:win`, `dxt:mac:arm64`, `dxt:mac:x64`, `dxt:linux:x64`, or `dxt:linux:arm64` to compile for a specific platform.
-
-This will create a `dist/server.dxt` file you can share - customers won't need to install Deno or any other dependencies.
-
-ℹ️ Ensure `static/dxt-manifest.json` is updated with correct information for your server.
-
-### Claude Code
-
-```bash
-# Compiled binary:
-claude mcp add my-mcp-server "absolute/path/to/binary"
-
-# or with HTTP (use `deno task start` first)
+claude mcp add my-mcp-server /absolute/path/to/binary
 claude mcp add --transport http my-mcp-server http://localhost:3001/mcp
 ```
 
-## Project Structure
+### Deploy to Deno Deploy (optional)
 
-The code is structured to be easily parsable by an AI agent. Files are grouped by feature, and ideally less than 200 lines of code.
+```bash
+# Create app (one-time)
+deno deploy create \
+  --org <YOUR_ORG> \
+  --app <YOUR_APP> \
+  --source local \
+  --runtime-mode dynamic \
+  --entrypoint main.ts \
+  --build-timeout 5 \
+  --build-memory-limit 1024 \
+  --region us
 
-`src/app/` is a simple wrapper around the MCP server, providing STDIO and HTTP transports, and HTTP routes for static files.
-
-`src/mcp/` contains the MCP server and all the example tools, prompts, and resources.
-
-The main project files are:
-
-```markdown
-deno.json     # Project configuration
-main.ts       # The main entry point
-src/              
-├── app/    
-│   ├── http/
-│   │   ├── handlers.ts             # HTTP handlers for the MCP server (GET, POST, etc.)
-│   │   ├── hono.ts                 # Manages the Hono server, middleware, and routes
-│   │   ├── kvEventStore.ts         # Simple Deno KV event store for for session resumability
-│   │   ├── mod.ts                  # The main entrypoint for the HTTP server
-│   │   └── transport.ts            # Manages the StreamableHTTPServerTransports
-│   ├── kv/
-│   │   ├── mod.ts                  # Exports Deno KV store and watcher helpers
-│   │   ├── store.ts                # Deno KV open/close lifecycle and config
-│   │   └── watch.ts                # Subscription watcher for resource updates
-│   ├── app.ts                      # The main application class
-│   ├── cli.ts                      # Parses CLI args and env vars into an AppConfig object
-│   ├── cron.ts                     # Scheduled jobs (e.g., stale task cleanup)
-│   ├── permissions.ts              # Runtime permission preflight checks
-│   ├── signals.ts                  # Signal handling for SIGINT, SIGTERM, etc.
-│   └── stdio.ts                    # The STDIO transport & state manager
-├── mcp/ 
-│   ├── prompts/                             
-│   │   ├── codeReview.ts                   # A simple code-review prompt example
-│   │   ├── languagePrompt.ts               # A prompt example with arguments
-│   │   └── mod.ts                          # Provides a single point of export for all MCP prompts
-│   ├── resources/                             
-│   │   ├── counter.ts                      # A simple stateful resource example
-│   │   ├── counterStore.ts                 # Persistence for counter resource state
-│   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
-│   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
-│   │   ├── kvKeys.ts                       # Shared keys used for KV-backed resources
-│   │   ├── subscriptionTracker.ts          # Tracks active resource subscriptions
-│   │   └── mod.ts                          # Provides a single point of export for all MCP resources
-│   ├── tasks/
-│   │   ├── kvTaskStore.ts                  # Durable task state storage in Deno KV
-│   │   ├── queue.ts                        # Delayed task queue worker
-│   │   └── mod.ts                          # Exports task queue and task store
-│   ├── tools/                             
-│   │   ├── elicitInput.ts                  # Elicitation tool example
-│   │   ├── delayedEchoTask.ts              # Task-based async tool example
-│   │   ├── domain.ts                       # Tool fetching website info via HTTP HEAD request
-│   │   ├── guidedPoemTask.ts               # Task + sampling workflow example
-│   │   ├── incrementCounter.ts             # Tool that updates resource-backed counter
-│   │   ├── logMessage.ts                   # Logging notification example
-│   │   ├── notifyListChanged.ts            # List-changed notification example
-│   │   ├── poem.ts                         # Sampling tool example
-│   │   ├── sandbox.ts                      # Sandboxed code execution via Deno Sandbox (microVM)
-│   │   └── mod.ts                          # Provides a single point of export for all MCP tools
-│   └── mod.ts                              # Creates and configures the MCP server
-├── shared/
-│   ├── constants/  
-│   │   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
-│   │   ├── http.ts                 # Constants for the HTTP server (e.g., headers, ports, etc.)
-│   │   └── mcp.ts                  # Constants for the MCP server (e.g., capabilities, etc.)
-│   ├── validation/
-│   │   ├── config.ts               # Validation of the AppConfig object
-│   │   ├── header.ts               # Validation for headers
-│   │   ├── host.ts                 # Validation for hosts
-│   │   ├── hostname.ts             # Validation for hostnames
-│   │   ├── origin.ts               # Validation for origins
-│   │   └── port.ts                 # Validation for ports
-│   ├── constants.ts                # Single point of export for all shared constants
-│   ├── types.ts                    # Shared types
-│   ├── utils.ts                    # Shared utility functions
-│   └── validation.ts               # Single point of export for all shared validation functions
-static/             
-├── .well-known/    
-│   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
-│   └── openapi.yaml            # An example OpenAPI specification for the server 
-├── 404.html                    # Default static 404 page
-└── dxt-manifest.json           # The manifest for the DXT package
+# Deploy
+deno deploy --prod
 ```
 
-## Config
+Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Actions secrets for automatic deploys. Remove `.github/workflows/deploy.yml` if not using Deploy.
 
-| Environment Variable | Flag           | Default     | Description |
-| -------------------- | -------------- | ----------- | ----------- |
-| MCP_NO_HTTP          | --no-http       | `false`     | Disable the HTTP server |
-| MCP_NO_STDIO         | --no-stdio      | `false`     | Disable the STDIO server |
-| MCP_HOSTNAME         | -n              | "localhost" | The hostname to listen on for the HTTP server |
-| MCP_PORT             | -p              | "3001"      | The port to listen on for the HTTP server |
-| MCP_TLS_CERT         | --tls-cert      |             | Path to TLS certificate file (PEM). Requires `--tls-key` |
-| MCP_TLS_KEY          | --tls-key       |             | Path to TLS private key file (PEM). Requires `--tls-cert` |
-| MCP_HEADERS          | -H              |             | The headers to set for the HTTP server (CLI flag is a collection) |
-| MCP_JSON_RESPONSE    | --json-response | `false`     | Enable JSON-only responses (disable SSE streaming) |
-| MCP_DNS_REBINDING    | --dnsRebinding  | `false`     | Enable DNS rebinding protection |
-| MCP_ALLOWED_ORIGINS  | --origin        |             | The allowed origins for the HTTP server (CLI flag is a collection) |
-| MCP_ALLOWED_HOSTS    | --host          |             | The allowed hosts for the HTTP server (CLI flag is a collection) |
-| MCP_KV_PATH          | --kv-path       |             | Optional path to a Deno KV database file |
-| DENO_DEPLOY_TOKEN    |                 |             | Access token for Deno Deploy (required by the `execute-code` sandbox tool) |
+## Production Checklist
 
-⚠️ CLI flags take precedence over environment variables, except in collections (e.g. `-H`, `--origin` and `--host`), where the two are merged.
+- [ ] Run `deno task setup` and verify all placeholder names are replaced
+- [ ] Remove or replace demo tools/resources/prompts you won't ship
+- [ ] Update `static/.well-known/openapi.yaml` and `static/dxt-manifest.json`
+- [ ] Configure `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` for your environments
+- [ ] Replace `src/app/http/kvEventStore.ts` with a production-grade event store (the included one is a demo)
+- [ ] Switch from `deno run -A` to [explicit permissions](https://docs.deno.com/runtime/fundamentals/security/) for production
+- [ ] Review `--allow-net` scope for any outbound tool calls
+- [ ] Set environment variables in CI and hosting provider
+- [ ] Run `deno task ci` (format, lint, type-check, test)
 
-### Collection value examples
+## Configuration
 
-Collection-style config values (`MCP_HEADERS`, `MCP_ALLOWED_ORIGINS`, `MCP_ALLOWED_HOSTS`) can be
-set as comma-separated values in `.env`:
+| Variable | Flag | Default | Description |
+| --- | --- | --- | --- |
+| `MCP_NO_HTTP` | `--no-http` | `false` | Disable HTTP server |
+| `MCP_NO_STDIO` | `--no-stdio` | `false` | Disable STDIO transport |
+| `MCP_HOSTNAME` | `-n` | `localhost` | HTTP listen hostname |
+| `MCP_PORT` | `-p` | `3001` | HTTP listen port |
+| `MCP_TLS_CERT` | `--tls-cert` | | PEM certificate path (requires `--tls-key`) |
+| `MCP_TLS_KEY` | `--tls-key` | | PEM private key path (requires `--tls-cert`) |
+| `MCP_HEADERS` | `-H` | | Response headers (collection) |
+| `MCP_JSON_RESPONSE` | `--json-response` | `false` | JSON-only responses (disable SSE) |
+| `MCP_DNS_REBINDING` | `--dnsRebinding` | `false` | Enable DNS rebinding protection |
+| `MCP_ALLOWED_ORIGINS` | `--origin` | | Allowed CORS origins (collection) |
+| `MCP_ALLOWED_HOSTS` | `--host` | | Allowed hostnames (collection) |
+| `MCP_KV_PATH` | `--kv-path` | | Custom Deno KV database path |
+| `DENO_DEPLOY_TOKEN` | | | Deploy token (required by `execute-code` sandbox tool) |
+
+CLI flags override env vars. Collection values (`-H`, `--origin`, `--host`) are merged from both sources.
+
+### Collection config examples
+
+Collection-style values can be set as comma-separated strings in `.env`:
 
 ```env
 MCP_HEADERS=x-api-key:demo,cache-control:no-store
@@ -359,7 +273,7 @@ MCP_ALLOWED_ORIGINS=http://localhost:6274,https://app.example.com
 MCP_ALLOWED_HOSTS=localhost,127.0.0.1,app.example.com
 ```
 
-Equivalent CLI usage:
+Or repeated CLI flags:
 
 ```bash
 deno task start -- \
@@ -371,18 +285,22 @@ deno task start -- \
   --host "app.example.com"
 ```
 
-Use `--origin` for full origins (e.g. `https://example.com`) and `--host` for hostnames or IPs
-(e.g. `example.com`, `127.0.0.1`).
+Use `--origin` for full origins (e.g. `https://example.com`) and `--host` for hostnames or IPs (e.g. `example.com`, `127.0.0.1`).
 
 ## Development
 
-Run `deno task setup` to setup the project for your own use.
+| Command | What it does |
+| --- | --- |
+| `deno task start` | Start server |
+| `deno task dev` | Start with MCP Inspector + watch mode |
+| `deno task ci` | Format, lint, type-check, and test |
+| `deno task test:integration` | Run integration tests |
+| `deno task test:coverage` | Tests with coverage report |
+| `deno task bench` | Run benchmarks |
 
 ### Runtime permissions
 
-The app now validates required runtime permissions at startup and fails fast with actionable flag guidance if a required permission is missing.
-
-For production, prefer explicit permissions over `-A`.
+The app validates required permissions at startup and fails fast with actionable guidance. For production, prefer explicit permissions over `-A`:
 
 ```bash
 # HTTP + STDIO (local defaults)
@@ -397,139 +315,59 @@ deno run --env-file=.env \
   main.ts --no-http
 ```
 
-If you keep networked tools (such as `fetch-website-info`), include any required destinations in
-`--allow-net`.
+If you keep networked tools (such as `fetch-website-info`), include their destinations in `--allow-net`.
 
 ### Lockfile and reproducibility
 
-This template now tracks `deno.lock` for deterministic dependency resolution.
+This template tracks `deno.lock` for deterministic dependency resolution.
 
-- Refresh lock data intentionally: `deno install --entrypoint main.ts --frozen=false`
-- Verify locked resolution (CI style): `deno install --frozen --entrypoint main.ts`
+- Refresh lock data: `deno install --entrypoint main.ts --frozen=false`
+- Verify locked resolution (CI): `deno install --frozen --entrypoint main.ts`
 - Commit `deno.lock` with dependency changes.
 
-⚠️ You should grep this repo for "phughesmcr", "P. Hughes", "<github@phugh.es>", and "deno-mcp-template", and replace them with your own information. `deno task setup` updates core template files, but run a final repo-wide pass (including docs/workflows) before publishing.
+## Project Structure
 
-⚠️ If using `--dnsRebinding`, you may need to add entries to `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` in `src/shared/constants/http.ts`, or pass `--origin` and `--host` to the server.
-
-⚠️ `src/app/http/kvEventStore.ts` is a simple utility for session resumability. It is **not** suitable for production use.
-
-⚠️ `deno task start` still uses `deno run -A` for convenience. Before deploying to production, prefer explicit permission flags and [finetune permissions](https://docs.deno.com/runtime/fundamentals/security/).
-
-ℹ️ Remember to check all files in `static/` as some of these files (e.g. `openapi.yaml`, `dxt-manifest.json`) will need modifying to match your MCP server's capabilities / endpoints.
-
-ℹ️  Remember to set any environment variables in both your Github repo settings and your Deno Deploy project settings (if applicable).
-
-ℹ️ Run `deno task ci` to run the formatter, linter, type checks, and integration tests.
-
-ℹ️ For deeper quality checks you can also run `deno task test:coverage` and `deno task bench`.
-
-### Serving from JSR
-
-In order for users to be able to run your server from the internet this example uses [JSR.io](https://jsr.io).
-
-JSR is "the open-source package registry for modern JavaScript and TypeScript", and works similarly to NPM.
-
-Publishing your server in this way allows users to run it using `deno run -A jsr:@your_scope/your_server_name` instead of having to clone the repo and set an absolute path.
-
-For this to work, you will need a [JSR.io](https://jsr.io) account, then replace the relevant values in the codebase to match your package name and scope.
-
-If you do not want to publish on JSR, remove `.github/workflows/publish.yml`.
-
-### Hosting on Deno Deploy
-
-Using Deno Deploy is optional if you only plan to run locally or publish through JSR. If you do deploy this template, use the modern `deno deploy` CLI flow.
-
-1. Create an app (one-time):
-
-```bash
-deno deploy create \
-  --org <YOUR_ORG> \
-  --app <YOUR_APP> \
-  --source local \
-  --runtime-mode dynamic \
-  --entrypoint main.ts \
-  --build-timeout 5 \
-  --build-memory-limit 1024 \
-  --region us
+```text
+main.ts                     # Entry point
+src/
+  app/                      # Runtime shell: transports, HTTP, KV, cron, signals
+  mcp/                      # MCP server: tools, resources, prompts, tasks
+  shared/                   # Constants, types, validation, utilities
+static/                     # Static files, OpenAPI spec, DXT manifest
+scripts/                    # Setup, build, and packaging helpers
+test/                       # Integration tests and benchmarks
+.github/workflows/          # CI, release, deploy, publish
 ```
 
-2. Configure GitHub Actions secrets/variables if you want automatic deploys:
-   - Secret: `DENO_DEPLOY_TOKEN`
-   - Variables: `DENO_DEPLOY_ORG`, `DENO_DEPLOY_APP`
-
-3. Deploy:
-   - Preview: `deno deploy`
-   - Production: `deno deploy --prod`
-
-If you are not using Deno Deploy, remove `.github/workflows/deploy.yml`.
-
-### DB with Deno KV
-
->"Deno KV is a key-value database built directly into the Deno runtime, available in the `Deno.Kv` namespace. It can be used for many kinds of data storage use cases, but excels at storing simple data structures that benefit from very fast reads and writes. Deno KV is available in the Deno CLI and on Deno Deploy." - [Deno KV Manual](https://docs.deno.com/deploy/kv/manual/)
-
-Deno KV can be used without any additional dependencies or installs. Locally it will create a file-based database, and if you're using Deploy it is built right in, with no extra config.
-
-This template uses Deno KV for HTTP event resumability, durable task state/results, delayed task queue execution, and resource-backed counter persistence.
-
-### Sandboxed Code Execution
-
-This template includes an `execute-code` tool that runs user-submitted TypeScript or JavaScript inside a [Deno Sandbox](https://docs.deno.com/sandbox/) -- an isolated Linux microVM powered by Firecracker (the same technology behind AWS Lambda). Each invocation spins up a fresh VM, executes the code with no permissions, and tears it down automatically.
-
-
-#### Maintenance Cron
-
-Deno Cron is Deno's built-in scheduler API (`Deno.cron`) for running code on a cron schedule
-(for example, every 15 minutes) without extra dependencies.
-
-This template starts maintenance crons during app startup (`src/app/app.ts`). The scheduled job in
-`src/app/cron.ts` runs `cleanup-stale-tasks` every 15 minutes (`*/15 * * * *`) and marks stale
-`"working"` tasks as `"failed"` after inactivity.
-
-`deno.json` enables this with `"unstable": ["kv", "cron"]`.
-
-**Setup:**
-
-1. Create an access token in the [Deno Deploy dashboard](https://console.deno.com/) under Settings > Organization Tokens.
-2. Add it to your `.env` file:
-
-```
-DENO_DEPLOY_TOKEN=your_token_here
-```
-
-**How it works:**
-
-The `execute-code` tool accepts `code`, an optional `language` (`"typescript"` or `"javascript"`), and an optional `timeoutMs` (default 5s, max 30s). Code runs with zero Deno permissions -- no network, filesystem, or environment access -- inside the sandbox. The tool returns `stdout`, `stderr`, `exitCode`, and `executionTimeMs`.
-
-See `src/mcp/tools/sandbox.ts` for the implementation, and the [Deno Sandbox docs](https://docs.deno.com/sandbox/) for more on the SDK.
+For the full annotated tree, transport internals, feature reference, and development caveats, see
+[`docs/architecture.md`](docs/architecture.md).
 
 ## Extras
 
-The repo includes the following quality-of-life files which aren't necessary for the server to run but which will enhance your vibecoding:
+Included quality-of-life files:
 
-- `.cursor/rules/` agent rules for Cursor.
-- `.github/` adds Github sponsors info to your repo, and other Github features such as workflows.
-- `.vscode/` has some recommended extensions and makes Deno the default formatter.
-- `.cursorignore` tells Cursor to exclude files in addition to `.gitignore`.
-- `CLAUDE.md` is optional for Claude Code. Run `claude init` to create it (or refresh it) for your project.
-- `*.md`. These markdown files, e.g. "CODE_OF_CONDUCT.md", add various tabs and tags to your Github repo and help with community management.
+- `.cursor/rules/` -- Cursor agent rules for this project
+- `.cursorignore` -- tells Cursor to exclude files in addition to `.gitignore`
+- `.vscode/` -- recommended extensions, Deno as default formatter
+- `.github/` -- CI/CD workflows, sponsors config, issue templates
+- `CLAUDE.md` -- optional Claude Code project context
+- `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, etc. -- community management files for GitHub
 
-## More Information
+## References
 
-[Introducing the Model Context Protocol](https://www.anthropic.com/news/model-context-protocol).
-
-[The ModelContextProtocol Github](https://github.com/modelcontextprotocol).
-
-[Deno Agent Skills](https://github.com/denoland/skills).
+- [MCP Specification](https://modelcontextprotocol.io/specification/2025-06-18)
+- [MCP Concepts](https://modelcontextprotocol.io/docs/concepts/)
+- [Deno Docs](https://docs.deno.com/)
+- [Deno Deploy](https://docs.deno.com/deploy/)
+- [Deno Sandbox](https://docs.deno.com/sandbox/)
+- [Hono](https://hono.dev/docs/)
 
 ## Acknowledgements
 
-If you use this template, please contribute fixes and features, star the repo, and consider sponsoring.
+If you use this template, please consider contributing fixes and features, starring the repo, and sponsoring.
 
-This is not an official Deno project and I am not affiliated with Deno Land Inc. in any way.
+This is not an official Deno project.
 
 ## License
 
-MIT
-
-This is a boilerplate / template repo, not a library; meaning you do need to make changes before deploying to production.
+MIT -- this is a template, not a library. You're expected to modify it before shipping to production.
