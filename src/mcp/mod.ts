@@ -1,11 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { InMemoryTaskStore } from "@modelcontextprotocol/sdk/experimental/tasks/stores/in-memory.js";
 import {
   SubscribeRequestSchema,
   UnsubscribeRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { SERVER_CAPABILITIES, SERVER_INFO } from "$/shared/constants.ts";
+import { KvTaskStore } from "./tasks/mod.ts";
 import { prompts } from "./prompts/mod.ts";
 import { resources } from "./resources/mod.ts";
 import { registerTaskTools, ToolManager, tools } from "./tools/mod.ts";
@@ -31,7 +31,7 @@ export function createMcpServer(): McpServer {
   // You can edit the server capabilities in `src/constants.ts`
   const server = new McpServer(SERVER_INFO, {
     capabilities: SERVER_CAPABILITIES,
-    taskStore: new InMemoryTaskStore(),
+    taskStore: new KvTaskStore(),
   });
 
   // Prompt handlers

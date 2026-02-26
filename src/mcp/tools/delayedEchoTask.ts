@@ -11,6 +11,8 @@ import type {
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
+import { enqueueDelayedEchoTask } from "$/mcp/tasks/mod.ts";
+
 // WARNING: Task APIs are experimental and may change without notice.
 
 const schema = z.object({
@@ -40,22 +42,11 @@ export function registerDelayedEchoTask(mcp: McpServer): void {
         pollInterval: 1000,
       });
 
-      setTimeout(async () => {
-        try {
-          await extra.taskStore.storeTaskResult(task.taskId, "completed", {
-            content: [{
-              type: "text",
-              text: JSON.stringify({ text, delayMs: delay }),
-            }],
-          });
-        } catch (error) {
-          await extra.taskStore.updateTaskStatus(
-            task.taskId,
-            "failed",
-            error instanceof Error ? error.message : "Failed to store task result",
-          );
-        }
-      }, delay);
+      await enqueueDelayedEchoTask({
+        taskId: task.taskId,
+        text,
+        delayMs: delay,
+      });
 
       return { task };
     },
