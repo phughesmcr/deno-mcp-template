@@ -53,6 +53,7 @@ export function createHttpServer(
     } catch {
       /* ignore */
     } finally {
+      server?.unref();
       await server?.shutdown();
       server = null;
     }
