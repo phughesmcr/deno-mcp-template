@@ -4,13 +4,13 @@ alwaysApply: true
 ---
 # Deno MCP Template Development Guide
 
-Deno version: ^2.4.0
+Deno version: ^2.6.0
 
 ## Build/Development Commands
 
 Start: `deno task start`
 Dev mode: `deno task dev`
-Format, lint, and type-check code: `deno task prep`
+Format, lint, and type-check code: `deno task ci`
 
 ## Project Structure
 
@@ -19,32 +19,53 @@ The code is structured to be easily parsable by an AI agent. Files are grouped b
 ```markdown
 deno.json     # Project configuration
 main.ts       # The main entry point
-src/              
-├── app/    
+src/
+├── app/
 │   ├── http/
 │   │   ├── handlers.ts             # HTTP handlers for the MCP server (GET, POST, etc.)
 │   │   ├── hono.ts                 # Manages the Hono server, middleware, and routes
-│   │   ├── kvEventStore.ts         # Simple Deno KV event store for for session resumability
+│   │   ├── kvEventStore.ts         # Simple Deno KV event store for session resumability
 │   │   ├── mod.ts                  # The main entrypoint for the HTTP server
-│   │   └── transport.ts            # Manages the StreamableHTTPServerTransports
-│   ├── app.ts                  # The main application class
-│   ├── cli.ts                  # Parses CLI args and env vars into an AppConfig object
-│   ├── signals.ts              # Signal handling for SIGINT, SIGTERM, etc.
-│   └── stdio.ts                # The STDIO transport & state manager
-├── mcp/ 
-│   ├── prompts/                             
-│   │   ├── codeReview.ts                   # A simple code-review prompt example
-│   │   └── mod.ts                          # Provides a single point of export for all the MCP prompts
-│   ├── resources/                             
-│   │   ├── greetings.ts                    # A simple resource template (dynamic resource) example
-│   │   ├── helloWorld.ts                   # A simple resource (direct resource) example
-│   │   ├── mod.ts                          # Provides a single point of export for all the MCP resources
-│   │   └── schemas.ts                      # Zod schemas for MCP resources
-│   ├── tools/                             
-│   │   ├── domain.ts                       # A tool that fetches web domain information from the domainsdb API
-│   │   ├── mod.ts                          # Provides a single point of export for all the MCP tools
-│   │   └── poem.ts                         # A tool that showcases sampling
-│   └── mod.ts                  # Provides a single point of export for the MCP server and all the MCP internals
+│   │   └── transport.ts            # Manages StreamableHTTPServerTransports
+│   ├── kv/
+│   │   ├── mod.ts                  # Exports Deno KV store and watcher helpers
+│   │   ├── store.ts                # Deno KV open/close lifecycle and config
+│   │   └── watch.ts                # Subscription watcher for resource updates
+│   ├── app.ts                      # The main application class
+│   ├── cli.ts                      # Parses CLI args and env vars into an AppConfig object
+│   ├── cron.ts                     # Scheduled jobs (e.g., stale task cleanup)
+│   ├── permissions.ts              # Runtime permission preflight checks
+│   ├── signals.ts                  # Signal handling for SIGINT, SIGTERM, etc.
+│   └── stdio.ts                    # The STDIO transport & state manager
+├── mcp/
+│   ├── prompts/
+│   │   ├── codeReview.ts           # A code-review prompt example
+│   │   ├── languagePrompt.ts       # A prompt example with arguments
+│   │   └── mod.ts                  # Provides a single point of export for all MCP prompts
+│   ├── resources/
+│   │   ├── counter.ts              # A stateful resource example
+│   │   ├── counterStore.ts         # Persistence for counter resource state
+│   │   ├── greetings.ts            # A dynamic resource template example
+│   │   ├── helloWorld.ts           # A direct resource example
+│   │   ├── kvKeys.ts               # Shared keys used for KV-backed resources
+│   │   ├── subscriptionTracker.ts  # Tracks active resource subscriptions
+│   │   └── mod.ts                  # Provides a single point of export for all MCP resources
+│   ├── tasks/
+│   │   ├── kvTaskStore.ts          # Durable task state storage in Deno KV
+│   │   ├── queue.ts                # Delayed task queue worker
+│   │   └── mod.ts                  # Exports task queue and task store
+│   ├── tools/
+│   │   ├── delayedEchoTask.ts      # A task-based async tool example
+│   │   ├── domain.ts               # A tool that fetches website info via HTTP HEAD request
+│   │   ├── elicitInput.ts          # An elicitation tool example
+│   │   ├── guidedPoemTask.ts       # A task + sampling workflow example
+│   │   ├── incrementCounter.ts     # A tool that updates a resource-backed counter
+│   │   ├── logMessage.ts           # A logging notification example
+│   │   ├── notifyListChanged.ts    # A list-changed notification example
+│   │   ├── poem.ts                 # A sampling tool example
+│   │   ├── sandbox.ts              # Sandboxed code execution via Deno Sandbox (microVM)
+│   │   └── mod.ts                  # Provides a single point of export for all MCP tools
+│   └── mod.ts                      # Creates and configures the MCP server
 ├── shared/
 │   ├── constants/  
 │   │   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
@@ -61,11 +82,12 @@ src/
 │   ├── types.ts                    # Shared types
 │   ├── utils.ts                    # Shared utility functions
 │   └── validation.ts               # Single point of export for all shared validation functions
-static/             
-├── .well-known/    
-│   ├── llms.txt                # An example llms.txt giving LLMs information about the server    
-│   └── openapi.yaml            # An example OpenAPI specification for the server 
-└── dxt-manifest.json           # The manifest for the DXT package
+static/
+├── .well-known/
+│   ├── llms.txt                    # An example llms.txt giving LLMs information about the server
+│   └── openapi.yaml                # An example OpenAPI specification for the server
+├── 404.html                        # Default static 404 page
+└── dxt-manifest.json               # The manifest for the DXT package
 ```
 
 ## Code Style Guidelines
@@ -83,7 +105,7 @@ Comments: JSDoc for public APIs, inline comments for complex logic
 
 ## Best Practices
 
-Environment Variables: env vars are loading in `main.ts` using `@std/dotenv/load` in the top-level
+Environment Variables: Parse env vars and CLI flags in `src/app/cli.ts`. Local run tasks load `.env` via `--env-file=.env`.
 File Paths: Use `@std/path` for cross-platform file path handling
 Data Validation: Use `zod` schemas for data validation
 HTTP Responses: Return proper status codes and structured JSON responses, including JSONRPC when necessary.

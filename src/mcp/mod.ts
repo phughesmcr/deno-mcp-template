@@ -1,5 +1,4 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { InMemoryTaskStore } from "@modelcontextprotocol/sdk/experimental/tasks/stores/in-memory.js";
 import {
   SubscribeRequestSchema,
   UnsubscribeRequestSchema,
@@ -8,19 +7,20 @@ import {
 import { SERVER_CAPABILITIES, SERVER_INFO } from "$/shared/constants.ts";
 import { prompts } from "./prompts/mod.ts";
 import { resources } from "./resources/mod.ts";
+import { createResourceSubscriptionTracker } from "./resources/subscriptionTracker.ts";
+import { KvTaskStore } from "./tasks/mod.ts";
 import { registerTaskTools, ToolManager, tools } from "./tools/mod.ts";
 
-/** Tracks resource subscriptions by URI */
-const subscriptions = new Set<string>();
+const subscriptions = createResourceSubscriptionTracker();
 
 /** Check if a URI is subscribed */
 export function isSubscribed(uri: string): boolean {
-  return subscriptions.has(uri);
+  return subscriptions.isSubscribed(uri);
 }
 
 /** Get all subscribed URIs */
 export function getSubscriptions(): string[] {
-  return Array.from(subscriptions);
+  return subscriptions.getSubscriptions();
 }
 
 /**
@@ -31,8 +31,23 @@ export function createMcpServer(): McpServer {
   // You can edit the server capabilities in `src/constants.ts`
   const server = new McpServer(SERVER_INFO, {
     capabilities: SERVER_CAPABILITIES,
-    taskStore: new InMemoryTaskStore(),
+    taskStore: new KvTaskStore(),
   });
+  const notifyForServer = (uri: string): Promise<void> =>
+    server.server.sendResourceUpdated({ uri });
+  let isNotifierReleased = false;
+  const releaseNotifier = async (): Promise<void> => {
+    if (isNotifierReleased) return;
+    isNotifierReleased = true;
+    await subscriptions.unregister(notifyForServer);
+  };
+  const previousOnClose = server.server.onclose;
+  server.server.onclose = () => {
+    previousOnClose?.();
+    void releaseNotifier().catch((error) => {
+      console.error("Failed to clean up subscriptions for closed MCP server", error);
+    });
+  };
 
   // Prompt handlers
   if ("prompts" in SERVER_CAPABILITIES) {
@@ -66,15 +81,15 @@ export function createMcpServer(): McpServer {
     if (
       resourceCapabilities && "subscribe" in resourceCapabilities && resourceCapabilities.subscribe
     ) {
-      server.server.setRequestHandler(SubscribeRequestSchema, (request) => {
+      server.server.setRequestHandler(SubscribeRequestSchema, async (request) => {
         const uri = request.params.uri;
-        subscriptions.add(uri);
+        await subscriptions.subscribe(notifyForServer, uri);
         return {};
       });
 
-      server.server.setRequestHandler(UnsubscribeRequestSchema, (request) => {
+      server.server.setRequestHandler(UnsubscribeRequestSchema, async (request) => {
         const uri = request.params.uri;
-        subscriptions.delete(uri);
+        await subscriptions.unsubscribe(notifyForServer, uri);
         return {};
       });
     }

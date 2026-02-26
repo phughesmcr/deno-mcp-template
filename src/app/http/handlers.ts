@@ -1,4 +1,3 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Context } from "hono";
 
@@ -12,6 +11,10 @@ import { RPCError } from "$/shared/utils.ts";
 import { isUUID } from "$/shared/validation.ts";
 import type { HTTPTransportManager } from "./transport.ts";
 
+export type EnsureTransportConnected = (
+  transport: WebStandardStreamableHTTPServerTransport,
+) => Promise<void>;
+
 /** Handles MCP errors and returns appropriate JSON-RPC error responses */
 function handleMCPError(c: Context, error?: unknown): Response {
   const sessionId = c.req.header(HEADER_KEYS.SESSION_ID) ?? INVALID_SESSION_ID;
@@ -20,12 +23,14 @@ function handleMCPError(c: Context, error?: unknown): Response {
   if (error instanceof RPCError) {
     rpcError = error;
   } else if (error instanceof Error) {
+    console.error("Unhandled MCP request error", error);
     rpcError = RPCError.fromError(
       error,
       RPC_ERROR_CODES.INTERNAL_ERROR,
       sessionId,
     );
   } else {
+    console.error("Unhandled MCP request error", error);
     rpcError = RPCError.internalError(sessionId);
   }
 
@@ -64,31 +69,15 @@ function getSessionId(c: Context): string | undefined {
   });
 }
 
-/** Safely attempts to connect the transport to the MCP server */
-async function connectTransport(
-  mcp: McpServer,
-  transport: WebStandardStreamableHTTPServerTransport,
-): Promise<void> {
-  try {
-    await mcp.connect(transport);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("Transport already started")) {
-      // Transport is already connected, continue
-      return;
-    }
-    throw error;
-  }
-}
-
 /**
  * Creates a handler for MCP POST requests
- * @param mcp - The MCP server instance
  * @param transports - The HTTP transport manager
+ * @param ensureTransportConnected - Ensures a transport is connected to its protocol instance
  * @returns The POST request handler
  */
 export function createPostHandler(
-  mcp: McpServer,
   transports: HTTPTransportManager,
+  ensureTransportConnected: EnsureTransportConnected,
 ): (c: Context) => Promise<Response> {
   return async (c: Context) => {
     try {
@@ -113,7 +102,7 @@ export function createPostHandler(
         });
       }
       const transport = await transports.acquire(bodyText, sessionId);
-      await connectTransport(mcp, transport);
+      await ensureTransportConnected(transport);
       return await handleMCPRequest(transport, originalRequest, parsedBody);
     } catch (error) {
       return handleMCPError(c, error);
@@ -123,13 +112,13 @@ export function createPostHandler(
 
 /**
  * Creates a handler for MCP GET and DELETE requests
- * @param mcp - The MCP server instance
  * @param transports - The HTTP transport manager
+ * @param ensureTransportConnected - Ensures a transport is connected to its protocol instance
  * @returns The GET and DELETE request handler
  */
 export function createGetAndDeleteHandler(
-  mcp: McpServer,
   transports: HTTPTransportManager,
+  ensureTransportConnected: EnsureTransportConnected,
 ): (c: Context) => Promise<Response> {
   return async (c: Context) => {
     try {
@@ -155,7 +144,7 @@ export function createGetAndDeleteHandler(
           }),
         );
       }
-      await connectTransport(mcp, transport);
+      await ensureTransportConnected(transport);
       return await handleMCPRequest(transport, c.req.raw);
     } catch (error) {
       return handleMCPError(c, error);

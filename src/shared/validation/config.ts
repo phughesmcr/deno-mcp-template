@@ -1,5 +1,5 @@
 import type { CliOptions } from "$/app/cli.ts";
-import type { AppConfig, HttpServerConfig, StdioConfig } from "$/shared/types.ts";
+import type { AppConfig, HttpServerConfig, KvConfig, StdioConfig } from "$/shared/types.ts";
 import {
   validateHeaders,
   validateHostname,
@@ -11,6 +11,32 @@ import {
 const UUID_V4_REGEX = new RegExp(
   /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/i,
 );
+
+function normalizePath(path?: string): string | undefined {
+  const normalized = path?.trim();
+  return normalized ? normalized : undefined;
+}
+
+function validateTlsFilePath(path: string, label: string): string {
+  try {
+    const stat = Deno.statSync(path);
+    if (!stat.isFile) {
+      throw new Error(`${label} must point to a file: ${path}`);
+    }
+    return path;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      throw new Error(`${label} not found: ${path}`);
+    }
+    if (error instanceof Deno.errors.PermissionDenied) {
+      throw new Error(`${label} is not readable with current permissions: ${path}`);
+    }
+    if (error instanceof Error) {
+      throw new Error(`${label} is invalid: ${error.message}`);
+    }
+    throw new Error(`${label} is invalid: ${path}`);
+  }
+}
 
 /**
  * Checks if a string is a valid UUID v4
@@ -44,6 +70,8 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
     allowedOrigins,
     dnsRebinding,
     jsonResponse,
+    tlsCert,
+    tlsKey,
   } = config;
   try {
     const validatedHostname = validateHostname(hostname);
@@ -51,6 +79,19 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
     const validatedHeaders = validateHeaders(headers);
     const validatedAllowedHosts = validateHosts(allowedHosts);
     const validatedAllowedOrigins = validateOrigins(allowedOrigins);
+    const normalizedTlsCert = normalizePath(tlsCert);
+    const normalizedTlsKey = normalizePath(tlsKey);
+    if ((normalizedTlsCert && !normalizedTlsKey) || (!normalizedTlsCert && normalizedTlsKey)) {
+      throw new Error(
+        "TLS configuration requires both certificate and key paths (--tls-cert and --tls-key).",
+      );
+    }
+    const validatedTlsCert = normalizedTlsCert ?
+      validateTlsFilePath(normalizedTlsCert, "TLS certificate") :
+      undefined;
+    const validatedTlsKey = normalizedTlsKey ?
+      validateTlsFilePath(normalizedTlsKey, "TLS private key") :
+      undefined;
     return {
       success: true,
       value: {
@@ -62,6 +103,8 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
         allowedOrigins: validatedAllowedOrigins,
         enableDnsRebinding: !!dnsRebinding,
         jsonResponseMode: !!jsonResponse,
+        tlsCert: validatedTlsCert,
+        tlsKey: validatedTlsKey,
       },
     };
   } catch (error) {
@@ -88,6 +131,27 @@ export function validateStdioConfig(config: CliOptions): ValidationResult<StdioC
 }
 
 /**
+ * Validates Deno KV configuration from CLI options
+ * @param config - The CLI options to validate
+ * @returns The validation result with KV config or error
+ */
+export function validateKvConfig(config: CliOptions): ValidationResult<KvConfig> {
+  const kvPath = config.kvPath?.trim();
+  if (config.kvPath !== undefined && !kvPath) {
+    return {
+      success: false,
+      error: new Error("Invalid KV path: value cannot be empty."),
+    };
+  }
+  return {
+    success: true,
+    value: {
+      path: kvPath,
+    },
+  };
+}
+
+/**
  * Validates the complete application configuration from CLI options
  * @param config - The CLI options to validate
  * @returns The validation result with app config or error
@@ -100,6 +164,9 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
     const validatedStdio = validateStdioConfig(config);
     if (!validatedStdio.success) throw validatedStdio.error;
 
+    const validatedKv = validateKvConfig(config);
+    if (!validatedKv.success) throw validatedKv.error;
+
     if (!config.stdio && !config.http) {
       throw new Error(
         "Both the HTTP and STDIO servers are disabled. Please enable at least one server.",
@@ -109,9 +176,9 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
     return {
       success: true,
       value: {
-        ...config,
-        http: { ...validatedHttp.value },
-        stdio: { ...validatedStdio.value },
+        http: validatedHttp.value,
+        stdio: validatedStdio.value,
+        kv: validatedKv.value,
       },
     };
   } catch (error) {

@@ -1,6 +1,3 @@
-# Deno lock files
-deno.lock
-
 # Logs
 logs
 *.log
@@ -141,3 +138,5 @@ dist
 .DS_Store
 scratch/
 *.exe
+
+.cursor/skills/deno-*

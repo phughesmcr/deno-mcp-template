@@ -115,6 +115,12 @@ export type HttpServerConfig = {
 
   /** Whether to use JSON-only responses (disable SSE streaming) */
   jsonResponseMode?: boolean;
+
+  /** Optional TLS certificate file path in PEM format */
+  tlsCert?: string;
+
+  /** Optional TLS private key file path in PEM format */
+  tlsKey?: string;
 };
 
 /** The configuration for the STDIO transport */
@@ -122,8 +128,15 @@ export type StdioConfig = {
   enabled: boolean;
 };
 
+/** The configuration for Deno KV */
+export type KvConfig = {
+  /** Optional file path for Deno KV storage */
+  path?: string;
+};
+
 /** Public app config */
 export interface AppConfig {
   http: HttpServerConfig;
   stdio: StdioConfig;
+  kv: KvConfig;
 }

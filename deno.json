@@ -1,6 +1,6 @@
 {
     "name": "@phughesmcr/deno-mcp-template",
-    "version": "0.5.2",
+    "version": "0.6.0",
     "license": "MIT",
     "exports": "./main.ts",
     "description": "A demo package for MCP servers in Deno",
@@ -26,48 +26,52 @@
     },
     "imports": {
         "$/": "./src/",
-        "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.8",
-        "@cliffy/flags": "jsr:@cliffy/flags@^1.0.0-rc.8",
-        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.25.3",
-        "@std/cli": "jsr:@std/cli@^1.0.26",
-        "@std/dotenv/load": "jsr:@std/dotenv@^0.225.6/load",
+        "@cliffy/command": "jsr:@cliffy/command@^1.0.0",
+        "@cliffy/flags": "jsr:@cliffy/flags@^1.0.0",
+        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.27.1",
+        "@std/async": "jsr:@std/async@^1.2.0",
+        "@std/cli": "jsr:@std/cli@^1.0.28",
         "@std/path": "jsr:@std/path@^1.1.4",
+        "@deno/sandbox": "jsr:@deno/sandbox@^0.12.0",
         "@std/ulid": "jsr:@std/ulid@^1.0.0",
-        "hono": "jsr:@hono/hono@^4.11.7",
+        "hono": "jsr:@hono/hono@^4.12.3",
         "hono-rate-limiter": "npm:hono-rate-limiter@^0.5.3",
         "zod": "npm:zod@^4.3.6",
         "zod-validation-error": "npm:zod-validation-error@^5.0.0"
     },
     "tasks": {
-        "prep": "deno fmt && deno lint --fix && deno check main.ts && deno check src/**/*.ts",
-        "start": "deno run -A main.ts",
-        "dev": "ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run -A --watch main.ts -l=debug",
-        "ci": "deno task prep",
+        "setup": "deno run -A scripts/setup-template.ts",
+        "start": "deno run --env-file=.env -A main.ts",
+        "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts -l=debug",
+        "test:integration": "deno test --frozen -P",
+        "test:coverage": "deno test --frozen -P --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
+        "bench": "deno bench --frozen -P",
+        "ci": "CI=1 deno fmt --check && deno lint && deno check --frozen main.ts src/**/*.ts scripts/**/*.ts test/**/*.ts && deno task test:integration",
         "clean:dist": "deno run -A scripts/clean-dist.ts",
         "compile:win": {
             "description": "Create a binary for Windows",
             "dependencies": ["clean:dist"],
-            "command": "deno compile -A -o ./dist/server/server.exe main.ts --target x86_64-pc-windows-msvc --icon=./static/icon.ico"
+            "command": "deno compile -A --include ./static -o ./dist/server/server.exe main.ts --target x86_64-pc-windows-msvc --icon=./static/icon.ico"
         },
         "compile:mac:arm64": {
             "description": "Create a binary for Apple silicon macs (M1, M2, etc.)",
             "dependencies": ["clean:dist"],
-            "command": "deno compile -A -o ./dist/server/server_mac_arm64 main.ts --target aarch64-apple-darwin"
+            "command": "deno compile -A --include ./static -o ./dist/server/server_mac_arm64 main.ts --target aarch64-apple-darwin"
         },
         "compile:mac:x64": {
             "description": "Create a binary for Intel macs",
             "dependencies": ["clean:dist"],
-            "command": "deno compile -A -o ./dist/server/server_mac_x64 main.ts --target x86_64-apple-darwin"
+            "command": "deno compile -A --include ./static -o ./dist/server/server_mac_x64 main.ts --target x86_64-apple-darwin"
         },
         "compile:linux:x64": {
             "description": "Create a binary for Linux (x64)",
             "dependencies": ["clean:dist"],
-            "command": "deno compile -A -o ./dist/server/server_linux_x64 main.ts --target x86_64-unknown-linux-gnu"
+            "command": "deno compile -A --include ./static -o ./dist/server/server_linux_x64 main.ts --target x86_64-unknown-linux-gnu"
         },
         "compile:linux:arm64": {
             "description": "Create a binary for Linux (arm64)",
             "dependencies": ["clean:dist"],
-            "command": "deno compile -A -o ./dist/server/server_linux_arm64 main.ts --target aarch64-unknown-linux-gnu"
+            "command": "deno compile -A --include ./static -o ./dist/server/server_linux_arm64 main.ts --target aarch64-unknown-linux-gnu"
         },
         "compile:all": {
             "description": "Create binaries for all available platforms",
@@ -99,6 +103,9 @@
             "dependencies": ["compile:all", "dxt:pack"]
         }
     },
+    "deploy": {
+        "entrypoint": "main.ts"
+    },
     "compilerOptions": {
         "strict": true,
         "erasableSyntaxOnly": true,
@@ -113,10 +120,37 @@
         "noUnusedParameters": true,
         "verbatimModuleSyntax": true
     },
+    "test": {
+        "include": [
+            "test/**/*.test.ts"
+        ],
+        "permissions": {
+            "env": true,
+            "run": true,
+            "read": true,
+            "write": true,
+            "net": true,
+            "sys": true
+        }
+    },
+    "bench": {
+        "include": [
+            "test/**/*.bench.ts"
+        ],
+        "permissions": {
+            "env": true,
+            "read": true,
+            "write": true,
+            "net": true,
+            "sys": true
+        }
+    },
     "fmt": {
         "include": [
             "main.ts",
-            "src/**/*.ts"
+            "src/**/*.ts",
+            "scripts/**/*.ts",
+            "test/**/*.ts"
         ],
         "proseWrap": "always",
         "semiColons": true,
@@ -133,7 +167,9 @@
     "lint": {
         "include": [
             "main.ts",
-            "src/**/*.ts"
+            "src/**/*.ts",
+            "scripts/**/*.ts",
+            "test/**/*.ts"
         ],
         "rules": {
             "tags": [
@@ -148,7 +184,12 @@
             ]
         }
     },
+    "lock": {
+        "path": "./deno.lock",
+        "frozen": false
+    },
     "unstable": [
-        "kv"
+        "kv",
+        "cron"
     ]
 }

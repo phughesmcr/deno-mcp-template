@@ -8,6 +8,7 @@ import type { EventStore } from "@modelcontextprotocol/sdk/server/webStandardStr
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { monotonicUlid } from "@std/ulid";
 
+import { getKvStore } from "$/app/kv/mod.ts";
 import { EVENT_EXPIRY } from "$/shared/constants/http.ts";
 
 /** An event in the MCP event stream */
@@ -25,8 +26,8 @@ const EVENTS_KEY = ["events"];
 export class KvEventStore implements EventStore {
   #kv: Deno.Kv;
 
-  static async create(kvPath?: string) {
-    const kv = kvPath ? await Deno.openKv(kvPath) : await Deno.openKv();
+  static async create() {
+    const kv = await getKvStore();
     return new KvEventStore(kv);
   }
 
@@ -36,11 +37,7 @@ export class KvEventStore implements EventStore {
 
   /** Closes the underlying Deno.Kv instance */
   close(): void {
-    try {
-      this.#kv.close();
-    } catch {
-      // ignore errors during close
-    }
+    // shared store is closed by app lifecycle
   }
 
   /** Stores an event with a generated event ID */

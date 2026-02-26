@@ -9,11 +9,11 @@ const schema = z.object({
   purpose: z.string().min(1, "Purpose is required").max(200, "Purpose too long"),
 });
 
-const name = "collect-user-info";
+const name = "elicit-input";
 
 // deno-lint-ignore no-explicit-any
 const config: ToolConfig<typeof schema.shape, any> = {
-  title: "Collect user info",
+  title: "Elicit input",
   description: "Demonstrate form-based elicitation",
   inputSchema: schema.shape,
 };

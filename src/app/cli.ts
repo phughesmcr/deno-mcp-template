@@ -18,19 +18,20 @@ export type CliOptions = Prettify<
   & {
     http: boolean;
     stdio: boolean;
+    kvPath?: string;
     headers: string[];
     allowedOrigins: string[];
     allowedHosts: string[];
   }
 >;
 
+/** Prefix for environment variables */
+const prefix = "MCP_";
+
 /** Merges two arrays of strings, removing duplicates */
 function mergeArrays(a?: string[], b?: string[]): string[] {
   return [...new Set([...a ?? [], ...b ?? []])];
 }
-
-/** Prefix for environment variables */
-const prefix = "MCP_";
 
 function createCommand() {
   return new Command()
@@ -57,18 +58,18 @@ function createCommand() {
     .option("--no-stdio", "Disable the STDIO server.", {
       conflicts: ["no-http"],
     })
-    .env("NO_STDIO=<value:boolean>", "Disable the STDIO server.", { prefix })
+    .env("MCP_NO_STDIO=<value:boolean>", "Disable the STDIO server.", { prefix })
     // HTTP server
     .option("--no-http", "Disable the HTTP server.", {
       conflicts: ["no-stdio"],
     })
-    .env("NO_HTTP=<value:boolean>", "Disable the HTTP server.", { prefix })
+    .env("MCP_NO_HTTP=<value:boolean>", "Disable the HTTP server.", { prefix })
     // Port
     .option("-p, --port <port:integer>", "Set the port.", {
       default: DEFAULT_PORT,
       conflicts: ["no-http"],
     })
-    .env("PORT=<value:integer>", "Set the port.", { prefix })
+    .env("MCP_PORT=<value:integer>", "Set the port.", { prefix })
     // Hostname
     .option("-n, --hostname <hostname:string>", "Set the hostname.", {
       default: DEFAULT_HOSTNAME,
@@ -79,40 +80,55 @@ function createCommand() {
         throw new ValidationError("Port must be between 1 and 65535");
       }
     })
-    .env("HOSTNAME=<value:string>", "Set the hostname.", { prefix })
+    .env("MCP_HOSTNAME=<value:string>", "Set the hostname.", { prefix })
+    // TLS certificate
+    .option("--tls-cert <path:string>", "Path to TLS certificate file (PEM).", {
+      conflicts: ["no-http"],
+      depends: ["tls-key"],
+    })
+    .env("MCP_TLS_CERT=<value:string>", "Path to TLS certificate file (PEM).", { prefix })
+    // TLS private key
+    .option("--tls-key <path:string>", "Path to TLS private key file (PEM).", {
+      conflicts: ["no-http"],
+      depends: ["tls-cert"],
+    })
+    .env("MCP_TLS_KEY=<value:string>", "Path to TLS private key file (PEM).", { prefix })
+    // KV path
+    .option("--kv-path <path:string>", "Path to the Deno KV database file.")
+    .env("MCP_KV_PATH=<value:string>", "Path to the Deno KV database file.", { prefix })
     // Headers
     .option("-H, --header <header:string>", "Set a custom header.", {
       collect: true,
       conflicts: ["no-http"],
     })
-    .env("HEADERS=<value:string[]>", "Set custom headers.", { prefix })
+    .env("MCP_HEADERS=<value:string[]>", "Set custom headers.", { prefix })
     // JSON response mode
     .option("--json-response", "Enable JSON-only responses (disable SSE streaming).", {
       default: false,
       conflicts: ["no-http"],
     })
-    .env("JSON_RESPONSE=<value:boolean>", "Enable JSON-only responses.", { prefix })
+    .env("MCP_JSON_RESPONSE=<value:boolean>", "Enable JSON-only responses.", { prefix })
     // DNS rebinding
     .option("--dnsRebinding", "Enable DNS rebinding protection.", {
       default: false,
       conflicts: ["no-http"],
       depends: ["origin", "host"],
     })
-    .env("DNS_REBINDING=<value:boolean>", "Enable DNS rebinding protection.", { prefix })
+    .env("MCP_DNS_REBINDING=<value:boolean>", "Enable DNS rebinding protection.", { prefix })
     // Allowed origins
     .option("--origin <origin:string>", "Allow an origin for DNS rebinding.", {
       collect: true,
       conflicts: ["no-http"],
       depends: ["dnsRebinding"],
     })
-    .env("ALLOWED_ORIGINS=<value:string[]>", "Allowed origins for DNS rebinding.", { prefix })
+    .env("MCP_ALLOWED_ORIGINS=<value:string[]>", "Allowed origins for DNS rebinding.", { prefix })
     // Allowed hosts
     .option("--host <host:string>", "Allow a host for DNS rebinding.", {
       collect: true,
       conflicts: ["no-http"],
       depends: ["dnsRebinding"],
     })
-    .env("ALLOWED_HOSTS=<value:string[]>", "Allowed hosts for DNS rebinding.", { prefix })
+    .env("MCP_ALLOWED_HOSTS=<value:string[]>", "Allowed hosts for DNS rebinding.", { prefix })
     .parse(Deno.args);
 }
 

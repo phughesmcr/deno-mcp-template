@@ -89,6 +89,10 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
       allowedHosts,
       allowedOrigins,
     });
+    transport.onerror = (_error) => {
+      // Uncomment this to log transport errors - will dangerously expose tracebacks to clients
+      // console.error(`MCP transport error (session: ${transport.sessionId ?? sessionId})`, error);
+    };
     // Store the transport immediately with the session key for quick lookup
     transports.set(sessionId, transport);
     return transport;

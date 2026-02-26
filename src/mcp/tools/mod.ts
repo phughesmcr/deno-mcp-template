@@ -8,22 +8,25 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ZodRawShape } from "zod/v3";
 
 import type { ToolModule, ToolPlugin } from "$/shared/types.ts";
-import collectUserInfo from "./collectUserInfo.ts";
 import { registerDelayedEchoTask } from "./delayedEchoTask.ts";
 import domain from "./domain.ts";
+import elicitInput from "./elicitInput.ts";
+import { registerGuidedPoemTask } from "./guidedPoemTask.ts";
 import incrementCounter from "./incrementCounter.ts";
 import logMessage from "./logMessage.ts";
 import notifyListChanged from "./notifyListChanged.ts";
 import poem from "./poem.ts";
+import sandbox from "./sandbox.ts";
 
 // deno-lint-ignore no-explicit-any
 export const tools: ToolModule<any>[] = [
-  collectUserInfo, // Elicitation tool
-  domain, // Async tool with external API call
+  elicitInput, // Elicitation tool
+  domain, // Async tool with external HTTP request
   incrementCounter, // Resource updates + subscriptions
   logMessage, // Logging notification example
   notifyListChanged, // List-changed notification example
   poem, // Sampling tool
+  sandbox, // Sandboxed code execution
   // ... more tools
 ];
 
@@ -48,10 +51,12 @@ export class ToolManager {
     if (this.#tools.has(tool[0])) return;
     const plugin = this.#createPlugin(tool);
     this.#mcp.registerTool(...plugin);
+    this.#tools.set(tool[0], plugin);
   }
 }
 
 // WARNING: Task tools use experimental MCP APIs and may change without notice.
 export function registerTaskTools(mcp: McpServer): void {
   registerDelayedEchoTask(mcp);
+  registerGuidedPoemTask(mcp);
 }
