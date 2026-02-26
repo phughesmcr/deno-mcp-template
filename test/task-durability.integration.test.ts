@@ -1,5 +1,5 @@
-import type { Request } from "@modelcontextprotocol/sdk/types.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult, Request } from "@modelcontextprotocol/sdk/types.js";
+import { delay } from "@std/async/delay";
 
 import { closeKvStore, configureKvPath, openKvStore } from "$/app/kv/mod.ts";
 import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
@@ -17,10 +17,6 @@ function assertEquals<T>(actual: T, expected: T): void {
   }
 }
 
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function waitForTaskResult(
   store: KvTaskStore,
   taskId: string,
@@ -31,7 +27,7 @@ async function waitForTaskResult(
     try {
       return await store.getTaskResult(taskId) as CallToolResult;
     } catch {
-      await sleep(25);
+      await delay(25);
     }
   }
   throw new Error(`Timed out waiting for task result: ${taskId}`);

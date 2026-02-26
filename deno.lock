@@ -7,6 +7,7 @@
     "jsr:@cliffy/internal@1.0.0": "1.0.0",
     "jsr:@cliffy/table@1.0.0": "1.0.0",
     "jsr:@hono/hono@^4.11.7": "4.12.2",
+    "jsr:@std/async@^1.0.19": "1.2.0",
     "jsr:@std/cli@^1.0.26": "1.0.28",
     "jsr:@std/dotenv@~0.225.6": "0.225.6",
     "jsr:@std/fmt@^1.0.9": "1.0.9",
@@ -50,6 +51,9 @@
     },
     "@hono/hono@4.12.2": {
       "integrity": "a3344827d814799503bb3bba77285344aaa2798643d1cc56345f9e3537ece886"
+    },
+    "@std/async@1.2.0": {
+      "integrity": "c059c6f6d95ca7cc012ae8e8d7164d1697113d54b0b679e4372b354b11c2dee5"
     },
     "@std/cli@1.0.28": {
       "integrity": "74ef9b976db59ca6b23a5283469c9072be6276853807a83ec6c7ce412135c70a",
@@ -613,6 +617,7 @@
       "jsr:@cliffy/command@1",
       "jsr:@cliffy/flags@1",
       "jsr:@hono/hono@^4.11.7",
+      "jsr:@std/async@^1.0.19",
       "jsr:@std/cli@^1.0.26",
       "jsr:@std/dotenv@~0.225.6",
       "jsr:@std/path@^1.1.4",

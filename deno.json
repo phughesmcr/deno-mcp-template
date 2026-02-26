@@ -29,6 +29,7 @@
         "@cliffy/command": "jsr:@cliffy/command@^1.0.0",
         "@cliffy/flags": "jsr:@cliffy/flags@^1.0.0",
         "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.27.1",
+        "@std/async": "jsr:@std/async@^1.0.19",
         "@std/cli": "jsr:@std/cli@^1.0.26",
         "@std/dotenv/load": "jsr:@std/dotenv@^0.225.6/load",
         "@std/path": "jsr:@std/path@^1.1.4",
@@ -159,6 +160,7 @@
         "frozen": false
     },
     "unstable": [
-        "kv"
+        "kv",
+        "cron"
     ]
 }
