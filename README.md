@@ -66,7 +66,59 @@ deno task start
 deno task dev
 ```
 
+ℹ️ `deno task setup` is intentionally one-time. It updates template placeholders, then removes the
+`setup` task from `deno.json` and deletes `scripts/setup-template.ts` so it is not accidentally
+rerun later.
+
 Once you're ready to start adding your own tools, prompts, and resources, begin by editing `src/shared/constants/**.ts`, examine the `src/app` directory for any changes you need to make (e.g., CORS settings in `src/app/http/hono.ts`), and then follow the code patterns in the `src/mcp/` directory to create your own MCP features.
+
+## Built-in MCP Examples
+
+The template includes working examples you can call immediately from an MCP client. Most end-users
+replace these with domain-specific implementations.
+
+### Prompts
+
+- `review-code`  
+  Creates a prompt message asking the model to review supplied code.
+- `language-snippet`  
+  Creates a prompt message to generate a short snippet for a language and goal.
+
+### Resources
+
+- `hello://world`  
+  Returns a static plain-text hello-world resource.
+- `greetings://{name}`  
+  Returns a dynamic greeting resource for the provided name.
+- `counter://value`  
+  Returns the current KV-backed counter value (supports subscription updates).
+
+### Tools
+
+- `elicit-input`  
+  Prompts the client for structured form input and returns the response.
+- `fetch-website-info`  
+  Performs an HTTP `HEAD` request and returns status and selected headers.
+- `increment-counter`  
+  Increments the KV-backed counter resource and returns the updated value.
+- `log-message`  
+  Sends a structured log notification to the connected client.
+- `notify-list-changed`  
+  Triggers tools/prompts/resources list-changed notifications.
+- `poem`  
+  Uses sampling to generate a poem from a text prompt.
+- `execute-code` 
+  Executes user-provided TypeScript/JavaScript, sandboxed through Deno Sandbox.
+
+### Task-based tools (experimental)
+
+- `delayed-echo`  
+  Creates a background task that echoes text after a configurable delay.
+- `guided-poem`  
+  Runs a task workflow that elicits poem details, then samples a poem.
+
+⚠️ Task-based tools require MCP task support in the client. If a client does not support tasks,
+these may not appear or execute.
 
 ## Using your MCP server
 
@@ -118,6 +170,19 @@ Otherwise, if you are using DNS rebinding protection, you must set an Origin hea
 }
 ```
 
+#### Raw HTTP clients (without `mcp-remote`)
+
+If you are integrating directly with `/mcp`:
+
+1. Send `POST /mcp` with a JSON-RPC `initialize` request.
+2. Read the `mcp-session-id` response header.
+3. Include `mcp-session-id` on all subsequent `POST /mcp`, `GET /mcp`, and `DELETE /mcp`
+   requests.
+4. For stream resumability, include `last-event-id` where applicable.
+5. If DNS rebinding protection is enabled, ensure request `Origin`/`Host` values are allowed.
+
+For most users, `mcp-remote` is still the easiest option.
+
 ### Using the STDIO server
 
 ```json
@@ -153,6 +218,13 @@ See [Deno Compile Docs](https://docs.deno.com/runtime/reference/cli/compile/) fo
 ### Compile to a Claude Desktop Extension (DXT)
 
 Anthropic's [desktop extensions](https://www.anthropic.com/engineering/desktop-extensions) tool packages MCP servers into a single-click install for Claude Desktop.
+
+Install the DXT CLI once:
+
+```bash
+npm install -g @anthropic-ai/dxt
+dxt --version
+```
 
 Run `deno task dxt:all` to compile the server to a DXT package for all platforms (Windows, Mac, Linux).
 
@@ -276,6 +348,32 @@ static/
 
 ⚠️ CLI flags take precedence over environment variables, except in collections (e.g. `-H`, `--origin` and `--host`), where the two are merged.
 
+### Collection value examples
+
+Collection-style config values (`MCP_HEADERS`, `MCP_ALLOWED_ORIGINS`, `MCP_ALLOWED_HOSTS`) can be
+set as comma-separated values in `.env`:
+
+```env
+MCP_HEADERS=x-api-key:demo,cache-control:no-store
+MCP_ALLOWED_ORIGINS=http://localhost:6274,https://app.example.com
+MCP_ALLOWED_HOSTS=localhost,127.0.0.1,app.example.com
+```
+
+Equivalent CLI usage:
+
+```bash
+deno task start -- \
+  -H "x-api-key:demo" \
+  -H "cache-control:no-store" \
+  --origin "http://localhost:6274" \
+  --origin "https://app.example.com" \
+  --host "localhost" \
+  --host "app.example.com"
+```
+
+Use `--origin` for full origins (e.g. `https://example.com`) and `--host` for hostnames or IPs
+(e.g. `example.com`, `127.0.0.1`).
+
 ## Development
 
 Run `deno task setup` to setup the project for your own use.
@@ -283,6 +381,24 @@ Run `deno task setup` to setup the project for your own use.
 ### Runtime permissions
 
 The app now validates required runtime permissions at startup and fails fast with actionable flag guidance if a required permission is missing.
+
+For production, prefer explicit permissions over `-A`.
+
+```bash
+# HTTP + STDIO (local defaults)
+deno run --env-file=.env \
+  --allow-env --allow-read --allow-write --allow-sys \
+  --allow-net=localhost:3001 \
+  main.ts
+
+# STDIO only (no HTTP listener)
+deno run --env-file=.env \
+  --allow-env --allow-read --allow-write --allow-sys \
+  main.ts --no-http
+```
+
+If you keep networked tools (such as `fetch-website-info`), include any required destinations in
+`--allow-net`.
 
 ### Lockfile and reproducibility
 
