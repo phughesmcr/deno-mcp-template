@@ -31,7 +31,6 @@
         "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.27.1",
         "@std/async": "jsr:@std/async@^1.2.0",
         "@std/cli": "jsr:@std/cli@^1.0.28",
-        "@std/dotenv/load": "jsr:@std/dotenv@^0.225.6/load",
         "@std/path": "jsr:@std/path@^1.1.4",
         "@deno/sandbox": "jsr:@deno/sandbox@^0.12.0",
         "@std/ulid": "jsr:@std/ulid@^1.0.0",
@@ -42,12 +41,12 @@
     },
     "tasks": {
         "setup": "deno run -A scripts/setup-template.ts",
-        "start": "deno run -A main.ts",
-        "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run -A --watch main.ts -l=debug",
-        "test:integration": "deno test --frozen -A test",
-        "test:coverage": "deno test --frozen -A --coverage=coverage test && deno coverage coverage --lcov --output=coverage/lcov.info",
-        "bench": "deno bench --frozen --allow-env --allow-read --allow-write --allow-net --allow-sys test",
-        "ci": "CI=1 deno fmt && deno lint --fix && deno check --frozen main.ts && deno check --frozen src/**/*.ts && deno task test:integration",
+        "start": "deno run --env-file=.env -A main.ts",
+        "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 npx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts -l=debug",
+        "test:integration": "deno test --frozen -P",
+        "test:coverage": "deno test --frozen -P --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
+        "bench": "deno bench --frozen -P",
+        "ci": "CI=1 deno fmt --check && deno lint && deno check --frozen main.ts src/**/*.ts scripts/**/*.ts test/**/*.ts && deno task test:integration",
         "clean:dist": "deno run -A scripts/clean-dist.ts",
         "compile:win": {
             "description": "Create a binary for Windows",
@@ -121,10 +120,37 @@
         "noUnusedParameters": true,
         "verbatimModuleSyntax": true
     },
+    "test": {
+        "include": [
+            "test/**/*.test.ts"
+        ],
+        "permissions": {
+            "env": true,
+            "run": true,
+            "read": true,
+            "write": true,
+            "net": true,
+            "sys": true
+        }
+    },
+    "bench": {
+        "include": [
+            "test/**/*.bench.ts"
+        ],
+        "permissions": {
+            "env": true,
+            "read": true,
+            "write": true,
+            "net": true,
+            "sys": true
+        }
+    },
     "fmt": {
         "include": [
             "main.ts",
-            "src/**/*.ts"
+            "src/**/*.ts",
+            "scripts/**/*.ts",
+            "test/**/*.ts"
         ],
         "proseWrap": "always",
         "semiColons": true,
@@ -141,7 +167,9 @@
     "lint": {
         "include": [
             "main.ts",
-            "src/**/*.ts"
+            "src/**/*.ts",
+            "scripts/**/*.ts",
+            "test/**/*.ts"
         ],
         "rules": {
             "tags": [

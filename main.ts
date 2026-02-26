@@ -55,9 +55,6 @@ import { createApp } from "$/app/app.ts";
 import { handleCliArgs } from "$/app/cli.ts";
 import { createMcpServer } from "$/mcp/mod.ts";
 
-// read env vars from .env file
-import "@std/dotenv/load";
-
 if (import.meta.main) {
   const config = await handleCliArgs();
   const app = createApp(createMcpServer, config);
