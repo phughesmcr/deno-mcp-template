@@ -6,11 +6,13 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/publish.yml?label=publish)
 
 ![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
-![Version](https://img.shields.io/github/package-json/v/phughesmcr/deno-mcp-template?filename=deno.json)
+[![JSR](https://jsr.io/badges/@phughesmcr/deno-mcp-template)](https://jsr.io/@phughesmcr/deno-mcp-template)
+[![JSR Score](https://jsr.io/badges/@phughesmcr/deno-mcp-template/score)](https://jsr.io/@phughesmcr/deno-mcp-template)
 ![Repo Size](https://img.shields.io/github/languages/code-size/phughesmcr/deno-mcp-template)
 ![License](https://img.shields.io/github/license/phughesmcr/deno-mcp-template)
 
 ![Sponsor](https://img.shields.io/github/sponsors/phughesmcr)
+
 
 <div align="center">
     <img src="static/banner_480.png" alt="Repo Logo - a happy dinosaur with a happy robot on its back walks in-front of a cliff-face with the letters M C P carved into it" width="320" />
