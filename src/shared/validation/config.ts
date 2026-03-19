@@ -1,4 +1,5 @@
 import type { CliOptions } from "$/app/cli.ts";
+import { isAllInterfacesBindHostname } from "$/shared/constants/http.ts";
 import type { AppConfig, HttpServerConfig, KvConfig, StdioConfig } from "$/shared/types.ts";
 import {
   validateHeaders,
@@ -72,6 +73,9 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
     jsonResponse,
     tlsCert,
     tlsKey,
+    trustProxy,
+    httpBearerToken: rawHttpBearerToken,
+    requireHttpAuth,
   } = config;
   try {
     const validatedHostname = validateHostname(hostname);
@@ -92,6 +96,30 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
     const validatedTlsKey = normalizedTlsKey ?
       validateTlsFilePath(normalizedTlsKey, "TLS private key") :
       undefined;
+
+    if (
+      !!http &&
+      isAllInterfacesBindHostname(validatedHostname) &&
+      (!dnsRebinding || validatedAllowedHosts.length === 0)
+    ) {
+      throw new Error(
+        "Binding to all interfaces (0.0.0.0 or ::) requires DNS rebinding protection with at least one allowed host. " +
+          "Use --dnsRebinding with --host / MCP_ALLOWED_HOSTS, or bind to localhost (e.g. -n localhost).",
+      );
+    }
+
+    const bearerTrimmed = typeof rawHttpBearerToken === "string" ?
+      rawHttpBearerToken.trim() :
+      undefined;
+    if (rawHttpBearerToken !== undefined && rawHttpBearerToken !== "" && !bearerTrimmed) {
+      throw new Error("HTTP bearer token cannot be empty or whitespace-only.");
+    }
+    if (requireHttpAuth && !bearerTrimmed) {
+      throw new Error(
+        "MCP_REQUIRE_HTTP_AUTH is set but no bearer token was configured. Set MCP_HTTP_BEARER_TOKEN or --http-bearer-token.",
+      );
+    }
+
     return {
       success: true,
       value: {
@@ -105,6 +133,8 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
         jsonResponseMode: !!jsonResponse,
         tlsCert: validatedTlsCert,
         tlsKey: validatedTlsKey,
+        trustProxy: !!trustProxy,
+        ...(bearerTrimmed ? { httpBearerToken: bearerTrimmed } : {}),
       },
     };
   } catch (error) {

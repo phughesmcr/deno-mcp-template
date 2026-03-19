@@ -80,7 +80,7 @@ That's it. You have a running MCP server with tools, resources, prompts, and tas
 | What | How | Where |
 | --- | --- | --- |
 | Dual transports | STDIO + Streamable HTTP from a single app | `src/app/` |
-| HTTP middleware | Rate limiting, CORS, security headers, timeouts, sessions | `src/app/http/hono.ts` |
+| HTTP middleware | Rate limiting, CORS, optional bearer auth, security headers, timeouts, sessions | `src/app/http/hono.ts` |
 | Persistent state | Deno KV -- zero-config locally, built-in on Deploy | `src/app/kv/` |
 | Session resumability | KV-backed event store for stream recovery | `src/app/http/kvEventStore.ts` |
 | Background tasks | Durable async task queue with KV state | `src/mcp/tasks/` |
@@ -118,6 +118,17 @@ Run `deno task setup` first -- it rewrites package names, scopes, and metadata a
 ### What to remove
 
 Delete the example files you don't need from `src/mcp/tools/`, `src/mcp/resources/`, and `src/mcp/prompts/`. Update the corresponding `mod.ts` barrel exports. Done.
+
+## HTTP security
+
+- **Authentication:** Set `MCP_HTTP_BEARER_TOKEN` (or `--http-bearer-token`) so clients must send `Authorization: Bearer …` or `x-api-key: …` on `/mcp`. For CI or production templates, `MCP_REQUIRE_HTTP_AUTH=true` fails startup if no token is set.
+- **Exposure:** Binding to a non-loopback hostname without a token logs a warning: anyone who can reach the port can use MCP. Use a token or terminate TLS and auth at a reverse proxy.
+- **All interfaces:** Listening on `0.0.0.0` or `::` requires `--dnsRebinding` plus `--host` / `MCP_ALLOWED_HOSTS` (validated at startup).
+- **CORS:** Wildcard `*` origins are not allowed; list explicit origins (e.g. `MCP_ALLOWED_ORIGINS`).
+- **Rate limits:** With `MCP_TRUST_PROXY=true`, limits follow proxy client IP headers (only safe behind a real proxy). Requests with no socket IP and no session use a lower cap (`RATE_LIMIT_UNKNOWN_CLIENT` in `src/shared/constants/http.ts`).
+- **`fetch-website-info`:** Only public HTTPS URLs are allowed by default (blocks private IPs, localhost, link-local, `.internal`, etc.). Redirects are followed manually with the same checks. Set `MCP_DOMAIN_TOOL_ALLOW_HTTP=1` to allow `http://` for demos.
+
+See [`.env.example`](.env.example) for copy-paste variables.
 
 ## Ship It
 

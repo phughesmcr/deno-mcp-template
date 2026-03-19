@@ -3,11 +3,15 @@ import { createArrayValidator } from "$/shared/utils.ts";
 export const validateOrigin = (origin: string): string => {
   const trimmedOrigin = origin.trim();
 
-  // Allow wildcard
-  if (trimmedOrigin === "*") return trimmedOrigin;
   if (!trimmedOrigin) {
     throw new Error(
-      `Invalid origin: ${origin}. Must be a valid origin (e.g., https://example.com, http://localhost:3000, or *).`,
+      `Invalid origin: ${origin}. Must be a valid origin (e.g., https://example.com or http://localhost:3000).`,
+    );
+  }
+
+  if (trimmedOrigin === "*") {
+    throw new Error(
+      `Invalid origin: wildcard "*" is not allowed; list each allowed origin explicitly.`,
     );
   }
 
@@ -19,13 +23,13 @@ export const validateOrigin = (origin: string): string => {
     parsedOrigin = new URL(normalized);
   } catch {
     throw new Error(
-      `Invalid origin: ${origin}. Must be a valid origin (e.g., https://example.com, http://localhost:3000, or *).`,
+      `Invalid origin: ${origin}. Must be a valid origin (e.g., https://example.com or http://localhost:3000).`,
     );
   }
 
   if (parsedOrigin.protocol !== "http:" && parsedOrigin.protocol !== "https:") {
     throw new Error(
-      `Invalid origin: ${origin}. Must be a valid origin (e.g., https://example.com, http://localhost:3000, or *).`,
+      `Invalid origin: ${origin}. Must be a valid origin (e.g., https://example.com or http://localhost:3000).`,
     );
   }
 

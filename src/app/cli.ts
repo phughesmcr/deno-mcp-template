@@ -14,7 +14,17 @@ import { validateConfig } from "$/shared/validation.ts";
 export type CliCommand = Awaited<ReturnType<typeof createCommand>>;
 
 export type CliOptions = Prettify<
-  & Omit<CliCommand["options"], "header" | "host" | "origin" | "noHttp" | "noStdio">
+  & Omit<
+    CliCommand["options"],
+    | "header"
+    | "host"
+    | "origin"
+    | "noHttp"
+    | "noStdio"
+    | "trustProxy"
+    | "requireHttpAuth"
+    | "httpBearerToken"
+  >
   & {
     http: boolean;
     stdio: boolean;
@@ -22,6 +32,9 @@ export type CliOptions = Prettify<
     headers: string[];
     allowedOrigins: string[];
     allowedHosts: string[];
+    trustProxy: boolean;
+    requireHttpAuth: boolean;
+    httpBearerToken?: string;
   }
 >;
 
@@ -115,6 +128,35 @@ function createCommand() {
       depends: ["origin", "host"],
     })
     .env("MCP_DNS_REBINDING=<value:boolean>", "Enable DNS rebinding protection.", { prefix })
+    // Trust proxy headers for rate limiting
+    .option("--trust-proxy", "Trust proxy headers for client IP (rate limiting only).", {
+      default: false,
+      conflicts: ["no-http"],
+    })
+    .env(
+      "MCP_TRUST_PROXY=<value:boolean>",
+      "Trust CF / X-Forwarded-For / X-Real-IP for rate limits.",
+      {
+        prefix,
+      },
+    )
+    // HTTP MCP bearer auth
+    .option(
+      "--http-bearer-token <token:string>",
+      "Shared secret for HTTP MCP (prefer MCP_HTTP_BEARER_TOKEN env).",
+      { conflicts: ["no-http"] },
+    )
+    .env("MCP_HTTP_BEARER_TOKEN=<value:string>", "Bearer token for HTTP /mcp requests.", { prefix })
+    .option(
+      "--require-http-auth",
+      "Require MCP_HTTP_BEARER_TOKEN (or --http-bearer-token); exit if unset.",
+      { default: false, conflicts: ["no-http"] },
+    )
+    .env(
+      "MCP_REQUIRE_HTTP_AUTH=<value:boolean>",
+      "Fail startup when no HTTP bearer token is configured.",
+      { prefix },
+    )
     // Allowed origins
     .option("--origin <origin:string>", "Allow an origin for DNS rebinding.", {
       collect: true,
@@ -142,11 +184,17 @@ function transformCliOptions(rawOptions: CliCommand["options"]): CliOptions {
     headers: rawHeaders,
     allowedOrigins: rawAllowedOrigins,
     allowedHosts: rawAllowedHosts,
+    trustProxy: rawTrustProxy,
+    requireHttpAuth: rawRequireHttpAuth,
+    httpBearerToken: rawHttpBearerToken,
     ...cleanOptions
   } = rawOptions;
 
   return {
     ...cleanOptions,
+    trustProxy: rawTrustProxy ?? false,
+    requireHttpAuth: rawRequireHttpAuth ?? false,
+    httpBearerToken: rawHttpBearerToken,
     headers: mergeArrays(header, rawHeaders),
     allowedOrigins: mergeArrays(origin, rawAllowedOrigins),
     allowedHosts: mergeArrays(host, rawAllowedHosts),

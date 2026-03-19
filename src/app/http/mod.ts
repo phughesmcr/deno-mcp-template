@@ -3,7 +3,10 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { HttpServerConfig, Transport } from "$/shared/types.ts";
 import { createHonoApp } from "./hono.ts";
-import { shouldWarnAllInterfacesBindWithoutHostAllowlist } from "./hostHeaderMiddleware.ts";
+import {
+  shouldWarnAllInterfacesBindWithoutHostAllowlist,
+  shouldWarnUnauthenticatedHttp,
+} from "./hostHeaderMiddleware.ts";
 import { createHTTPTransportManager } from "./transport.ts";
 
 function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undefined {
@@ -39,6 +42,12 @@ export function createHttpServer(
         `${APP_NAME}: HTTP is binding to ${hostname} without Host allowlist middleware. ` +
           "DNS rebinding protection is disabled. Use --hostname localhost (or 127.0.0.1), " +
           "or enable --dnsRebinding with --host / MCP_ALLOWED_HOSTS for explicit Host validation.",
+      );
+    }
+    if (shouldWarnUnauthenticatedHttp(config)) {
+      console.error(
+        `${APP_NAME}: HTTP is listening on a non-loopback address (${hostname}) without MCP_HTTP_BEARER_TOKEN. ` +
+          "Any client that can reach this port can use MCP. Set a bearer token or place the server behind authenticated TLS.",
       );
     }
     const isTlsEnabled = !!tlsCert && !!tlsKey;

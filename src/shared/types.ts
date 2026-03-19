@@ -121,6 +121,18 @@ export type HttpServerConfig = {
 
   /** Optional TLS private key file path in PEM format */
   tlsKey?: string;
+
+  /**
+   * When true, derive client IP from `cf-connecting-ip`, `x-forwarded-for` (first hop), then `x-real-ip`
+   * for rate limiting. Unsafe without a trusted reverse proxy (clients can spoof these headers).
+   */
+  trustProxy?: boolean;
+
+  /**
+   * When set, HTTP `/mcp` requires `Authorization: Bearer <token>` or `x-api-key: <token>`.
+   * Prefer `MCP_HTTP_BEARER_TOKEN` over CLI flags (process list visibility).
+   */
+  httpBearerToken?: string;
 };
 
 /** The configuration for the STDIO transport */

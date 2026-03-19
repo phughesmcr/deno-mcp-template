@@ -1,6 +1,6 @@
 import type { Context, MiddlewareHandler } from "hono";
 
-import { HTTP_STATUS } from "$/shared/constants.ts";
+import { HTTP_STATUS, isAllInterfacesBindHostname } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 
 /** Hostnames allowed by {@link createLocalhostHostValidationMiddleware} (matches MCP SDK). */
@@ -15,12 +15,6 @@ const LOOPBACK_BIND_HOSTNAMES = new Set([
   "127.0.0.1",
   "::1",
   "[::1]",
-]);
-
-const ALL_INTERFACES_BIND_HOSTNAMES = new Set([
-  "0.0.0.0",
-  "::",
-  "[::]",
 ]);
 
 /** JSON-RPC error code used by MCP SDK host header middleware. */
@@ -153,5 +147,19 @@ export function shouldWarnAllInterfacesBindWithoutHostAllowlist(
   if (http.enableDnsRebinding && (http.allowedHosts?.length ?? 0) > 0) {
     return false;
   }
-  return ALL_INTERFACES_BIND_HOSTNAMES.has(http.hostname.trim().toLowerCase());
+  return isAllInterfacesBindHostname(http.hostname);
+}
+
+/** True when the HTTP listen hostname is loopback-only (localhost / 127.0.0.1 / ::1). */
+export function isLoopbackBindHostname(hostname: string): boolean {
+  return LOOPBACK_BIND_HOSTNAMES.has(hostname.trim().toLowerCase());
+}
+
+/**
+ * Warn when HTTP is exposed beyond loopback without a configured bearer token.
+ */
+export function shouldWarnUnauthenticatedHttp(http: AppConfig["http"]): boolean {
+  if (!http.enabled) return false;
+  if (http.httpBearerToken?.trim()) return false;
+  return !isLoopbackBindHostname(http.hostname);
 }

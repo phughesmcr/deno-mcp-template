@@ -24,7 +24,9 @@ function createBaseCliOptions(): CliOptions {
     allowedHosts: [],
     dnsRebinding: false,
     jsonResponse: false,
-  } as CliOptions;
+    trustProxy: false,
+    requireHttpAuth: false,
+  };
 }
 
 Deno.test("validateHttpConfig requires both TLS cert and key", () => {

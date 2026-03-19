@@ -21,6 +21,7 @@ import {
   HEADER_KEYS,
   HTTP_STATUS,
   RATE_LIMIT,
+  RATE_LIMIT_UNKNOWN_CLIENT,
   RATE_LIMIT_WINDOW,
   RPC_ERROR_CODES,
   TIMEOUT,
@@ -36,6 +37,8 @@ import {
   createLocalhostHostValidationMiddleware,
   resolveHostHeaderProtection,
 } from "./hostHeaderMiddleware.ts";
+import { createHttpBearerAuthMiddleware } from "./httpBearerAuthMiddleware.ts";
+import { rateLimitKeyFromIdentity, resolveRateLimitIdentity } from "./rateLimitIdentity.ts";
 import type { HTTPTransportManager } from "./transport.ts";
 
 export interface HonoBindings {
@@ -69,23 +72,26 @@ function getNotFoundPageHtml(): string {
   }
 }
 
-function getRateLimitKey(c: RateLimitContextLike): string {
-  const clientIp = c.env?.clientIp?.trim();
-  if (clientIp) {
-    return `ip:${clientIp}`;
-  }
-
-  const sessionId = c.req.header(HEADER_KEYS.SESSION_ID)?.trim();
-  if (sessionId) {
-    return `session:${sessionId}`;
-  }
-
-  const host = c.req.header("host")?.trim() ?? "no-host";
-  const userAgent = c.req.header("user-agent")?.trim() ?? "no-user-agent";
-  return `fallback:${host}:${userAgent}`;
-}
-
 function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hono<HonoEnv> {
+  const trustProxy = !!config.trustProxy;
+
+  function rateLimitIdentityFromContext(c: RateLimitContextLike) {
+    return resolveRateLimitIdentity(
+      trustProxy,
+      c.env?.clientIp,
+      (name) => c.req.header(name),
+    );
+  }
+
+  function getRateLimitKey(c: RateLimitContextLike): string {
+    return rateLimitKeyFromIdentity(rateLimitIdentityFromContext(c));
+  }
+
+  function getRateLimitForContext(c: RateLimitContextLike): number {
+    return rateLimitIdentityFromContext(c).type === "unknown" ?
+      RATE_LIMIT_UNKNOWN_CLIENT :
+      RATE_LIMIT;
+  }
   const hostProtection = resolveHostHeaderProtection(config);
   if (hostProtection.kind === "localhost") {
     app.use("*", createLocalhostHostValidationMiddleware());
@@ -123,7 +129,7 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
     // @ts-expect-error - rateLimiter does not preserve generic Hono env typing
     rateLimiter({
       windowMs: RATE_LIMIT_WINDOW,
-      limit: RATE_LIMIT,
+      limit: (c) => getRateLimitForContext(c as RateLimitContextLike),
       standardHeaders: "draft-7",
       keyGenerator: (c) => getRateLimitKey(c as RateLimitContextLike),
     }),
@@ -134,7 +140,6 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
   app.use(cors({
     origin: (origin: string | undefined) => {
       if (!origin) return null;
-      if (allowedOrigins?.includes("*")) return origin;
       return allowedOrigins?.includes(origin) ? origin : null;
     },
     credentials: true,
@@ -151,6 +156,8 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
       ...Object.values(HEADER_KEYS),
     ],
   }));
+
+  app.use(createHttpBearerAuthMiddleware(config.httpBearerToken));
 
   return app;
 }
@@ -239,7 +246,7 @@ export function createHonoApp({ createMcpServer, config, transports }: HonoAppSp
         isError: true,
       }, HTTP_STATUS.INTERNAL_SERVER_ERROR);
     }
-    return c.text(err.message, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    return c.text("Internal server error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   });
   return app;
 }

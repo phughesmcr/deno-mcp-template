@@ -49,6 +49,21 @@ Deno.test({
 });
 
 Deno.test({
+  name: "validateOrigin rejects wildcard *",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: () => {
+    let threw = false;
+    try {
+      validateOrigin("*");
+    } catch {
+      threw = true;
+    }
+    if (!threw) throw new Error("expected validateOrigin('*') to throw");
+  },
+});
+
+Deno.test({
   name: "CORS matches canonicalized configured origins against browser Origin header",
   sanitizeOps: false,
   sanitizeResources: false,

@@ -4,6 +4,10 @@ import { z } from "zod/v3";
 
 import type { ToolConfig, ToolModule } from "$/shared/types.ts";
 import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
+import {
+  DisallowedFetchUrlError,
+  headUrlWithSafeRedirects,
+} from "$/shared/validation/safeToolFetchUrl.ts";
 
 const schema = z.object({
   url: z.string()
@@ -17,7 +21,9 @@ const name = "fetch-website-info";
 // deno-lint-ignore no-explicit-any
 const config: ToolConfig<typeof schema.shape, any> = {
   title: "Website Info Fetcher",
-  description: "Fetch basic information about a website (status, headers, server, content type)",
+  description:
+    "Fetch basic information about a public HTTPS website (status, headers, server, content type). " +
+    "Private IPs, localhost, and metadata endpoints are blocked. Set MCP_DOMAIN_TOOL_ALLOW_HTTP=1 to allow http:// for demos.",
   inputSchema: schema.shape,
 };
 
@@ -38,11 +44,7 @@ const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult>
     const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
     try {
-      const response = await fetch(url, {
-        method: "HEAD",
-        signal: controller.signal,
-        redirect: "follow",
-      });
+      const response = await headUrlWithSafeRedirects(url, controller.signal);
       clearTimeout(timeoutId);
 
       const headers: Record<string, string> = {};
@@ -61,6 +63,12 @@ const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult>
       });
     } catch (fetchError) {
       clearTimeout(timeoutId);
+
+      if (fetchError instanceof DisallowedFetchUrlError) {
+        return createCallToolErrorResponse({
+          error: "URL not allowed",
+        });
+      }
 
       if (fetchError instanceof Error && fetchError.name === "AbortError") {
         return createCallToolErrorResponse({
