@@ -20,6 +20,7 @@
     "jsr:@std/ulid@1": "1.0.0",
     "npm:@modelcontextprotocol/sdk@^1.27.1": "1.27.1_zod@4.3.6_hono@4.12.2_ajv@8.18.0_express@5.2.1",
     "npm:@types/ws@^8.18.1": "8.18.1",
+    "npm:hono-rate-limiter@*": "0.5.3_hono@4.12.2",
     "npm:hono-rate-limiter@~0.5.3": "0.5.3_hono@4.12.2",
     "npm:ws@^8.18.3": "8.19.0",
     "npm:zod-validation-error@5": "5.0.0_zod@4.3.6",

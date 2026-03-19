@@ -10,10 +10,34 @@ export interface HTTPTransportManager {
   acquire(
     requestBody: string,
     sessionId?: string,
+    /** When provided, initialize validation uses this instead of re-parsing {@linkcode requestBody}. */
+    parsedBody?: unknown,
   ): Promise<WebStandardStreamableHTTPServerTransport>;
   get(sessionId: string): WebStandardStreamableHTTPServerTransport | undefined;
   releaseAll(): Promise<void>;
   close(): Promise<void>;
+}
+
+function validateParsedInitializeBody(
+  sessionId: string | undefined,
+  jsonBody: unknown,
+):
+  | { valid: true; body: unknown }
+  | { valid: false; error: string; code: number } {
+  const isInit = isInitializeRequest(jsonBody);
+  if (isInit) return { valid: true, body: jsonBody };
+  if (!sessionId) {
+    return {
+      valid: false,
+      error: "No valid session ID provided",
+      code: RPC_ERROR_CODES.INVALID_REQUEST,
+    };
+  }
+  return {
+    valid: false,
+    error: `No transport found for session ID: ${sessionId}`,
+    code: RPC_ERROR_CODES.INVALID_REQUEST,
+  };
 }
 
 function isValidInitializeRequest(
@@ -27,20 +51,7 @@ function isValidInitializeRequest(
   }
   try {
     const jsonBody = JSON.parse(requestBody);
-    const isInit = isInitializeRequest(jsonBody);
-    if (isInit) return { valid: true, body: jsonBody };
-    if (!sessionId) {
-      return {
-        valid: false,
-        error: "No valid session ID provided",
-        code: RPC_ERROR_CODES.INVALID_REQUEST,
-      };
-    }
-    return {
-      valid: false,
-      error: `No transport found for session ID: ${sessionId}`,
-      code: RPC_ERROR_CODES.INVALID_REQUEST,
-    };
+    return validateParsedInitializeBody(sessionId, jsonBody);
   } catch {
     return {
       valid: false,
@@ -98,12 +109,18 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
     return transport;
   };
 
-  const acquire = async (requestBody: string, sessionId?: string) => {
+  const acquire = async (
+    requestBody: string,
+    sessionId?: string,
+    parsedBodyHint?: unknown,
+  ) => {
     if (sessionId) {
       const transport = transports.get(sessionId);
       if (transport) return transport;
     }
-    const validation = isValidInitializeRequest(sessionId, requestBody);
+    const validation = parsedBodyHint !== undefined ?
+      validateParsedInitializeBody(sessionId, parsedBodyHint) :
+      isValidInitializeRequest(sessionId, requestBody);
     if (!validation.valid) {
       throw new RPCError({
         code: validation.code,

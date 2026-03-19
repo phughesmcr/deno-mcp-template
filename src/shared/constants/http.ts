@@ -101,6 +101,9 @@ export const CORS_MAX_AGE = 86400; // 24 hours
 /** The expiry time for events */
 export const EVENT_EXPIRY = 60 * 60 * 24 * 1000; // 1 day in milliseconds
 
+/** Cap MCP stream replay per resume to bound CPU/KV read time (demo store). */
+export const MAX_REPLAY_EVENTS_PER_STREAM = 10_000;
+
 /** Required headers for the MCP server. */
 export const HEADER_KEYS = {
   SESSION_ID: "mcp-session-id",

@@ -101,7 +101,7 @@ export function createPostHandler(
           requestId: sessionId ?? INVALID_SESSION_ID,
         });
       }
-      const transport = await transports.acquire(bodyText, sessionId);
+      const transport = await transports.acquire(bodyText, sessionId, parsedBody);
       await ensureTransportConnected(transport);
       return await handleMCPRequest(transport, originalRequest, parsedBody);
     } catch (error) {

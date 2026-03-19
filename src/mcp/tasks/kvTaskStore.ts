@@ -13,6 +13,15 @@ const MAX_CONCURRENCY_RETRIES = 5;
 export const TASK_META_PREFIX = ["task", "meta"] as const;
 const TASK_RESULT_PREFIX = ["task", "result"] as const;
 
+/** Secondary index: working tasks ordered by `lastUpdatedAt` (ISO) for bounded stale cleanup. */
+export const TASK_WORKING_PREFIX = ["task", "working"] as const;
+const WORKING_INDEX_MIGRATED_KEY = ["task", "maintenance", "working_index_migrated"] as const;
+
+/** KV key for the working-task index row (used by maintenance cron). */
+export function createWorkingIndexKey(lastUpdatedAt: string, taskId: string): Deno.KvKey {
+  return [...TASK_WORKING_PREFIX, lastUpdatedAt, taskId];
+}
+
 type TaskMetaRecord = {
   task: Task;
   requestId: RequestId;
@@ -58,6 +67,38 @@ function getRemainingExpiry(record: TaskMetaRecord): number | undefined {
   return remaining > 0 ? remaining : 1;
 }
 
+/**
+ * One-time rebuild of the working-task index from task metadata (handles upgrades and meta drift).
+ * Safe to call on every process start; runs the heavy work only until the marker key is set.
+ */
+export async function migrateWorkingTaskIndexIfNeeded(): Promise<void> {
+  const kv = await getKvStore();
+  const marker = await kv.get(WORKING_INDEX_MIGRATED_KEY);
+  if (marker.value) return;
+
+  const keysToDelete: Deno.KvKey[] = [];
+  for await (const entry of kv.list({ prefix: [...TASK_WORKING_PREFIX] })) {
+    keysToDelete.push(entry.key);
+  }
+  for (const key of keysToDelete) {
+    await kv.delete(key);
+  }
+
+  for await (const entry of kv.list<TaskMetaRecord>({ prefix: TASK_META_PREFIX })) {
+    const rec = entry.value;
+    if (!rec?.task || rec.task.status !== "working") continue;
+    const expireIn = getRemainingExpiry(rec);
+    const wk = createWorkingIndexKey(rec.task.lastUpdatedAt, rec.task.taskId);
+    if (expireIn) {
+      await kv.set(wk, { taskId: rec.task.taskId }, { expireIn });
+    } else {
+      await kv.set(wk, { taskId: rec.task.taskId });
+    }
+  }
+
+  await kv.set(WORKING_INDEX_MIGRATED_KEY, true);
+}
+
 type TaskMetaEntry = Deno.KvEntryMaybe<TaskMetaRecord>;
 
 async function getMetaEntry(kv: Deno.Kv, taskId: string): Promise<TaskMetaEntry> {
@@ -94,14 +135,16 @@ export class KvTaskStore implements TaskStore {
         sessionId,
         expiresAt,
       };
-      const commit = withOptionalExpiry(
-        kv.atomic().check({ key: createTaskMetaKey(taskId), versionstamp: null }),
-        createTaskMetaKey(taskId),
-        record,
+      let atomic = kv.atomic().check({ key: createTaskMetaKey(taskId), versionstamp: null });
+      atomic = withOptionalExpiry(atomic, createTaskMetaKey(taskId), record, ttlForExpiry);
+      atomic = withOptionalExpiry(
+        atomic,
+        createWorkingIndexKey(task.lastUpdatedAt, taskId),
+        { taskId },
         ttlForExpiry,
       );
 
-      const result = await commit.commit();
+      const result = await atomic.commit();
       if (result.ok) {
         return cloneTask(task);
       }
@@ -157,6 +200,9 @@ export class KvTaskStore implements TaskStore {
       }
 
       let atomic = kv.atomic().check({ key: taskMetaKey, versionstamp });
+      if (record.task.status === "working") {
+        atomic = atomic.delete(createWorkingIndexKey(record.task.lastUpdatedAt, taskId));
+      }
       atomic = withOptionalExpiry(
         atomic,
         taskMetaKey,
@@ -180,16 +226,19 @@ export class KvTaskStore implements TaskStore {
 
   async getTaskResult(taskId: string, _sessionId?: string): Promise<Result> {
     const kv = await getKvStore();
-    const taskEntry = await getMetaEntry(kv, taskId);
+    const metaKey = createTaskMetaKey(taskId);
+    const resultKey = createTaskResultKey(taskId);
+    const entries = await kv.getMany([metaKey, resultKey]);
+    const taskEntry = entries[0]!;
+    const resultEntry = entries[1]!;
     if (!taskEntry.value) {
       throw new Error(`Task with ID ${taskId} not found`);
     }
 
-    const result = await kv.get<Result>(createTaskResultKey(taskId));
-    if (!result.value) {
+    if (!resultEntry.value) {
       throw new Error(`Task ${taskId} has no result stored`);
     }
-    return result.value;
+    return resultEntry.value as Result;
   }
 
   async updateTaskStatus(
@@ -238,12 +287,20 @@ export class KvTaskStore implements TaskStore {
         throw new Error(`Task with ID ${taskId} not found`);
       }
 
-      const commitResult = await withOptionalExpiry(
-        kv.atomic().check({ key: taskMetaKey, versionstamp }),
-        taskMetaKey,
-        updatedRecord,
-        expireIn,
-      ).commit();
+      let atomic = kv.atomic().check({ key: taskMetaKey, versionstamp });
+      if (record.task.status === "working") {
+        atomic = atomic.delete(createWorkingIndexKey(record.task.lastUpdatedAt, taskId));
+      }
+      atomic = withOptionalExpiry(atomic, taskMetaKey, updatedRecord, expireIn);
+      if (updatedTask.status === "working") {
+        atomic = withOptionalExpiry(
+          atomic,
+          createWorkingIndexKey(updatedTask.lastUpdatedAt, taskId),
+          { taskId },
+          expireIn,
+        );
+      }
+      const commitResult = await atomic.commit();
       if (commitResult.ok) {
         return;
       }

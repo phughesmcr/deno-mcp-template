@@ -51,7 +51,7 @@ export function resolveHostHeaderInput(c: Context): string | undefined {
 
 export function validateHostHeaderAgainstAllowlist(
   hostHeader: string | undefined,
-  allowedHostnames: readonly string[],
+  allowedHostnames: ReadonlySet<string> | readonly string[],
 ): { ok: true } | { ok: false; message: string } {
   if (!hostHeader?.trim()) {
     return { ok: false, message: "Missing Host header" };
@@ -63,7 +63,14 @@ export function validateHostHeaderAgainstAllowlist(
     return { ok: false, message: `Invalid Host header: ${hostHeader}` };
   }
   const canonical = canonicalHostnameForComparison(hostname);
-  const allowed = new Set(normalizeAllowedList(allowedHostnames));
+  let allowed: ReadonlySet<string>;
+  if (allowedHostnames instanceof Set) {
+    allowed = allowedHostnames;
+  } else {
+    allowed = new Set(
+      normalizeAllowedList(allowedHostnames as readonly string[]),
+    );
+  }
   if (!allowed.has(canonical)) {
     return { ok: false, message: `Invalid Host: ${hostname}` };
   }
@@ -96,11 +103,11 @@ function hostValidationJsonResponse(
 export function createHostHeaderValidationMiddleware(
   allowedHostnames: readonly string[],
 ): MiddlewareHandler {
-  const allowed = normalizeAllowedList(allowedHostnames);
+  const allowedSet = new Set(normalizeAllowedList(allowedHostnames));
   return async (c, next) => {
     const result = validateHostHeaderAgainstAllowlist(
       resolveHostHeaderInput(c),
-      allowed,
+      allowedSet,
     );
     if (!result.ok) {
       return hostValidationJsonResponse(result.message);
