@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { HttpServerConfig, Transport } from "$/shared/types.ts";
 import { createHonoApp } from "./hono.ts";
+import { shouldWarnAllInterfacesBindWithoutHostAllowlist } from "./hostHeaderMiddleware.ts";
 import { createHTTPTransportManager } from "./transport.ts";
 
 function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undefined {
@@ -33,6 +34,13 @@ export function createHttpServer(
 
   const connect = () => {
     if (!enabled || server !== null) return;
+    if (shouldWarnAllInterfacesBindWithoutHostAllowlist(config)) {
+      console.error(
+        `${APP_NAME}: HTTP is binding to ${hostname} without Host allowlist middleware. ` +
+          "DNS rebinding protection is disabled. Use --hostname localhost (or 127.0.0.1), " +
+          "or enable --dnsRebinding with --host / MCP_ALLOWED_HOSTS for explicit Host validation.",
+      );
+    }
     const isTlsEnabled = !!tlsCert && !!tlsKey;
     const serveOptions = isTlsEnabled ?
       {

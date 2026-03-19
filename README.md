@@ -257,7 +257,7 @@ Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Acti
 | `MCP_TLS_KEY` | `--tls-key` | | PEM private key path (requires `--tls-cert`) |
 | `MCP_HEADERS` | `-H` | | Response headers (collection) |
 | `MCP_JSON_RESPONSE` | `--json-response` | `false` | JSON-only responses (disable SSE) |
-| `MCP_DNS_REBINDING` | `--dnsRebinding` | `false` | Enable DNS rebinding protection |
+| `MCP_DNS_REBINDING` | `--dnsRebinding` | `false` | Enable transport-level Origin/Host checks (loopback binds already get Host validation) |
 | `MCP_ALLOWED_ORIGINS` | `--origin` | | Allowed CORS origins (collection) |
 | `MCP_ALLOWED_HOSTS` | `--host` | | Allowed hostnames (collection) |
 | `MCP_KV_PATH` | `--kv-path` | | Custom Deno KV database path |

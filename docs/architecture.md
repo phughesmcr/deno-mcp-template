@@ -19,8 +19,7 @@ defaults.
 
 ### HTTP server design
 
-The app uses `Deno.serve` with Hono to expose MCP over HTTP. The HTTP stack includes middleware
-for:
+The app uses `Deno.serve` with Hono to expose MCP over HTTP. The HTTP stack includes middleware for:
 
 - rate limiting
 - CORS controls
@@ -30,9 +29,22 @@ for:
 
 ### Security and transport defaults
 
-- DNS rebinding protection is disabled by default.
-  - Enable with `MCP_DNS_REBINDING=true` or `--dnsRebinding`.
-  - Configure `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS`.
+- **Host header validation** (same behavior as MCP SDK
+  [`createMcpHonoApp` / localhost Host validation](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/packages/middleware/hono)):
+  - When the HTTP listen address is a loopback host (`localhost`, `127.0.0.1`, `::1`, or `[::1]`),
+    requests must use a `Host` whose hostname is one of `localhost`, `127.0.0.1`, or `[::1]` (ports
+    are ignored).
+  - When you enable `--dnsRebinding` and set allowed hosts, that explicit list is used instead for
+    Host validation.
+  - Binding to all interfaces (`0.0.0.0`, `::`, or `[::]`) without `--dnsRebinding` and a host
+    allowlist logs a one-time warning at HTTP startup (same idea as the SDK when no Host allowlist
+    is configured).
+- **Transport-level DNS rebinding** (`enableDnsRebindingProtection` on the streamable HTTP
+  transport) remains opt-in:
+  - Enable with `MCP_DNS_REBINDING=true` or `--dnsRebinding` (requires `--origin` / `--host` per CLI
+    rules).
+  - Configure `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` for Origin checks and the transport’s
+    own header checks.
 - CORS allowed origins default to an empty list.
   - Browser clients need `MCP_ALLOWED_ORIGINS` (or `--origin`) configured.
 - HTTP transport is enabled by default.
@@ -57,6 +69,7 @@ src/
 │   ├── http/
 │   │   ├── handlers.ts             # HTTP handlers for the MCP server (GET, POST, etc.)
 │   │   ├── hono.ts                 # Manages the Hono server, middleware, and routes
+│   │   ├── hostHeaderMiddleware.ts # Host allowlist (localhost + explicit DNS rebinding hosts)
 │   │   ├── kvEventStore.ts         # Simple Deno KV event store for for session resumability
 │   │   ├── mod.ts                  # The main entrypoint for the HTTP server
 │   │   └── transport.ts            # Manages the StreamableHTTPServerTransports
@@ -184,8 +197,7 @@ This template demonstrates:
 
 ## 4) Deno KV
 
-Deno KV is a key-value database built directly into the Deno runtime and available via
-`Deno.Kv`.
+Deno KV is a key-value database built directly into the Deno runtime and available via `Deno.Kv`.
 
 Reference: [Deno KV Manual](https://docs.deno.com/deploy/kv/manual/)
 
@@ -215,8 +227,7 @@ Execution model:
 
 ### Setup
 
-1. Create an access token in the Deno Deploy dashboard under
-   `Settings > Organization Tokens`.
+1. Create an access token in the Deno Deploy dashboard under `Settings > Organization Tokens`.
 2. Add the token to `.env`:
 
 ```env
@@ -282,8 +293,7 @@ production-grade event store.
 `deno task start` uses `deno run -A` for convenience. Before production deployment, move to
 explicit permission flags and limit scope.
 
-Reference:
-[Deno security and permissions](https://docs.deno.com/runtime/fundamentals/security/)
+Reference: [Deno security and permissions](https://docs.deno.com/runtime/fundamentals/security/)
 
 ### Static metadata files
 

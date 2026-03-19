@@ -31,6 +31,11 @@ import {
   createPostHandler,
   type EnsureTransportConnected,
 } from "./handlers.ts";
+import {
+  createHostHeaderValidationMiddleware,
+  createLocalhostHostValidationMiddleware,
+  resolveHostHeaderProtection,
+} from "./hostHeaderMiddleware.ts";
 import type { HTTPTransportManager } from "./transport.ts";
 
 export interface HonoBindings {
@@ -42,7 +47,7 @@ type HonoEnv = {
 };
 
 interface RateLimitContextLike {
-  env: HonoBindings;
+  env?: HonoBindings;
   req: {
     header: (name: string) => string | undefined;
   };
@@ -65,7 +70,7 @@ function getNotFoundPageHtml(): string {
 }
 
 function getRateLimitKey(c: RateLimitContextLike): string {
-  const clientIp = c.env.clientIp?.trim();
+  const clientIp = c.env?.clientIp?.trim();
   if (clientIp) {
     return `ip:${clientIp}`;
   }
@@ -81,6 +86,13 @@ function getRateLimitKey(c: RateLimitContextLike): string {
 }
 
 function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hono<HonoEnv> {
+  const hostProtection = resolveHostHeaderProtection(config);
+  if (hostProtection.kind === "localhost") {
+    app.use("*", createLocalhostHostValidationMiddleware());
+  } else if (hostProtection.kind === "explicit") {
+    app.use("*", createHostHeaderValidationMiddleware(hostProtection.allowedHostnames));
+  }
+
   app.use(secureHeaders());
   // Apply timeout to all routes except /mcp (SSE streams are long-lived)
   app.use("*", async (c, next) => {
