@@ -1,24 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { createHonoApp } from "$/app/http/hono.ts";
-import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { validateOrigin } from "$/shared/validation/origin.ts";
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
-
-const noopTransports: HTTPTransportManager = {
-  acquire: async () => {
-    throw new Error("not used in origin normalization tests");
-  },
-  get: () => undefined,
-  releaseAll: async () => {},
-  close: async () => {},
-};
+import { assertEquals, noopTransports } from "./helpers.ts";
 
 function createAppWithAllowedOrigin(origin: string) {
   const httpConfig: AppConfig["http"] = {

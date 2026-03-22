@@ -9,18 +9,7 @@ import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import { createMcpServer, isSubscribed } from "$/mcp/mod.ts";
 import { HEADER_KEYS } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
-
-function assert(condition: unknown, message: string): asserts condition {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { assert, assertEquals, baseHttpConfig } from "./helpers.ts";
 
 async function waitFor(
   predicate: () => boolean,
@@ -36,16 +25,7 @@ async function waitFor(
   throw new Error("Timed out waiting for condition");
 }
 
-const defaultHttpConfig: AppConfig["http"] = {
-  enabled: true,
-  hostname: "127.0.0.1",
-  port: 3001,
-  headers: [],
-  allowedHosts: [],
-  allowedOrigins: [],
-  enableDnsRebinding: false,
-  jsonResponseMode: true,
-};
+const defaultHttpConfig = baseHttpConfig({ jsonResponseMode: true });
 
 function createTestTransportManager(config: AppConfig["http"]): HTTPTransportManager {
   const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();

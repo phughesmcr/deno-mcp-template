@@ -1,8 +1,4 @@
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
+import { assert } from "./helpers.ts";
 
 async function getAllowedOriginsFromEnv(env: Record<string, string>): Promise<string[]> {
   const command = new Deno.Command(Deno.execPath(), {

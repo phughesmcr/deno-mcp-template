@@ -1,17 +1,6 @@
 import type { KvWatcher } from "$/app/kv/mod.ts";
 import { createResourceSubscriptionTracker } from "$/mcp/resources/subscriptionTracker.ts";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { assert, assertEquals } from "./helpers.ts";
 
 type WatchCallback = () => Promise<void> | void;
 

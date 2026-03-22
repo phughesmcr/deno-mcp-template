@@ -1,37 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { createHonoApp } from "$/app/http/hono.ts";
-import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import type { AppConfig } from "$/shared/types.ts";
+import { assertEquals, baseHttpConfig, noopTransports } from "./helpers.ts";
 
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
-
-const defaultHttpConfig: AppConfig["http"] = {
-  enabled: true,
-  hostname: "127.0.0.1",
-  port: 3001,
-  headers: [],
-  allowedHosts: [],
-  allowedOrigins: [],
-  enableDnsRebinding: false,
-  jsonResponseMode: false,
-  trustProxy: false,
-};
-
-const noopTransports: HTTPTransportManager = {
-  acquire: async () => {
-    throw new Error("not used in rate-limit tests");
-  },
-  get: () => undefined,
-  releaseAll: async () => {},
-  close: async () => {},
-};
-
-function createTestApp(config: AppConfig["http"] = defaultHttpConfig) {
+function createTestApp(config: AppConfig["http"] = baseHttpConfig()) {
   return createHonoApp({
     createMcpServer: () => ({}) as McpServer,
     config,
@@ -96,7 +69,7 @@ Deno.test({
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
-    const app = createTestApp({ ...defaultHttpConfig, trustProxy: true });
+    const app = createTestApp(baseHttpConfig({ trustProxy: true }));
     const xff = "203.0.113.77";
 
     for (let i = 0; i < 100; i++) {

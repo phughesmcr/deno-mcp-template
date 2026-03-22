@@ -2,30 +2,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { createHonoApp } from "$/app/http/hono.ts";
 import type { HTTPTransportManager } from "$/app/http/transport.ts";
-import type { AppConfig } from "$/shared/types.ts";
+import { assert, assertEquals, baseHttpConfig } from "./helpers.ts";
 
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
-
-const defaultHttpConfig: AppConfig["http"] = {
-  enabled: true,
-  hostname: "127.0.0.1",
-  port: 3001,
-  headers: [],
-  allowedHosts: [],
-  allowedOrigins: [],
-  enableDnsRebinding: false,
-  jsonResponseMode: true,
-};
+const defaultHttpConfig = baseHttpConfig({ jsonResponseMode: true });
 
 class FakeTransport {
   connected = false;

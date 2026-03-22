@@ -1,24 +1,5 @@
-import type { CliOptions } from "$/app/cli.ts";
 import { validateHttpConfig } from "$/shared/validation/config.ts";
-
-function baseCli(
-  overrides: Partial<CliOptions>,
-): CliOptions {
-  return {
-    http: true,
-    stdio: true,
-    hostname: "localhost",
-    port: 3001,
-    headers: [],
-    allowedOrigins: [],
-    allowedHosts: [],
-    dnsRebinding: false,
-    jsonResponse: false,
-    trustProxy: false,
-    requireHttpAuth: false,
-    ...overrides,
-  };
-}
+import { assertEquals, baseCliOptions as baseCli } from "./helpers.ts";
 
 Deno.test({
   name: "validateHttpConfig rejects 0.0.0.0 without DNS rebinding and allowed hosts",
@@ -70,6 +51,3 @@ Deno.test({
   },
 });
 
-function assertEquals<T>(a: T, b: T): void {
-  if (a !== b) throw new Error(`expected ${String(b)}, got ${String(a)}`);
-}

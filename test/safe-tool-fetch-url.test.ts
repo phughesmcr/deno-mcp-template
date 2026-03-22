@@ -3,10 +3,7 @@ import {
   DisallowedFetchUrlError,
   isUrlAllowedForServerSideFetch,
 } from "$/shared/validation/safeToolFetchUrl.ts";
-
-function assert(condition: boolean, message?: string): void {
-  if (!condition) throw new Error(message ?? "assertion failed");
-}
+import { assert } from "./helpers.ts";
 
 const httpsOnly = { allowHttp: false };
 const httpAllowed = { allowHttp: true };

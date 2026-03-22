@@ -1,10 +1,5 @@
 import { validateHosts } from "$/shared/validation/host.ts";
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { assertEquals } from "./helpers.ts";
 
 Deno.test("validateHosts keeps unbracketed IPv6 literals intact", () => {
   const hosts = validateHosts(["2001:db8::1"]);

@@ -1,11 +1,6 @@
 import { verifyRuntimePermissions } from "$/app/permissions.ts";
 import type { AppConfig } from "$/shared/types.ts";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
+import { assert } from "./helpers.ts";
 
 const baseConfig: AppConfig = {
   http: {

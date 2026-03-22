@@ -3,18 +3,7 @@ import type { Request } from "@modelcontextprotocol/sdk/types.js";
 import { cleanupStaleTasks } from "$/app/cron.ts";
 import { closeKvStore, configureKvPath, getKvStore, openKvStore } from "$/app/kv/mod.ts";
 import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { assert, assertEquals } from "./helpers.ts";
 
 type TaskMetaRecord = {
   task: {

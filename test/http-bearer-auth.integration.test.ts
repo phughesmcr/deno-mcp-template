@@ -1,40 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import type { CliOptions } from "$/app/cli.ts";
 import { createHonoApp } from "$/app/http/hono.ts";
-import type { HTTPTransportManager } from "$/app/http/transport.ts";
-import type { AppConfig } from "$/shared/types.ts";
 import { validateHttpConfig } from "$/shared/validation/config.ts";
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { assertEquals, baseCliOptions, baseHttpConfig, noopTransports } from "./helpers.ts";
 
 const secret = "test-bearer-secret-xyz";
 
-const httpConfigWithAuth: AppConfig["http"] = {
-  enabled: true,
-  hostname: "127.0.0.1",
-  port: 3001,
-  headers: [],
-  allowedHosts: [],
-  allowedOrigins: [],
-  enableDnsRebinding: false,
-  jsonResponseMode: false,
+const httpConfigWithAuth = baseHttpConfig({
   trustProxy: false,
   httpBearerToken: secret,
-};
-
-const noopTransports: HTTPTransportManager = {
-  acquire: async () => {
-    throw new Error("not used in bearer auth tests");
-  },
-  get: () => undefined,
-  releaseAll: async () => {},
-  close: async () => {},
-};
+});
 
 Deno.test({
   name: "POST /mcp returns 401 without bearer when token is configured",
@@ -120,19 +95,7 @@ Deno.test({
 Deno.test({
   name: "validateHttpConfig fails when requireHttpAuth is set without token",
   fn: () => {
-    const cli: CliOptions = {
-      http: true,
-      stdio: true,
-      hostname: "localhost",
-      port: 3001,
-      headers: [],
-      allowedOrigins: [],
-      allowedHosts: [],
-      dnsRebinding: false,
-      jsonResponse: false,
-      trustProxy: false,
-      requireHttpAuth: true,
-    };
+    const cli = baseCliOptions({ requireHttpAuth: true });
     const result = validateHttpConfig(cli);
     if (result.success) throw new Error("expected failure");
     if (!result.error.message.includes("MCP_REQUIRE_HTTP_AUTH")) {

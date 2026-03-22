@@ -5,36 +5,11 @@ import {
   resolveHostHeaderProtection,
   validateHostHeaderAgainstAllowlist,
 } from "$/app/http/hostHeaderMiddleware.ts";
-import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import type { AppConfig } from "$/shared/types.ts";
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
-
-const noopTransports: HTTPTransportManager = {
-  acquire: async () => {
-    throw new Error("not used");
-  },
-  get: () => undefined,
-  releaseAll: async () => {},
-  close: async () => {},
-};
+import { assertEquals, baseHttpConfig, noopTransports } from "./helpers.ts";
 
 function baseHttp(overrides: Partial<AppConfig["http"]> = {}): AppConfig["http"] {
-  return {
-    enabled: true,
-    hostname: "127.0.0.1",
-    port: 3001,
-    headers: [],
-    allowedHosts: [],
-    allowedOrigins: [],
-    enableDnsRebinding: false,
-    jsonResponseMode: true,
-    ...overrides,
-  };
+  return baseHttpConfig({ jsonResponseMode: true, ...overrides });
 }
 
 Deno.test({
