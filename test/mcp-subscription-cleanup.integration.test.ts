@@ -1,50 +1,7 @@
-import { type JSONRPCMessage, LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
-import { delay } from "@std/async/delay";
+import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
 import { createMcpServer, getSubscriptions, isSubscribed } from "$/mcp/mod.ts";
-import { assert, assertEquals } from "./helpers.ts";
-
-async function waitFor(
-  predicate: () => boolean,
-  options: { timeoutMs?: number; intervalMs?: number } = {},
-): Promise<void> {
-  const timeoutMs = options.timeoutMs ?? 1000;
-  const intervalMs = options.intervalMs ?? 20;
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (predicate()) return;
-    await delay(intervalMs);
-  }
-  throw new Error("Timed out waiting for condition");
-}
-
-function hasResultForId(messages: JSONRPCMessage[], id: number): boolean {
-  return messages.some((message) => {
-    const candidate = message as Record<string, unknown>;
-    return candidate.id === id && "result" in candidate;
-  });
-}
-
-class InMemoryTransport {
-  onclose?: () => void;
-  onerror?: (error: Error) => void;
-  onmessage?: (message: JSONRPCMessage) => void;
-  sentMessages: JSONRPCMessage[] = [];
-
-  async start(): Promise<void> {}
-
-  async send(message: JSONRPCMessage): Promise<void> {
-    this.sentMessages.push(message);
-  }
-
-  async close(): Promise<void> {
-    this.onclose?.();
-  }
-
-  receive(message: JSONRPCMessage): void {
-    this.onmessage?.(message);
-  }
-}
+import { assert, assertEquals, hasResultForId, InMemoryTransport, waitFor } from "./helpers.ts";
 
 Deno.test({
   name: "MCP server clears resource subscriptions when transport closes",

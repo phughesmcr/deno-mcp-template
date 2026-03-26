@@ -86,6 +86,7 @@ That's it. You have a running MCP server with tools, resources, prompts, and tas
 | Background tasks | Durable async task queue with KV state | `src/mcp/tasks/` |
 | Scheduled jobs | `Deno.cron` for periodic maintenance | `src/app/cron.ts` |
 | Sandboxed execution | `@deno/sandbox` microVMs for untrusted code | `src/mcp/tools/sandbox.ts` |
+| MCP Apps (interactive UI) | Example tool + `ui://` HTML bundle via `@modelcontextprotocol/ext-apps` | `mcp-ui/`, `src/mcp/apps/`, `static/mcp-apps/` |
 | CI/CD workflows | GitHub Actions for CI, release, deploy, JSR publish | `.github/workflows/` |
 | Config management | CLI flags + env vars with validation and merging | `src/app/cli.ts` |
 | Permission preflight | Fail-fast startup checks with actionable guidance | `src/app/permissions.ts` |
@@ -96,11 +97,11 @@ That's it. You have a running MCP server with tools, resources, prompts, and tas
 
 **Resources:** `hello://world`, `greetings://{name}`, `counter://value` (KV-backed, subscribable)
 
-**Tools:** `elicit-input`, `fetch-website-info`, `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
+**Tools:** `elicit-input`, `fetch-website-info` (text + optional MCP Apps UI in supporting clients), `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
 
 **Task workflows (experimental):** `delayed-echo`, `guided-poem` (elicitation + sampling pipeline)
 
-These cover prompts with arguments, static and dynamic resources, subscriptions, sampling, elicitation, notifications, list-changed events, KV persistence, sandboxed execution, and async task patterns. Use them as reference, then swap in your domain logic.
+These cover prompts with arguments, static and dynamic resources, subscriptions, sampling, elicitation, notifications, list-changed events, KV persistence, sandboxed execution, async task patterns, and an MCP Apps UI example (`fetch-website-info`). Use them as reference, then swap in your domain logic.
 
 ## Make It Yours
 
@@ -110,14 +111,16 @@ Run `deno task setup` first -- it rewrites package names, scopes, and metadata a
 
 1. **`src/shared/constants/`** -- server name, description, version, defaults
 2. **`src/mcp/tools/`** -- add your tools (follow existing patterns)
-3. **`src/mcp/resources/`** -- add your resources
-4. **`src/mcp/prompts/`** -- add your prompts
-5. **`src/mcp/mod.ts`** -- wire new features into the server
-6. **`src/app/http/hono.ts`** -- adjust CORS, middleware, routes
+3. **`src/mcp/apps/`** -- register MCP App tools/resources (`@modelcontextprotocol/ext-apps/server`) when you add interactive UIs
+4. **`mcp-ui/`** -- Vite bundle for MCP App HTML (run `deno task build:mcp-ui`; needs Node.js + npm)
+5. **`src/mcp/resources/`** -- add your resources
+6. **`src/mcp/prompts/`** -- add your prompts
+7. **`src/mcp/mod.ts`** -- wire new features into the server
+8. **`src/app/http/hono.ts`** -- adjust CORS, middleware, routes
 
 ### What to remove
 
-Delete the example files you don't need from `src/mcp/tools/`, `src/mcp/resources/`, and `src/mcp/prompts/`. Update the corresponding `mod.ts` barrel exports. Done.
+Delete the example files you don't need from `src/mcp/tools/`, `src/mcp/resources/`, `src/mcp/prompts/`, and (if you drop MCP Apps) `src/mcp/apps/` plus `mcp-ui/`. Update the corresponding `mod.ts` barrel exports and any registration in `src/mcp/mod.ts`. Done.
 
 ## HTTP security
 
@@ -126,7 +129,7 @@ Delete the example files you don't need from `src/mcp/tools/`, `src/mcp/resource
 - **All interfaces:** Listening on `0.0.0.0` or `::` requires `--dnsRebinding` plus `--host` / `MCP_ALLOWED_HOSTS` (validated at startup).
 - **CORS:** Wildcard `*` origins are not allowed; list explicit origins (e.g. `MCP_ALLOWED_ORIGINS`).
 - **Rate limits:** With `MCP_TRUST_PROXY=true`, limits follow proxy client IP headers (only safe behind a real proxy). Requests with no socket IP and no session use a lower cap (`RATE_LIMIT_UNKNOWN_CLIENT` in `src/shared/constants/http.ts`).
-- **`fetch-website-info`:** Only public HTTPS URLs are allowed by default (blocks private IPs, localhost, link-local, `.internal`, etc.). Redirects are followed manually with the same checks. Set `MCP_DOMAIN_TOOL_ALLOW_HTTP=1` to allow `http://` for demos.
+- **`fetch-website-info`:** Only public HTTPS URLs are allowed by default (blocks private IPs, localhost, link-local, `.internal`, etc.). Redirects are followed manually with the same checks. Set `MCP_DOMAIN_TOOL_ALLOW_HTTP=1` to allow `http://` for demos. MCP Apps-capable hosts may load `ui://deno-mcp-template/fetch-website-info.html` for an inline UI; others still get JSON text in the tool result.
 
 See [`.env.example`](.env.example) for copy-paste variables.
 
@@ -306,10 +309,13 @@ Use `--origin` for full origins (e.g. `https://example.com`) and `--host` for ho
 | --- | --- |
 | `deno task start` | Start server |
 | `deno task dev` | Start with MCP Inspector + watch mode |
-| `deno task ci` | Format, lint, type-check, and test |
+| `deno task build:mcp-ui` | Build MCP App HTML into `static/mcp-apps/` (Node.js + npm required) |
+| `deno task ci` | Runs `build:mcp-ui`, then format, lint, type-check, and test |
 | `deno task test:integration` | Run integration tests |
 | `deno task test:coverage` | Tests with coverage report |
 | `deno task bench` | Run benchmarks |
+
+`deno task ci` invokes `npm` under `mcp-ui/`; ensure your machine and CI image have **Node.js** and **npm** available (GitHub-hosted runners do by default).
 
 ### Runtime permissions
 
@@ -344,9 +350,10 @@ This template tracks `deno.lock` for deterministic dependency resolution.
 main.ts                     # Entry point
 src/
   app/                      # Runtime shell: transports, HTTP, KV, cron, signals
-  mcp/                      # MCP server: tools, resources, prompts, tasks
+  mcp/                      # MCP server: tools, resources, prompts, tasks, apps
   shared/                   # Constants, types, validation, utilities
-static/                     # Static files, OpenAPI spec, DXT manifest
+mcp-ui/                     # Vite + ext-apps front-end for MCP App HTML bundles
+static/                     # Static files, OpenAPI spec, DXT manifest, mcp-apps/*.html
 scripts/                    # Setup, build, and packaging helpers
 test/                       # Integration tests and benchmarks
 .github/workflows/          # CI, release, deploy, publish
@@ -382,6 +389,7 @@ These skills are picked up automatically by Cursor when relevant. Ask the agent 
 ## References
 
 - [MCP Specification](https://modelcontextprotocol.io/specification/2025-06-18)
+- [MCP Apps / `@modelcontextprotocol/ext-apps`](https://www.npmjs.com/package/@modelcontextprotocol/ext-apps) (interactive tool UIs)
 - [MCP Concepts](https://modelcontextprotocol.io/docs/concepts/)
 - [Deno Docs](https://docs.deno.com/)
 - [Deno Deploy](https://docs.deno.com/deploy/)

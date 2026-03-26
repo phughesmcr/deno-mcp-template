@@ -28,6 +28,7 @@
         "$/": "./src/",
         "@cliffy/command": "jsr:@cliffy/command@^1.0.0",
         "@cliffy/flags": "jsr:@cliffy/flags@^1.0.0",
+        "@modelcontextprotocol/ext-apps/server": "npm:@modelcontextprotocol/ext-apps@^1.3.1/server",
         "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.27.1",
         "@std/async": "jsr:@std/async@^1.2.0",
         "@std/cli": "jsr:@std/cli@^1.0.28",
@@ -46,7 +47,11 @@
         "test:integration": "deno test --frozen -P",
         "test:coverage": "deno test --frozen -P --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
         "bench": "deno bench --frozen -P",
-        "ci": "CI=1 deno fmt --check && deno lint && deno check --frozen main.ts src/**/*.ts scripts/**/*.ts test/**/*.ts && deno task test:integration",
+        "build:mcp-ui": "npm --prefix mcp-ui ci && npm --prefix mcp-ui run build",
+        "ci": {
+            "dependencies": ["build:mcp-ui"],
+            "command": "CI=1 deno fmt --check && deno lint && deno check --frozen main.ts src/**/*.ts scripts/**/*.ts test/**/*.ts && deno task test:integration"
+        },
         "clean:dist": "deno run -A scripts/clean-dist.ts",
         "compile:win": {
             "description": "Create a binary for Windows",
@@ -143,6 +148,9 @@
         }
     },
     "fmt": {
+        "exclude": [
+            "mcp-ui/"
+        ],
         "include": [
             "main.ts",
             "src/**/*.ts",
@@ -162,6 +170,9 @@
         "useBraces": "whenNotSingleLine"
     },
     "lint": {
+        "exclude": [
+            "mcp-ui/"
+        ],
         "include": [
             "main.ts",
             "src/**/*.ts",

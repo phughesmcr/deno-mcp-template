@@ -100,10 +100,12 @@ src/
 │   │   ├── kvTaskStore.ts                  # Durable task state storage in Deno KV
 │   │   ├── queue.ts                        # Delayed task queue worker
 │   │   └── mod.ts                          # Exports task queue and task store
+│   ├── apps/
+│   │   └── fetchWebsiteInfoApp.ts          # MCP App UI registration (ext-apps) for fetch-website-info
 │   ├── tools/
 │   │   ├── elicitInput.ts                  # Elicitation tool example
 │   │   ├── delayedEchoTask.ts              # Task-based async tool example
-│   │   ├── domain.ts                       # Tool fetching website info via HTTP HEAD request
+│   │   ├── fetchWebsiteInfoShared.ts       # fetch-website-info tool logic (HEAD request)
 │   │   ├── guidedPoemTask.ts               # Task + sampling workflow example
 │   │   ├── incrementCounter.ts             # Tool that updates resource-backed counter
 │   │   ├── logMessage.ts                   # Logging notification example
@@ -132,6 +134,8 @@ static/
 ├── .well-known/
 │   ├── llms.txt                # An example llms.txt giving LLMs information about the server
 │   └── openapi.yaml            # An example OpenAPI specification for the server
+├── mcp-apps/
+│   └── fetch-website-info.html # Built MCP App bundle (run `deno task build:mcp-ui`)
 ├── 404.html                    # Default static 404 page
 └── dxt-manifest.json           # The manifest for the DXT package
 ```
@@ -161,7 +165,7 @@ These examples are intentionally broad and mostly mirror official MCP patterns.
 - `elicit-input`
   - Prompts the client for structured form input and returns the response.
 - `fetch-website-info`
-  - Performs an HTTP `HEAD` request and returns status and selected headers.
+  - Performs an HTTP `HEAD` request and returns status and selected headers; MCP Apps hosts can render `ui://deno-mcp-template/fetch-website-info.html`.
 - `increment-counter`
   - Increments the KV-backed counter resource and returns the updated value.
 - `log-message`

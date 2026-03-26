@@ -5,6 +5,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { SERVER_CAPABILITIES, SERVER_INFO } from "$/shared/constants.ts";
+import { registerFetchWebsiteInfoApp } from "./apps/fetchWebsiteInfoApp.ts";
 import { prompts } from "./prompts/mod.ts";
 import { resources } from "./resources/mod.ts";
 import { createResourceSubscriptionTracker } from "./resources/subscriptionTracker.ts";
@@ -93,10 +94,12 @@ export function createMcpServer(): McpServer {
         return {};
       });
     }
+
   }
 
   // Tool handlers
   if ("tools" in SERVER_CAPABILITIES) {
+    registerFetchWebsiteInfoApp(server);
     const toolManager = new ToolManager(server);
     for (const tool of tools) {
       toolManager.addTool(tool);

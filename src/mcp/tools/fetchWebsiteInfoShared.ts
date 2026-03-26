@@ -1,36 +1,49 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+/**
+ * Shared logic for the `fetch-website-info` tool (MCP App UI + text fallback).
+ * @module
+ */
+
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
-import type { ToolConfig, ToolModule } from "$/shared/types.ts";
 import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
 import {
   DisallowedFetchUrlError,
   headUrlWithSafeRedirects,
 } from "$/shared/validation/safeToolFetchUrl.ts";
 
-const schema = z.object({
+export const fetchWebsiteInfoInputSchema = z.object({
   url: z.string()
     .url("Must be a valid URL")
     .max(2000, "URL too long")
     .describe("The URL to fetch information for"),
 });
 
-const name = "fetch-website-info";
+export const FETCH_WEBSITE_INFO_TOOL_NAME = "fetch-website-info";
 
-// deno-lint-ignore no-explicit-any
-const config: ToolConfig<typeof schema.shape, any> = {
-  title: "Website Info Fetcher",
-  description:
-    "Fetch basic information about a public HTTPS website (status, headers, server, content type). " +
-    "Private IPs, localhost, and metadata endpoints are blocked. Set MCP_DOMAIN_TOOL_ALLOW_HTTP=1 to allow http:// for demos.",
-  inputSchema: schema.shape,
+export type FetchWebsiteInfoSuccess = {
+  url: string;
+  status: number;
+  statusText: string;
+  redirected: boolean;
+  headers: Record<string, string>;
+  timestamp: string;
 };
 
-// deno-lint-ignore no-explicit-any
-const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult> => {
+/** Tool title and description (shared by registerAppTool). */
+export const fetchWebsiteInfoToolTitle = "Website Info Fetcher";
+
+export const fetchWebsiteInfoToolDescription =
+  "Fetch basic information about a public HTTPS website (status, headers, server, content type). " +
+  "Private IPs, localhost, and metadata endpoints are blocked. Set MCP_DOMAIN_TOOL_ALLOW_HTTP=1 to allow http:// for demos.";
+
+/**
+ * Executes the website HEAD fetch and returns a {@link CallToolResult} with
+ * `structuredContent` for MCP Apps UI hosts.
+ */
+export async function executeFetchWebsiteInfo(args: unknown): Promise<CallToolResult> {
   try {
-    const parsed = schema.safeParse(args);
+    const parsed = fetchWebsiteInfoInputSchema.safeParse(args);
     if (!parsed.success) {
       return createCallToolErrorResponse({
         error: "Invalid arguments",
@@ -53,14 +66,16 @@ const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult>
         if (value) headers[key] = value;
       }
 
-      return createCallToolTextResponse({
+      const payload: FetchWebsiteInfoSuccess = {
         url: response.url,
         status: response.status,
         statusText: response.statusText,
         redirected: response.redirected,
         headers,
         timestamp: new Date().toISOString(),
-      });
+      };
+
+      return createCallToolTextResponse(payload, payload as unknown as Record<string, unknown>);
     } catch (fetchError) {
       clearTimeout(timeoutId);
 
@@ -90,13 +105,4 @@ const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult>
       args,
     });
   }
-};
-
-// deno-lint-ignore no-explicit-any
-const module: ToolModule<typeof schema.shape, any> = [
-  name,
-  config,
-  callback,
-];
-
-export default module;
+}

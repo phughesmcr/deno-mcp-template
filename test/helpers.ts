@@ -1,6 +1,8 @@
 import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import type { CliOptions } from "$/app/cli.ts";
 import type { AppConfig } from "$/shared/types.ts";
+import { type JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
+import { delay } from "@std/async/delay";
 
 export function assert(condition: unknown, message?: string): asserts condition {
   if (!condition) {
@@ -52,4 +54,46 @@ export function baseCliOptions(overrides: Partial<CliOptions> = {}): CliOptions 
     requireHttpAuth: false,
     ...overrides,
   };
+}
+
+export async function waitFor(
+  predicate: () => boolean,
+  options: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<void> {
+  const timeoutMs = options.timeoutMs ?? 1000;
+  const intervalMs = options.intervalMs ?? 20;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await delay(intervalMs);
+  }
+  throw new Error("Timed out waiting for condition");
+}
+
+export function hasResultForId(messages: JSONRPCMessage[], id: number): boolean {
+  return messages.some((message) => {
+    const candidate = message as Record<string, unknown>;
+    return candidate.id === id && "result" in candidate;
+  });
+}
+
+export class InMemoryTransport {
+  onclose?: () => void;
+  onerror?: (error: Error) => void;
+  onmessage?: (message: JSONRPCMessage) => void;
+  sentMessages: JSONRPCMessage[] = [];
+
+  async start(): Promise<void> {}
+
+  async send(message: JSONRPCMessage): Promise<void> {
+    this.sentMessages.push(message);
+  }
+
+  async close(): Promise<void> {
+    this.onclose?.();
+  }
+
+  receive(message: JSONRPCMessage): void {
+    this.onmessage?.(message);
+  }
 }
