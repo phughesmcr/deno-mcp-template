@@ -3,10 +3,11 @@
  * @module
  */
 
+import { RPC_ERROR_CODES } from "$/shared/constants/http.ts";
 import {
   type CallToolResult,
   JSONRPC_VERSION,
-  type JSONRPCError,
+  type JSONRPCErrorResponse,
   type RequestId,
 } from "@modelcontextprotocol/sdk/types.js";
 
@@ -38,17 +39,10 @@ export class RPCError extends Error {
   }
 
   /** Convert to JSON-RPC 2.0 error response format */
-  toJSONRPC(): JSONRPCError {
+  toJSONRPC(): JSONRPCErrorResponse {
     const errorData = this.data ?
-      {
-        ...this.data,
-        timestamp: this.timestamp,
-        errorCode: this.code,
-      } :
-      {
-        timestamp: this.timestamp,
-        errorCode: this.code,
-      };
+      { ...this.data, timestamp: this.timestamp } :
+      { timestamp: this.timestamp };
 
     return {
       jsonrpc: JSONRPC_VERSION,
@@ -66,21 +60,10 @@ export class RPCError extends Error {
     return JSON.stringify(this.toJSONRPC());
   }
 
-  /** Create error response with additional context */
-  withContext(additionalData: Record<string, unknown>): RPCError {
-    const mergedData = this.data ? { ...this.data, ...additionalData } : additionalData;
-    return new RPCError({
-      code: this.code,
-      message: this.message,
-      requestId: this.requestId,
-      data: mergedData,
-    });
-  }
-
   /** Static factory methods for common RPC errors */
   static internalError(requestId: RequestId, data?: unknown): RPCError {
     return new RPCError({
-      code: -32603,
+      code: RPC_ERROR_CODES.INTERNAL_ERROR,
       message: "Internal error",
       requestId,
       data,
@@ -94,8 +77,8 @@ export class RPCError extends Error {
     requestId: RequestId,
     additionalData?: unknown,
   ): RPCError {
-    const additionalContext = (additionalData as Record<string, unknown> | undefined) ?? undefined;
-    const message = code === -32603 ? "Internal error" : error.message;
+    const additionalContext = additionalData as Record<string, unknown> | undefined;
+    const message = code === RPC_ERROR_CODES.INTERNAL_ERROR ? "Internal error" : error.message;
 
     return new RPCError({
       code,

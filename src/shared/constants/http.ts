@@ -131,4 +131,6 @@ export const RPC_ERROR_CODES = {
   METHOD_NOT_FOUND: -32601,
   INVALID_PARAMS: -32602,
   INTERNAL_ERROR: -32603,
+  /** Session ID was valid but the session no longer exists (maps to HTTP 404). */
+  SESSION_NOT_FOUND: -32001,
 } as const;
