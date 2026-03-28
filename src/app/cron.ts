@@ -44,13 +44,14 @@ export function startMaintenanceCrons(
   Deno.cron("cleanup-stale-tasks", "*/15 * * * *", async () => {
     try {
       await cleanupStaleTasks();
-      try {
-        await cleanupOrphanTaskQueues();
-      } catch (error) {
-        console.error("Failed to clean up orphan task message queues", error);
-      }
     } catch (error) {
       console.error("Failed to run stale-task cleanup cron", error);
+      return;
+    }
+    try {
+      await cleanupOrphanTaskQueues();
+    } catch (error) {
+      console.error("Failed to clean up orphan task message queues", error);
     }
   });
 

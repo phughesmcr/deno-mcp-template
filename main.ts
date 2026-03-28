@@ -57,6 +57,6 @@ import { createMcpServer } from "$/mcp/mod.ts";
 
 if (import.meta.main) {
   const config = await handleCliArgs();
-  const app = createApp((ctx) => createMcpServer(ctx), config);
+  const app = createApp(createMcpServer, config);
   await app.start();
 }

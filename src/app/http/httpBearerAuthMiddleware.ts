@@ -36,10 +36,10 @@ export function createHttpBearerAuthMiddleware(
 
     const bearer = extractBearer(c.req.header("authorization"));
     const apiKey = c.req.header("x-api-key")?.trim();
-    const ok = (bearer !== undefined && timingSafeStringEqual(token, bearer)) ||
-      (apiKey !== undefined && timingSafeStringEqual(token, apiKey));
+    const bearerOk = bearer !== undefined && timingSafeStringEqual(token, bearer);
+    const apiKeyOk = apiKey !== undefined && timingSafeStringEqual(token, apiKey);
 
-    if (!ok) {
+    if (!bearerOk && !apiKeyOk) {
       return c.json(
         {
           error: "unauthorized",

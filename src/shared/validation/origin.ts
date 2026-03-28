@@ -1,6 +1,6 @@
 import { createArrayValidator } from "$/shared/utils.ts";
 
-export const validateOrigin = (origin: string): string => {
+export function validateOrigin(origin: string): string {
   const trimmedOrigin = origin.trim();
 
   if (!trimmedOrigin) {
@@ -43,6 +43,6 @@ export const validateOrigin = (origin: string): string => {
   }
 
   return parsedOrigin.origin;
-};
+}
 
 export const validateOrigins = createArrayValidator(validateOrigin);

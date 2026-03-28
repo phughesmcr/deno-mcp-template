@@ -92,10 +92,12 @@ export async function executeFetchWebsiteInfo(args: unknown): Promise<CallToolRe
         });
       }
 
+      let networkMessage = "Unknown network error";
+      if (fetchError instanceof Error) {
+        networkMessage = `Network error: ${fetchError.message}`;
+      }
       return createCallToolErrorResponse({
-        error: fetchError instanceof Error ?
-          `Network error: ${fetchError.message}` :
-          "Unknown network error",
+        error: networkMessage,
         url,
       });
     }

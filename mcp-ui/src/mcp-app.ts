@@ -43,6 +43,17 @@ type SuccessPayload = {
   timestamp?: string;
 };
 
+function displayField(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  return typeof value === "string" ? value : String(value);
+}
+
+function textFromResultContent(result: CallToolResult): string | undefined {
+  const block = result.content?.find((c) => c.type === "text");
+  if (block && "text" in block) return String(block.text);
+  return undefined;
+}
+
 function renderArgs(args: Record<string, unknown> | undefined): void {
   const url = typeof args?.url === "string" ? args.url : "—";
   argUrlEl.textContent = url;
@@ -60,11 +71,11 @@ function renderSuccess(data: SuccessPayload): void {
   resultPanel.hidden = false;
 
   const rows: [string, string][] = [
-    ["URL", data.url ?? "—"],
-    ["Status", data.status != null ? String(data.status) : "—"],
-    ["Status text", data.statusText ?? "—"],
-    ["Redirected", data.redirected != null ? String(data.redirected) : "—"],
-    ["Timestamp", data.timestamp ?? "—"],
+    ["URL", displayField(data.url)],
+    ["Status", displayField(data.status)],
+    ["Status text", displayField(data.statusText)],
+    ["Redirected", displayField(data.redirected)],
+    ["Timestamp", displayField(data.timestamp)],
   ];
 
   for (const [dt, dd] of rows) {
@@ -91,11 +102,7 @@ function renderSuccess(data: SuccessPayload): void {
 function renderErrorFromResult(result: CallToolResult): void {
   clearPanels();
   errorPanel.hidden = false;
-  const textBlock = result.content?.find((c) => c.type === "text");
-  const text = textBlock && "text" in textBlock
-    ? String(textBlock.text)
-    : JSON.stringify(result);
-  errorTextEl.textContent = text;
+  errorTextEl.textContent = textFromResultContent(result) ?? JSON.stringify(result);
 }
 
 function renderFromToolResult(result: CallToolResult): void {
@@ -108,16 +115,16 @@ function renderFromToolResult(result: CallToolResult): void {
     renderSuccess(structured);
     return;
   }
-  const textBlock = result.content?.find((c) => c.type === "text");
-  if (textBlock && "text" in textBlock) {
+  const text = textFromResultContent(result);
+  if (text !== undefined) {
     try {
-      const parsed = JSON.parse(textBlock.text) as SuccessPayload;
+      const parsed = JSON.parse(text) as SuccessPayload;
       if (parsed && typeof parsed.url === "string") {
         renderSuccess(parsed);
         return;
       }
     } catch {
-      /* fall through */
+      // Not JSON; fall through to error panel.
     }
   }
   renderErrorFromResult(result);
