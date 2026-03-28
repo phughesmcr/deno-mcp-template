@@ -27,6 +27,7 @@ src/
 │   │   ├── hono.ts                 # Manages the Hono server, middleware, and routes
 │   │   ├── kvEventStore.ts         # Simple Deno KV event store for session resumability
 │   │   ├── mod.ts                  # The main entrypoint for the HTTP server
+│   │   ├── urlElicitationRoutes.ts # Browser pages for URL-mode elicitation
 │   │   └── transport.ts            # Manages StreamableHTTPServerTransports
 │   ├── app.ts                      # The main application class
 │   ├── cli.ts                      # Parses CLI args and env vars into an AppConfig object
@@ -60,6 +61,7 @@ src/
 │   ├── tools/
 │   │   ├── delayedEchoTask.ts      # A task-based async tool example
 │   │   ├── fetchWebsiteInfoShared.ts # Shared logic for fetch-website-info (HEAD + structured output)
+│   │   ├── elicitFormWizard.ts     # Two-step form elicitation demo
 │   │   ├── elicitInput.ts          # An elicitation tool example
 │   │   ├── guidedPoemTask.ts       # A task + sampling workflow example
 │   │   ├── incrementCounter.ts     # A tool that updates a resource-backed counter
@@ -67,7 +69,10 @@ src/
 │   │   ├── notifyListChanged.ts    # A list-changed notification example
 │   │   ├── poem.ts                 # A sampling tool example
 │   │   ├── sandbox.ts              # Sandboxed code execution via Deno Sandbox (microVM)
+│   │   ├── urlElicitationDemo.ts # URL-mode elicitation demo (HTTP + browser confirm)
 │   │   └── mod.ts                  # Provides a single point of export for all MCP tools
+│   ├── urlElicitation/
+│   │   └── registry.ts             # Pending URL elicitation IDs + completion notifiers
 │   ├── serverDefinition.ts         # Feature registry + derived SERVER_CAPABILITIES
 │   └── mod.ts                      # Creates and configures the MCP server
 ├── shared/
@@ -82,6 +87,7 @@ src/
 │   │   ├── hostname.ts             # Validation for hostnames
 │   │   ├── origin.ts               # Validation for origins
 │   │   └── port.ts                 # Validation for ports
+│   ├── publicBaseUrl.ts            # Resolve MCP_PUBLIC_BASE_URL / dev default for browser links
 │   ├── constants.ts                # Single point of export for all shared constants
 │   ├── types.ts                    # Shared types
 │   ├── utils.ts                    # Shared utility functions

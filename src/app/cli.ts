@@ -24,6 +24,7 @@ export type CliOptions = Prettify<
     | "trustProxy"
     | "requireHttpAuth"
     | "httpBearerToken"
+    | "publicBaseUrl"
   >
   & {
     http: boolean;
@@ -35,6 +36,7 @@ export type CliOptions = Prettify<
     trustProxy: boolean;
     requireHttpAuth: boolean;
     httpBearerToken?: string;
+    publicBaseUrl?: string;
   }
 >;
 
@@ -157,6 +159,16 @@ function createCommand() {
       "Fail startup when no HTTP bearer token is configured.",
       { prefix },
     )
+    .option(
+      "--public-base-url <url:string>",
+      "Public origin for browser links (URL elicitation). Prefer MCP_PUBLIC_BASE_URL.",
+      { conflicts: ["no-http"] },
+    )
+    .env(
+      "MCP_PUBLIC_BASE_URL=<value:string>",
+      "Public http(s) origin for URL-mode elicitation (no trailing slash).",
+      { prefix },
+    )
     // Allowed origins
     .option("--origin <origin:string>", "Allow an origin for DNS rebinding.", {
       collect: true,
@@ -187,6 +199,7 @@ function transformCliOptions(rawOptions: CliCommand["options"]): CliOptions {
     trustProxy: rawTrustProxy,
     requireHttpAuth: rawRequireHttpAuth,
     httpBearerToken: rawHttpBearerToken,
+    publicBaseUrl: rawPublicBaseUrl,
     ...cleanOptions
   } = rawOptions;
 
@@ -195,6 +208,7 @@ function transformCliOptions(rawOptions: CliCommand["options"]): CliOptions {
     trustProxy: rawTrustProxy ?? false,
     requireHttpAuth: rawRequireHttpAuth ?? false,
     httpBearerToken: rawHttpBearerToken,
+    publicBaseUrl: rawPublicBaseUrl,
     headers: mergeArrays(header, rawHeaders),
     allowedOrigins: mergeArrays(origin, rawAllowedOrigins),
     allowedHosts: mergeArrays(host, rawAllowedHosts),

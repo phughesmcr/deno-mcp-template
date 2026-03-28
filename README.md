@@ -90,7 +90,7 @@ See [docs/architecture.md](docs/architecture.md) for transport-scoped `McpServer
 | What | How | Where |
 | --- | --- | --- |
 | Dual transports | STDIO + Streamable HTTP from a single app | `src/app/` |
-| HTTP middleware | Rate limiting, CORS, optional bearer auth, security headers, timeouts, sessions | `src/app/http/hono.ts` |
+| HTTP middleware | Rate limiting, CORS, optional bearer auth (not applied to `/mcp-elicitation/*` browser pages), security headers, timeouts, sessions | `src/app/http/hono.ts` |
 | Persistent state | Deno KV -- zero-config locally, built-in on Deploy | `src/kv/` |
 | Session resumability | KV-backed event store for stream recovery | `src/app/http/kvEventStore.ts` |
 | Background tasks | Durable async task queue with KV state | `src/mcp/tasks/` |
@@ -107,11 +107,11 @@ See [docs/architecture.md](docs/architecture.md) for transport-scoped `McpServer
 
 **Resources:** `hello://world`, `greetings://{name}`, `counter://value` (KV-backed, subscribable)
 
-**Tools:** `elicit-input`, `fetch-website-info` (text + optional MCP Apps UI in supporting clients), `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
+**Tools:** `elicit-input`, `elicit-form-wizard` (two-step form elicitation), `url-elicitation-demo` (URL-mode elicitation; streamable HTTP with a session only), `fetch-website-info` (text + optional MCP Apps UI in supporting clients), `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
 
 **Task workflows (experimental):** `delayed-echo`, `guided-poem` (elicitation + sampling pipeline)
 
-These cover prompts with arguments, static and dynamic resources, subscriptions, sampling, elicitation, notifications, list-changed events, KV persistence, sandboxed execution, async task patterns, and an MCP Apps UI example (`fetch-website-info`). Use them as reference, then swap in your domain logic.
+These cover prompts with arguments, static and dynamic resources, subscriptions, sampling, form and URL elicitation, notifications, list-changed events, KV persistence, sandboxed execution, async task patterns, and an MCP Apps UI example (`fetch-website-info`). Use them as reference, then swap in your domain logic.
 
 ## Make It Yours
 
@@ -135,7 +135,8 @@ Delete the example files you don't need from `src/mcp/tools/`, `src/mcp/resource
 
 ## HTTP security
 
-- **Authentication:** Set `MCP_HTTP_BEARER_TOKEN` (or `--http-bearer-token`) so clients must send `Authorization: Bearer …` or `x-api-key: …` on `/mcp`. For CI or production templates, `MCP_REQUIRE_HTTP_AUTH=true` fails startup if no token is set.
+- **Authentication:** Set `MCP_HTTP_BEARER_TOKEN` (or `--http-bearer-token`) so clients must send `Authorization: Bearer …` or `x-api-key: …` on `/mcp`. For CI or production templates, `MCP_REQUIRE_HTTP_AUTH=true` fails startup if no token is set. Paths under `/mcp-elicitation/` intentionally skip bearer auth so normal browser tabs can open URL-mode elicitation pages without the MCP token.
+- **Public URL for links:** Behind a reverse proxy, set `MCP_PUBLIC_BASE_URL` (or `--public-base-url`) to the `https://` origin users open in a browser so URL elicitation links match your deployment. If unset, the server derives a URL from the bind address (see `src/shared/publicBaseUrl.ts`).
 - **Exposure:** Binding to a non-loopback hostname without a token logs a warning: anyone who can reach the port can use MCP. Use a token or terminate TLS and auth at a reverse proxy.
 - **All interfaces:** Listening on `0.0.0.0` or `::` requires `--dnsRebinding` plus `--host` / `MCP_ALLOWED_HOSTS` (validated at startup).
 - **CORS:** Wildcard `*` origins are not allowed; list explicit origins (e.g. `MCP_ALLOWED_ORIGINS`).
@@ -278,6 +279,7 @@ Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Acti
 | `MCP_NO_STDIO` | `--no-stdio` | `false` | Disable STDIO transport |
 | `MCP_HOSTNAME` | `-n` | `localhost` | HTTP listen hostname |
 | `MCP_PORT` | `-p` | `3001` | HTTP listen port |
+| `MCP_PUBLIC_BASE_URL` | `--public-base-url` | | Public `http(s)://` origin for browser links (URL elicitation); no trailing slash |
 | `MCP_TLS_CERT` | `--tls-cert` | | PEM certificate path (requires `--tls-key`) |
 | `MCP_TLS_KEY` | `--tls-key` | | PEM private key path (requires `--tls-cert`) |
 | `MCP_HEADERS` | `-H` | | Response headers (collection) |
@@ -391,7 +393,7 @@ The `.cursor/skills/` directory contains agent skills that guide Cursor through 
 
 | Skill | What it covers |
 | --- | --- |
-| [`implementing-mcp-tools`](.cursor/skills/implementing-mcp-tools/SKILL.md) | Standard tools, sampling, elicitation, resource-backed tools, notifications |
+| [`implementing-mcp-tools`](.cursor/skills/implementing-mcp-tools/SKILL.md) | Standard tools, sampling, form and URL elicitation, resource-backed tools, notifications |
 | [`implementing-mcp-resources`](.cursor/skills/implementing-mcp-resources/SKILL.md) | Static resources, KV-backed resources, resource templates, subscriptions |
 | [`implementing-mcp-prompts`](.cursor/skills/implementing-mcp-prompts/SKILL.md) | Prompts with static arguments or dynamic completions |
 

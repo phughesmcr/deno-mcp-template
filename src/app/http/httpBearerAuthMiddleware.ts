@@ -30,6 +30,7 @@ export function createHttpBearerAuthMiddleware(
   }
 
   return async (c: Context, next: Next) => {
+    if (c.req.path.startsWith("/mcp-elicitation")) return await next();
     if (c.req.path !== "/mcp") return await next();
     if (c.req.method === "OPTIONS") return await next();
 

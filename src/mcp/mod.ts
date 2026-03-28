@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { InMemoryTaskMessageQueue } from "@modelcontextprotocol/sdk/experimental/tasks/stores/in-memory.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   SubscribeRequestSchema,
   UnsubscribeRequestSchema,
@@ -10,6 +10,7 @@ import type { McpServerFactoryContext } from "./context.ts";
 import { mcpServerDefinition, SERVER_CAPABILITIES, SERVER_INFO } from "./serverDefinition.ts";
 import { KvTaskStore } from "./tasks/mod.ts";
 import { registerTaskTools, ToolManager } from "./tools/mod.ts";
+import { registerUrlElicitationDemoTool } from "./tools/urlElicitationDemo.ts";
 
 /**
  * Creates a new MCP server and initializes the request handlers.
@@ -92,6 +93,10 @@ export function createMcpServer(ctx: McpServerFactoryContext): McpServer {
 
   if (def.tasksEnabled) {
     registerTaskTools(server);
+  }
+
+  if (def.urlElicitationDemo) {
+    registerUrlElicitationDemoTool(server, ctx);
   }
 
   return server;

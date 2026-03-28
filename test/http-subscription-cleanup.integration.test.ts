@@ -9,7 +9,7 @@ import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import { createMcpServer, createResourceSubscriptionTracker } from "$/mcp/mod.ts";
 import { HEADER_KEYS } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
-import { assert, assertEquals, baseHttpConfig } from "./helpers.ts";
+import { assert, assertEquals, baseHttpConfig, mcpFactoryContext } from "./helpers.ts";
 
 async function waitFor(
   predicate: () => boolean,
@@ -97,7 +97,7 @@ Deno.test({
     const transportManager = createTestTransportManager(defaultHttpConfig);
     const subscriptions = createResourceSubscriptionTracker();
     const app = createHonoApp({
-      createMcpServer: () => createMcpServer({ subscriptions }),
+      createMcpServer: () => createMcpServer(mcpFactoryContext(subscriptions)),
       config: defaultHttpConfig,
       transports: transportManager,
     });
@@ -202,7 +202,7 @@ Deno.test({
     const transportManager = createTestTransportManager(defaultHttpConfig);
     const subscriptions = createResourceSubscriptionTracker();
     const app = createHonoApp({
-      createMcpServer: () => createMcpServer({ subscriptions }),
+      createMcpServer: () => createMcpServer(mcpFactoryContext(subscriptions)),
       config: defaultHttpConfig,
       transports: transportManager,
     });

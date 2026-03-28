@@ -1,5 +1,6 @@
 import type { CliOptions } from "$/app/cli.ts";
 import { isAllInterfacesBindHostname } from "$/shared/constants/http.ts";
+import { normalizePublicBaseUrl } from "$/shared/publicBaseUrl.ts";
 import type { AppConfig, HttpServerConfig, KvConfig, StdioConfig } from "$/shared/types.ts";
 import {
   validateHeaders,
@@ -76,6 +77,7 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
     trustProxy,
     httpBearerToken: rawHttpBearerToken,
     requireHttpAuth,
+    publicBaseUrl: rawPublicBaseUrl,
   } = config;
   try {
     const validatedHostname = validateHostname(hostname);
@@ -120,6 +122,16 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
       );
     }
 
+    let validatedPublicBaseUrl: string | undefined;
+    if (rawPublicBaseUrl !== undefined && String(rawPublicBaseUrl).trim() !== "") {
+      if (!http) {
+        throw new Error(
+          "publicBaseUrl is set but HTTP is disabled; remove MCP_PUBLIC_BASE_URL or enable HTTP.",
+        );
+      }
+      validatedPublicBaseUrl = normalizePublicBaseUrl(String(rawPublicBaseUrl));
+    }
+
     return {
       success: true,
       value: {
@@ -135,6 +147,7 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
         tlsKey: validatedTlsKey,
         trustProxy: !!trustProxy,
         ...(bearerTrimmed ? { httpBearerToken: bearerTrimmed } : {}),
+        ...(validatedPublicBaseUrl ? { publicBaseUrl: validatedPublicBaseUrl } : {}),
       },
     };
   } catch (error) {

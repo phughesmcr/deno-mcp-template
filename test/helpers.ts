@@ -1,5 +1,7 @@
 import type { CliOptions } from "$/app/cli.ts";
 import type { HTTPTransportManager } from "$/app/http/transport.ts";
+import type { McpServerFactoryContext, ResourceSubscriptionTracker } from "$/mcp/context.ts";
+import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { delay } from "@std/async/delay";
@@ -36,6 +38,19 @@ export function baseHttpConfig(overrides: Partial<AppConfig["http"]> = {}): AppC
     enableDnsRebinding: false,
     jsonResponseMode: false,
     ...overrides,
+  };
+}
+
+/** Minimal `McpServerFactoryContext` for tests (URL elicitation unused). */
+export function mcpFactoryContext(
+  subscriptions: ResourceSubscriptionTracker,
+): McpServerFactoryContext {
+  return {
+    subscriptions,
+    urlElicitation: {
+      registry: createUrlElicitationRegistry(),
+      baseUrl: undefined,
+    },
   };
 }
 

@@ -140,3 +140,4 @@ scratch/
 *.exe
 
 .cursor/skills/deno-*
+.cursor/skills/simplify

@@ -37,6 +37,8 @@ export interface McpServerDefinition {
   readonly mcpAppsExtension: boolean;
   /** Registers the fetch-website-info MCP App (requires tools + extension). */
   readonly fetchWebsiteInfoApp: boolean;
+  /** Registers `url-elicitation-demo` (URL-mode elicitation; requires HTTP). */
+  readonly urlElicitationDemo: boolean;
 }
 
 /**
@@ -55,6 +57,7 @@ export const mcpServerDefinition: McpServerDefinition = {
   experimentalElicitation: true,
   mcpAppsExtension: true,
   fetchWebsiteInfoApp: true,
+  urlElicitationDemo: true,
 };
 
 /** Builds SDK `ServerCapabilities` from the registry (keeps registration and negotiation in sync). */

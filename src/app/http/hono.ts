@@ -11,6 +11,7 @@ import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 
+import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import {
   ALLOWED_HEADERS,
   ALLOWED_METHODS,
@@ -44,6 +45,8 @@ import {
   rateLimitKeyFromIdentity,
   resolveRateLimitIdentity,
 } from "./rateLimitIdentity.ts";
+import { registerUrlElicitationRoutes } from "./urlElicitationRoutes.ts";
+
 import type { HTTPTransportManager } from "./transport.ts";
 
 export interface HonoBindings {
@@ -65,6 +68,8 @@ export interface HonoAppSpec {
   createMcpServer: () => McpServer;
   config: AppConfig["http"];
   transports: HTTPTransportManager;
+  /** When set, registers `/mcp-elicitation/*` browser routes for URL-mode elicitation. */
+  urlElicitationRegistry?: UrlElicitationRegistry;
 }
 
 const STATIC_ROOT = fromFileUrl(new URL("../../../static/", import.meta.url));
@@ -205,6 +210,7 @@ function createRoutes(
   createMcpServer: () => McpServer,
   transports: HTTPTransportManager,
   notFoundHtml: string,
+  urlElicitationRegistry: UrlElicitationRegistry | undefined,
 ) {
   const ensureTransportConnected = createEnsureTransportConnected(createMcpServer);
 
@@ -218,6 +224,10 @@ function createRoutes(
     ensureTransportConnected,
   );
   app.on(["GET", "DELETE"], "/mcp", getAndDeleteHandler);
+
+  if (urlElicitationRegistry) {
+    registerUrlElicitationRoutes(app, { registry: urlElicitationRegistry, transports });
+  }
 
   // Static Routes
   app.use("/static/*", serveStatic({ root: STATIC_ROOT }));
@@ -237,11 +247,13 @@ function createRoutes(
  * @param spec - The Hono application specification
  * @returns The configured Hono application
  */
-export function createHonoApp({ createMcpServer, config, transports }: HonoAppSpec): Hono<HonoEnv> {
+export function createHonoApp(
+  { createMcpServer, config, transports, urlElicitationRegistry }: HonoAppSpec,
+): Hono<HonoEnv> {
   const app = new Hono<HonoEnv>();
   const notFoundHtml = loadNotFoundPageHtml();
   configureMiddleware(app, config);
-  createRoutes(app, createMcpServer, transports, notFoundHtml);
+  createRoutes(app, createMcpServer, transports, notFoundHtml, urlElicitationRegistry);
   app.onError((err, c) => {
     console.error("Unhandled HTTP route error", err);
     const path = c.req.path;

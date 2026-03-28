@@ -1,7 +1,14 @@
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
 import { createMcpServer, createResourceSubscriptionTracker } from "$/mcp/mod.ts";
-import { assert, assertEquals, hasResultForId, InMemoryTransport, waitFor } from "./helpers.ts";
+import {
+  assert,
+  assertEquals,
+  hasResultForId,
+  InMemoryTransport,
+  mcpFactoryContext,
+  waitFor,
+} from "./helpers.ts";
 
 Deno.test({
   name: "MCP server clears resource subscriptions when transport closes",
@@ -9,7 +16,7 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const subscriptions = createResourceSubscriptionTracker();
-    const server = createMcpServer({ subscriptions });
+    const server = createMcpServer(mcpFactoryContext(subscriptions));
     const transport = new InMemoryTransport();
     const testUri = "test://subscription-cleanup";
     assertEquals(subscriptions.isSubscribed(testUri), false);

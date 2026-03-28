@@ -133,6 +133,13 @@ export type HttpServerConfig = {
    * Prefer `MCP_HTTP_BEARER_TOKEN` over CLI flags (process list visibility).
    */
   httpBearerToken?: string;
+
+  /**
+   * Public origin for browser URLs (URL-mode elicitation, links in tool errors). No trailing slash.
+   * When unset and HTTP is enabled, derived from bind address (127.0.0.1 when hostname is all-interfaces).
+   * Set `MCP_PUBLIC_BASE_URL` behind a reverse proxy.
+   */
+  publicBaseUrl?: string;
 };
 
 /** The configuration for the STDIO transport */

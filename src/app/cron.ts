@@ -1,5 +1,6 @@
 import { getKvStore } from "$/kv/mod.ts";
 import { KvTaskStore, TASK_WORKING_PREFIX } from "$/mcp/tasks/kvTaskStore.ts";
+import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 const STALE_TASK_THRESHOLD_MS = 15 * 60 * 1000;
 const STALE_TASK_STATUS_MESSAGE = "Timed out by maintenance cron after inactivity";
 
@@ -33,7 +34,9 @@ export async function cleanupStaleTasks(now: number = Date.now()): Promise<numbe
 
 let started = false;
 
-export function startMaintenanceCrons(): void {
+export function startMaintenanceCrons(
+  deps?: { urlElicitationRegistry?: UrlElicitationRegistry },
+): void {
   if (started) return;
   started = true;
 
@@ -44,4 +47,15 @@ export function startMaintenanceCrons(): void {
       console.error("Failed to run stale-task cleanup cron", error);
     }
   });
+
+  const registry = deps?.urlElicitationRegistry;
+  if (registry) {
+    Deno.cron("cleanup-expired-url-elicitations", "*/10 * * * *", () => {
+      try {
+        registry.cleanupExpired();
+      } catch (error) {
+        console.error("Failed to run URL elicitation TTL cleanup cron", error);
+      }
+    });
+  }
 }

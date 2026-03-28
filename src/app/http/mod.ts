@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { HttpServerConfig, Transport } from "$/shared/types.ts";
 import { createHonoApp } from "./hono.ts";
@@ -29,10 +30,16 @@ function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undef
 export function createHttpServer(
   createMcpServer: () => McpServer,
   config: HttpServerConfig,
+  deps?: { urlElicitationRegistry?: UrlElicitationRegistry },
 ): Transport {
   const { enabled, hostname, port, tlsCert, tlsKey } = config;
   const transports = createHTTPTransportManager(config);
-  const hono = createHonoApp({ createMcpServer, config, transports });
+  const hono = createHonoApp({
+    createMcpServer,
+    config,
+    transports,
+    urlElicitationRegistry: deps?.urlElicitationRegistry,
+  });
   let server: Deno.HttpServer | null = null;
 
   const connect = () => {

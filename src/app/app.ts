@@ -8,7 +8,9 @@ import {
   startTaskQueueWorker,
   stopTaskQueueWorker,
 } from "$/mcp/tasks/mod.ts";
+import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import { APP_NAME } from "$/shared/constants.ts";
+import { resolvePublicBaseUrl } from "$/shared/publicBaseUrl.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { getRejected } from "$/shared/utils.ts";
 import { startMaintenanceCrons } from "./cron.ts";
@@ -28,7 +30,7 @@ export interface App {
  *
  * `createMcpServer` is a **transport-scoped factory**: it is invoked once for STDIO (one long-lived
  * MCP server) and once per streamable HTTP MCP session. Pass the same
- * `McpServerFactoryContext` (notably `subscriptions`) on every invocation so process-wide
+ * `McpServerFactoryContext` (`subscriptions`, `urlElicitation`) on every invocation so process-wide
  * state stays consistent.
  *
  * @param createMcpServer - Factory invoked per transport / HTTP session (see module docs above)
@@ -37,11 +39,20 @@ export interface App {
 export function createApp(createMcpServer: CreateTransportScopedMcpServer, config: AppConfig): App {
   configureKvPath(config.kv.path);
   const subscriptions = createResourceSubscriptionTracker();
-  const ctx = { subscriptions };
+  const urlElicitationRegistry = createUrlElicitationRegistry();
+  const ctx = {
+    subscriptions,
+    urlElicitation: {
+      baseUrl: resolvePublicBaseUrl(config.http),
+      registry: urlElicitationRegistry,
+    },
+  };
   // MCP SDK v1.27+ allows one active transport per protocol instance.
   // Create one MCP server per transport so HTTP and STDIO can run together.
   const stdio = createStdioManager(createMcpServer(ctx), config.stdio);
-  const http = createHttpServer(() => createMcpServer(ctx), config.http);
+  const http = createHttpServer(() => createMcpServer(ctx), config.http, {
+    urlElicitationRegistry,
+  });
 
   let isRunning = false;
   let lastError: Error | null = null;
@@ -60,7 +71,7 @@ export function createApp(createMcpServer: CreateTransportScopedMcpServer, confi
         await verifyRuntimePermissions(config);
         await openKvStore(config.kv.path);
         await migrateWorkingTaskIndexIfNeeded();
-        startMaintenanceCrons();
+        startMaintenanceCrons({ urlElicitationRegistry });
         await startTaskQueueWorker();
         const results = await Promise.allSettled([
           stdio.connect(),
