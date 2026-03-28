@@ -3,7 +3,11 @@ import {
   createResourceSubscriptionTracker,
   type CreateTransportScopedMcpServer,
 } from "$/mcp/context.ts";
-import { migrateWorkingTaskIndexIfNeeded, startTaskQueueWorker, stopTaskQueueWorker } from "$/mcp/tasks/mod.ts";
+import {
+  migrateWorkingTaskIndexIfNeeded,
+  startTaskQueueWorker,
+  stopTaskQueueWorker,
+} from "$/mcp/tasks/mod.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { getRejected } from "$/shared/utils.ts";
