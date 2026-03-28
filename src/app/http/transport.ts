@@ -36,7 +36,7 @@ function validateParsedInitializeBody(
   return {
     valid: false,
     error: `No transport found for session ID: ${sessionId}`,
-    code: RPC_ERROR_CODES.INVALID_REQUEST,
+    code: RPC_ERROR_CODES.SESSION_NOT_FOUND,
   };
 }
 
@@ -67,12 +67,7 @@ function isValidInitializeRequest(
  * @returns The HTTP transport manager
  */
 export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTransportManager {
-  const {
-    allowedHosts = [],
-    allowedOrigins = [],
-    enableDnsRebinding,
-    jsonResponseMode,
-  } = config;
+  const { jsonResponseMode } = config;
   const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
   let eventStorePromise: Promise<KvEventStore> | null = null;
 
@@ -96,9 +91,6 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
       },
       enableJsonResponse: !!jsonResponseMode,
       eventStore: await getEventStore(),
-      enableDnsRebindingProtection: !!enableDnsRebinding,
-      allowedHosts,
-      allowedOrigins,
     });
     transport.onerror = (_error) => {
       // Uncomment this to log transport errors - will dangerously expose tracebacks to clients

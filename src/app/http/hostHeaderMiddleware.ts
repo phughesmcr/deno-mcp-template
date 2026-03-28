@@ -31,10 +31,6 @@ function normalizeAllowedList(hostnames: readonly string[]): string[] {
 }
 
 /**
- * Validates the raw `Host` header (port allowed) against allowed hostnames (port-agnostic),
- * matching `@modelcontextprotocol/sdk` Express `hostHeaderValidation` behavior.
- */
-/**
  * Prefer the `Host` header; if absent (common for synthetic `Request` in tests), use the URL
  * authority. Real `Deno.serve` requests include `Host`.
  */

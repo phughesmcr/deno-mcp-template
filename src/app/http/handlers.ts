@@ -43,6 +43,8 @@ function handleMCPError(c: Context, error?: unknown): Response {
       return c.json(payload, HTTP_STATUS.BAD_REQUEST);
     case RPC_ERROR_CODES.METHOD_NOT_FOUND:
       return c.json(payload, HTTP_STATUS.METHOD_NOT_ALLOWED);
+    case RPC_ERROR_CODES.SESSION_NOT_FOUND:
+      return c.json(payload, HTTP_STATUS.NOT_FOUND);
     default:
       return c.json(payload, HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
@@ -138,7 +140,7 @@ export function createGetAndDeleteHandler(
         return handleMCPError(
           c,
           new RPCError({
-            code: RPC_ERROR_CODES.INVALID_REQUEST,
+            code: RPC_ERROR_CODES.SESSION_NOT_FOUND,
             message: "No transport found for session ID",
             requestId: sessionId,
           }),
