@@ -1,96 +1,387 @@
 openapi: 3.0.0
 info:
   title: Deno MCP Template
-  description: A Model Context Protocol (MCP) server.
-  version: 0.0.1
+  description: |
+    A template for building MCP servers with Deno.
+
+    The `/mcp` endpoint implements the **MCP Streamable HTTP** transport. See the
+    [MCP specification — Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http)
+    for protocol details. Responses may be `application/json` (including JSON-RPC envelopes)
+    or `text/event-stream` depending on the request and server mode.
+  version: 0.6.1
 servers:
   - url: http://localhost:3001
-    description: Local development server
+    description: |
+      Example base URL; the real host and port come from CLI flags and env (e.g. `--port`, `MCP_HTTP_PORT`).
+
 paths:
-  /mcp:
+  /:
     get:
-      summary: Get the MCP server status
+      summary: Server status (plain text)
       tags:
-        - MCP
+        - Status
       responses:
-        '200':
-          description: Successful response with MCP server status
+        "200":
+          description: Human-readable line naming the app and pointing to `/llms.txt`.
           content:
-            application/json:
+            text/plain:
               schema:
-                type: object
-                properties:
-                  jsonrpc:
-                    type: string
-                    example: "2.0"
-                  id:
-                    type: integer
-                    example: -1
-                  result:
-                    type: object
-                    properties:
-                      message:
-                        type: string
-                        example: "deno-mcp-template running. See `/llms.txt` for machine-readable docs."
+                type: string
+                example: "deno-mcp-template running. See `/llms.txt` for machine-readable docs."
+
+  /mcp:
     post:
-      summary: Send a JSON-RPC message to the MCP server
+      summary: MCP Streamable HTTP — POST (initialize and JSON-RPC messages)
+      description: |
+        Non-empty JSON body. Omit `mcp-session-id` only for an `initialize` request; after that,
+        include the session UUID returned by the transport for all further messages.
+
+        When HTTP bearer auth is configured, send `Authorization: Bearer <token>` or header `x-api-key`
+        with the same secret (see `components.securitySchemes`).
       tags:
         - MCP
+      parameters:
+        - $ref: "#/components/parameters/McpSessionIdOptional"
+        - $ref: "#/components/parameters/LastEventId"
+        - $ref: "#/components/parameters/McpProtocolVersion"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/JSONRPCRequest'
+              $ref: "#/components/schemas/JSONRPCRequest"
       responses:
-        '200':
-          description: Successful response with JSON-RPC result
+        "200":
+          description: JSON-RPC success, SSE stream, or transport-defined body.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JSONRPCResponse'
-        '500':
-          description: Server error
+                $ref: "#/components/schemas/JSONRPCEnvelope"
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-Sent Events stream (session lifecycle / notifications).
+        "400":
+          description: Invalid JSON, empty body, invalid session, or missing session for non-initialize.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    delete:
-      summary: Delete a session from the MCP server
+                $ref: "#/components/schemas/JSONRPCError"
+        "401":
+          description: Invalid or missing credentials (only when HTTP bearer auth is configured).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedError"
+        "405":
+          description: Method not found (JSON-RPC).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
+        "404":
+          description: Unknown session (JSON-RPC).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
+        "500":
+          description: Internal error (JSON-RPC or generic error body).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/JSONRPCError"
+                  - $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: MCP Streamable HTTP — GET (SSE / resume)
+      description: |
+        Requires `mcp-session-id` for an existing session.
+        When HTTP bearer auth is configured, use `Authorization: Bearer <token>` or `x-api-key` (see `components.securitySchemes`).
       tags:
         - MCP
+      parameters:
+        - $ref: "#/components/parameters/McpSessionIdRequired"
+        - $ref: "#/components/parameters/LastEventId"
+        - $ref: "#/components/parameters/McpProtocolVersion"
       responses:
-        '200':
-          description: Successful session deletion response
+        "200":
+          description: SSE or JSON per transport.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCEnvelope"
+        "400":
+          description: Missing or invalid session header.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JSONRPCResponse'
-  /:
-    get:
-      summary: Root endpoint to check server status
+                $ref: "#/components/schemas/JSONRPCError"
+        "401":
+          description: Invalid or missing credentials (only when HTTP bearer auth is configured).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedError"
+        "404":
+          description: No transport for session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
+
+    delete:
+      summary: MCP Streamable HTTP — DELETE (terminate session)
+      description: |
+        Requires `mcp-session-id` for an existing session.
+        When HTTP bearer auth is configured, use `Authorization: Bearer <token>` or `x-api-key` (see `components.securitySchemes`).
       tags:
-        - Status
+        - MCP
+      parameters:
+        - $ref: "#/components/parameters/McpSessionIdRequired"
+        - $ref: "#/components/parameters/LastEventId"
+        - $ref: "#/components/parameters/McpProtocolVersion"
       responses:
-        '200':
-          description: Server status message
+        "200":
+          description: Session terminated; body shape depends on transport.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  jsonrpc:
-                    type: string
-                    example: "2.0"
-                  id:
-                    type: integer
-                    example: -1
-                  result:
-                    type: object
-                    properties:
-                      message:
-                        type: string
+                $ref: "#/components/schemas/JSONRPCEnvelope"
+        "400":
+          description: Missing or invalid session header.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
+        "401":
+          description: Invalid or missing credentials (only when HTTP bearer auth is configured).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedError"
+        "404":
+          description: No transport for session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
+
+  /.well-known/llms.txt:
+    get:
+      summary: Machine-readable server summary for LLMs
+      tags:
+        - Well-known
+      responses:
+        "200":
+          description: Plain-text llms.txt content.
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /.well-known/openapi.yaml:
+    get:
+      summary: This OpenAPI document
+      tags:
+        - Well-known
+      responses:
+        "200":
+          description: OpenAPI 3 YAML for this HTTP surface.
+          content:
+            application/yaml:
+              schema:
+                type: string
+            text/yaml:
+              schema:
+                type: string
+
+  /llms.txt:
+    get:
+      summary: Redirect to /.well-known/llms.txt
+      tags:
+        - Well-known
+      responses:
+        "302":
+          description: Redirect to `/.well-known/llms.txt`.
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/.well-known/llms.txt"
+
+  /openapi.yaml:
+    get:
+      summary: Redirect to /.well-known/openapi.yaml
+      tags:
+        - Well-known
+      responses:
+        "302":
+          description: Redirect to `/.well-known/openapi.yaml`.
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/.well-known/openapi.yaml"
+
+  /mcp-elicitation/confirm:
+    get:
+      summary: URL-mode elicitation — confirmation page (HTML)
+      description: |
+        Registered only when the URL elicitation demo is enabled. Query parameters must reference a
+        valid pending elicitation for an active MCP session.
+      tags:
+        - MCP
+      parameters:
+        - name: session
+          in: query
+          required: true
+          description: MCP session UUID.
+          schema:
+            type: string
+            format: uuid
+        - name: elicitation
+          in: query
+          required: true
+          description: Elicitation id UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: HTML form to confirm or cancel.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid parameters, unknown session, or unknown elicitation.
+          content:
+            text/html:
+              schema:
+                type: string
+
+    post:
+      summary: URL-mode elicitation — submit confirm or cancel
+      description: Same availability as the GET route.
+      tags:
+        - MCP
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - session
+                - elicitation
+                - action
+              properties:
+                session:
+                  type: string
+                  format: uuid
+                elicitation:
+                  type: string
+                  format: uuid
+                action:
+                  type: string
+                  enum:
+                    - confirm
+                    - cancel
+      responses:
+        "200":
+          description: HTML result page.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid form body, action, or elicitation state.
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /static/{path}:
+    get:
+      summary: Static assets under /static/
+      description: Files from the server `static/` directory (e.g. built MCP app bundles).
+      tags:
+        - Static
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Asset bytes; content type depends on file.
+        "404":
+          description: Not found.
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Applies only when the server is configured with an HTTP bearer token. Then `/mcp` requests
+        must send `Authorization: Bearer <token>` (or use `x-api-key` with the same secret). If no
+        token is configured, these routes do not require authentication.
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Same as bearer auth when enabled: header value must match the configured token. Not checked
+        when no bearer token is configured.
+
+  parameters:
+    McpSessionIdRequired:
+      name: mcp-session-id
+      in: header
+      required: true
+      description: Active MCP session UUID.
+      schema:
+        type: string
+        format: uuid
+    McpSessionIdOptional:
+      name: mcp-session-id
+      in: header
+      required: false
+      description: Omit for `initialize`; required for other JSON-RPC methods once a session exists.
+      schema:
+        type: string
+        format: uuid
+    LastEventId:
+      name: last-event-id
+      in: header
+      required: false
+      description: Resume streaming from this event id when supported by the transport.
+      schema:
+        type: string
+    McpProtocolVersion:
+      name: mcp-protocol-version
+      in: header
+      required: false
+      schema:
+        type: string
+
   schemas:
     JSONRPCRequest:
       type: object
@@ -108,45 +399,43 @@ components:
         method:
           type: string
           description: Method to call
-          example: "call_tool"
+          example: initialize
         params:
           type: object
           description: Method parameters
       required:
         - jsonrpc
         - method
-    JSONRPCResponse:
+
+    JSONRPCSuccess:
       type: object
       properties:
         jsonrpc:
           type: string
-          description: JSON-RPC version
           example: "2.0"
         id:
           oneOf:
             - type: string
             - type: integer
             - type: "null"
-          description: Request identifier
         result:
-          type: object
-          description: Result object
+          description: Method result (shape depends on MCP method).
       required:
         - jsonrpc
         - id
+        - result
+
     JSONRPCError:
       type: object
       properties:
         jsonrpc:
           type: string
-          description: JSON-RPC version
           example: "2.0"
         id:
           oneOf:
             - type: string
             - type: integer
             - type: "null"
-          description: Request identifier
         error:
           type: object
           properties:
@@ -157,60 +446,30 @@ components:
               type: string
               description: Error message
             data:
-              type: object
               description: Additional error data
       required:
         - jsonrpc
         - id
         - error
-    EntityObject:
+
+    JSONRPCEnvelope:
+      oneOf:
+        - $ref: "#/components/schemas/JSONRPCSuccess"
+        - $ref: "#/components/schemas/JSONRPCError"
+
+    UnauthorizedError:
       type: object
       properties:
-        name:
+        error:
           type: string
-          description: The name of the entity
-        entityType:
+          example: unauthorized
+        message:
           type: string
-          description: The type of the entity
-        observations:
-          type: array
-          items:
-            type: string
-          description: An array of observation contents associated with the entity
+          example: Invalid or missing credentials
       required:
-        - name
-        - entityType
-        - observations
-    RelationObject:
-      type: object
-      properties:
-        from:
-          type: string
-          description: The name of the entity where the relation starts
-        to:
-          type: string
-          description: The name of the entity where the relation ends
-        relationType:
-          type: string
-          description: The type of the relation
-      required:
-        - from
-        - to
-        - relationType
-    KnowledgeGraphObject:
-      type: object
-      properties:
-        entities:
-          type: array
-          items:
-            $ref: '#/components/schemas/EntityObject'
-        relations:
-          type: array
-          items:
-            $ref: '#/components/schemas/RelationObject'
-      required:
-        - entities
-        - relations
+        - error
+        - message
+
     ErrorResponse:
       type: object
       properties:

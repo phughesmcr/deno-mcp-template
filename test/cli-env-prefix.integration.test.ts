@@ -1,3 +1,7 @@
+/**
+ * Spawns `deno eval` via {@link Deno.Command}; needs `--allow-run` when run outside
+ * `deno task test:integration` / `test:coverage` (those run this file in a second pass).
+ */
 import { assert } from "./helpers.ts";
 
 async function getAllowedOriginsFromEnv(env: Record<string, string>): Promise<string[]> {

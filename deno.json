@@ -48,8 +48,8 @@
         "setup": "deno run -A scripts/setup-template.ts",
         "start": "deno run --env-file=.env -A main.ts",
         "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts",
-        "test:integration": "deno test --frozen -P",
-        "test:coverage": "deno test --frozen -P --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
+        "test:integration": "deno test --frozen -P --ignore=test/cli-env-prefix.integration.test.ts && deno test --frozen -P --allow-run test/cli-env-prefix.integration.test.ts",
+        "test:coverage": "deno test --frozen -P --ignore=test/cli-env-prefix.integration.test.ts --coverage=coverage && deno test --frozen -P --allow-run test/cli-env-prefix.integration.test.ts --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
         "bench": "deno bench --frozen -P",
         "build:mcp-ui": "npm --prefix mcp-ui ci && npm --prefix mcp-ui run build",
         "ci": {
@@ -132,7 +132,6 @@
         ],
         "permissions": {
             "env": true,
-            "run": true,
             "read": true,
             "write": true,
             "net": true,
@@ -198,7 +197,7 @@
     },
     "lock": {
         "path": "./deno.lock",
-        "frozen": false
+        "frozen": true
     },
     "unstable": [
         "kv",

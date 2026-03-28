@@ -12,6 +12,56 @@ Start: `deno task start`
 Dev mode: `deno task dev`
 Format, lint, and type-check code: `deno task ci`
 Rebuild MCP App HTML (after editing `mcp-ui/`): `deno task build:mcp-ui`
+Tests with coverage: `deno task test:coverage`
+Benchmarks: `deno task bench`
+
+## Architecture
+
+### `src/mcp/` vs `src/app/`
+
+- `src/mcp/` — MCP server: prompts, resources, tools, tasks, apps, server wiring.
+- `src/app/` — Host shell: transport bootstrapping, HTTP (Hono on `Deno.serve`), lifecycle, permissions preflight, KV, cron, signals.
+
+### HTTP stack
+
+Middleware includes rate limiting, CORS, optional bearer auth (see `src/app/http/hono.ts`), security headers, request timeouts, and session handling.
+
+### Transport-scoped `McpServer` instances
+
+The MCP TypeScript SDK allows **one active transport per protocol instance**. This template creates **a separate `McpServer` per transport binding**, not one shared instance:
+
+- **STDIO:** one long-lived `McpServer` for the lifetime of the STDIO transport (`createApp` in `src/app/app.ts`).
+- **HTTP (streamable):** **one new `McpServer` per MCP HTTP session** (factory in `createHttpServer` / Hono setup).
+
+Process-wide state — **Deno KV**, **resource subscription tracker**, **task queue worker**, etc. — lives **outside** those instances. The factory receives the same `McpServerFactoryContext` each time (including shared `subscriptions`) so STDIO and all HTTP sessions stay consistent.
+
+### Security and transport toggles
+
+- **Host header validation** (aligned with MCP SDK Hono middleware): on loopback listen addresses, `Host` must be `localhost`, `127.0.0.1`, or `[::1]` (port ignored). With `--dnsRebinding` and configured allowed hosts, that list applies instead. Binding to all interfaces without DNS rebinding allowlists logs a one-time startup warning.
+- **DNS rebinding protection** on the streamable HTTP transport is opt-in: `MCP_DNS_REBINDING=true` or `--dnsRebinding` (with `--origin` / `--host` per CLI rules). Use `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` for Origin and transport header checks.
+- CORS allowed origins default to **empty**; browser clients need `MCP_ALLOWED_ORIGINS` or `--origin`.
+- HTTP: on by default; disable with `MCP_NO_HTTP=true` or `--no-http`.
+- STDIO: on by default; disable with `MCP_NO_STDIO=true` or `--no-stdio`.
+
+### Deno KV in this template
+
+KV is built into Deno (`Deno.Kv`): file-backed locally, managed service on [Deno Deploy](https://docs.deno.com/deploy/kv/manual/). Used here for HTTP event resumability, durable task state and results, delayed task queue, and the counter resource.
+
+### Sandboxed `execute-code`
+
+Runs untrusted TS/JS in [Deno Sandbox](https://docs.deno.com/sandbox/) (isolated VM, no net/fs/env). Set `DENO_DEPLOY_TOKEN` in `.env` (Deploy dashboard → Organization Tokens). Implementation: `src/mcp/tools/sandbox.ts`.
+
+### Maintenance cron
+
+`Deno.cron` jobs start from `src/app/app.ts`. Example: `cleanup-stale-tasks` every 15 minutes in `src/app/cron.ts` (marks stale working tasks failed). Requires `unstable: ["kv", "cron"]` in `deno.json`.
+
+### Caveats
+
+- `src/app/http/kvEventStore.ts` is a simple session-resumability helper, not a production-grade event store.
+- Local tasks often use `deno run -A`; tighten permissions before production ([Deno security](https://docs.deno.com/runtime/fundamentals/security/)).
+- With `--dnsRebinding`, configure origins/hosts via env/CLI or `src/shared/constants/http.ts`.
+- Before shipping, review `static/.well-known/openapi.yaml`, `static/.well-known/llms.txt`, and `static/dxt-manifest.json`; set secrets in GitHub and Deno Deploy as needed.
+- After `deno task setup`, do a final pass for template names and identifiers.
 
 ## Project Structure
 
@@ -25,6 +75,8 @@ src/
 │   ├── http/
 │   │   ├── handlers.ts             # HTTP handlers for the MCP server (GET, POST, etc.)
 │   │   ├── hono.ts                 # Manages the Hono server, middleware, and routes
+│   │   ├── hostHeaderMiddleware.ts # Host allowlist (localhost + explicit DNS rebinding hosts)
+│   │   ├── httpBearerAuthMiddleware.ts # Optional bearer auth for HTTP routes
 │   │   ├── kvEventStore.ts         # Simple Deno KV event store for session resumability
 │   │   ├── mod.ts                  # The main entrypoint for the HTTP server
 │   │   ├── urlElicitationRoutes.ts # Browser pages for URL-mode elicitation
@@ -40,6 +92,7 @@ src/
 │   ├── store.ts                    # Deno KV open/close lifecycle and config
 │   └── watch.ts                    # Subscription watcher for resource updates
 ├── mcp/
+│   ├── context.ts                  # McpServerFactoryContext + subscription tracker factory
 │   ├── prompts/
 │   │   ├── codeReview.ts           # A code-review prompt example
 │   │   ├── languagePrompt.ts       # A prompt example with arguments
@@ -97,6 +150,8 @@ static/
 ├── .well-known/
 │   ├── llms.txt                    # An example llms.txt giving LLMs information about the server
 │   └── openapi.yaml                # An example OpenAPI specification for the server
+├── mcp-apps/
+│   └── fetch-website-info.html     # Built MCP App bundle (run `deno task build:mcp-ui`)
 ├── 404.html                        # Default static 404 page
 └── dxt-manifest.json               # The manifest for the DXT package
 ```

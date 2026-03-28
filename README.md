@@ -81,7 +81,7 @@ When this package is published to JSR, you can import the full program (`main.ts
 - **`jsr:@scope/name/mcp`** — `createMcpServer`, `mcpServerDefinition`, context/subscription helpers, and related exports. The host must still open Deno KV (and any other shared services) before handling requests, same as `createApp` does.
 - **`jsr:@scope/name/app`** — `createApp` for embedding the STDIO + HTTP host without copying `main.ts`.
 
-See [docs/architecture.md](docs/architecture.md) for transport-scoped `McpServer` instances and shared context.
+See [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc) (Architecture) for transport-scoped `McpServer` instances and shared context.
 
 ## What's Included
 
@@ -373,8 +373,8 @@ test/                       # Integration tests and benchmarks
 .github/workflows/          # CI, release, deploy, publish
 ```
 
-For the full annotated tree, transport internals, feature reference, and development caveats, see
-[`docs/architecture.md`](docs/architecture.md).
+For the annotated source tree, transport internals, and development caveats, see
+[`.cursor/rules/project.mdc`](.cursor/rules/project.mdc).
 
 ## Extras
 
