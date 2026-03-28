@@ -1,4 +1,4 @@
-import type { GetPromptResult, Prompt } from "@modelcontextprotocol/sdk/types.js";
+import type { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
 import type { PromptPlugin } from "$/shared/types.ts";
@@ -9,15 +9,10 @@ const schema = z.object({
 
 const name = "review-code";
 
-const config: Prompt = {
-  name,
+const config = {
   title: "Code Review",
   description: "Review code for best practices and potential issues",
-  arguments: [{
-    name: "code",
-    description: "The code to review",
-    required: true,
-  }],
+  argsSchema: schema.shape,
 };
 
 async function callback(args: Record<string, unknown>): Promise<GetPromptResult> {
