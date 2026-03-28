@@ -1,6 +1,6 @@
 import { cleanupStaleTasks } from "$/app/cron.ts";
 import { KvEventStore } from "$/app/http/kvEventStore.ts";
-import { closeKvStore, configureKvPath, getKvStore, openKvStore } from "$/app/kv/mod.ts";
+import { closeKvStore, configureKvPath, getKvStore, openKvStore } from "$/kv/mod.ts";
 import { createWorkingIndexKey, KvTaskStore, TASK_META_PREFIX } from "$/mcp/tasks/kvTaskStore.ts";
 import type { Request } from "@modelcontextprotocol/sdk/types.js";
 

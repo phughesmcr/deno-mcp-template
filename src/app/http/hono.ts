@@ -58,6 +58,10 @@ type HonoEnv = {
 };
 
 export interface HonoAppSpec {
+  /**
+   * Bound factory: returns a **new** `McpServer` per streamable HTTP session. Usually
+   * `() => createMcpServer(ctx)` so each session shares the same app `ctx` (e.g. subscriptions).
+   */
   createMcpServer: () => McpServer;
   config: AppConfig["http"];
   transports: HTTPTransportManager;

@@ -27,7 +27,15 @@ let cachedAppHtml: string | undefined;
 
 function getAppHtml(): string {
   if (cachedAppHtml !== undefined) return cachedAppHtml;
-  const path = join(import.meta.dirname!, "..", "..", "..", "static", "mcp-apps", "fetch-website-info.html");
+  const path = join(
+    import.meta.dirname!,
+    "..",
+    "..",
+    "..",
+    "static",
+    "mcp-apps",
+    "fetch-website-info.html",
+  );
   try {
     cachedAppHtml = Deno.readTextFileSync(path);
   } catch (cause) {

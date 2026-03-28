@@ -73,6 +73,16 @@ Connect from any MCP client:
 
 That's it. You have a running MCP server with tools, resources, prompts, and task workflows.
 
+### JSR subpath imports
+
+When this package is published to JSR, you can import the full program (`main.ts`) or narrower entrypoints:
+
+- **`jsr:@scope/name`** — same as `main.ts` (CLI entry).
+- **`jsr:@scope/name/mcp`** — `createMcpServer`, `mcpServerDefinition`, context/subscription helpers, and related exports. The host must still open Deno KV (and any other shared services) before handling requests, same as `createApp` does.
+- **`jsr:@scope/name/app`** — `createApp` for embedding the STDIO + HTTP host without copying `main.ts`.
+
+See [docs/architecture.md](docs/architecture.md) for transport-scoped `McpServer` instances and shared context.
+
 ## What's Included
 
 ### Out-of-the-box infrastructure
@@ -81,7 +91,7 @@ That's it. You have a running MCP server with tools, resources, prompts, and tas
 | --- | --- | --- |
 | Dual transports | STDIO + Streamable HTTP from a single app | `src/app/` |
 | HTTP middleware | Rate limiting, CORS, optional bearer auth, security headers, timeouts, sessions | `src/app/http/hono.ts` |
-| Persistent state | Deno KV -- zero-config locally, built-in on Deploy | `src/app/kv/` |
+| Persistent state | Deno KV -- zero-config locally, built-in on Deploy | `src/kv/` |
 | Session resumability | KV-backed event store for stream recovery | `src/app/http/kvEventStore.ts` |
 | Background tasks | Durable async task queue with KV state | `src/mcp/tasks/` |
 | Scheduled jobs | `Deno.cron` for periodic maintenance | `src/app/cron.ts` |
@@ -115,8 +125,9 @@ Run `deno task setup` first -- it rewrites package names, scopes, and metadata a
 4. **`mcp-ui/`** -- Vite bundle for MCP App HTML (run `deno task build:mcp-ui`; needs Node.js + npm)
 5. **`src/mcp/resources/`** -- add your resources
 6. **`src/mcp/prompts/`** -- add your prompts
-7. **`src/mcp/mod.ts`** -- wire new features into the server
-8. **`src/app/http/hono.ts`** -- adjust CORS, middleware, routes
+7. **`src/mcp/serverDefinition.ts`** -- feature lists, capability flags, and derived `SERVER_CAPABILITIES` (re-exported from `src/shared/constants/mcp.ts`)
+8. **`src/mcp/mod.ts`** -- server construction (registration follows the definition)
+9. **`src/app/http/hono.ts`** -- adjust CORS, middleware, routes
 
 ### What to remove
 

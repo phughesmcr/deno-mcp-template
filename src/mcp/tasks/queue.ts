@@ -1,6 +1,6 @@
 import type { Result } from "@modelcontextprotocol/sdk/types.js";
 
-import { getKvStore } from "$/app/kv/mod.ts";
+import { getKvStore } from "$/kv/mod.ts";
 import { KvTaskStore } from "./kvTaskStore.ts";
 
 type DelayedEchoQueueMessage = {

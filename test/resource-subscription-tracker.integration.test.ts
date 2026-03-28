@@ -1,4 +1,4 @@
-import type { KvWatcher } from "$/app/kv/mod.ts";
+import type { KvWatcher } from "$/kv/mod.ts";
 import { createResourceSubscriptionTracker } from "$/mcp/resources/subscriptionTracker.ts";
 import { assert, assertEquals } from "./helpers.ts";
 

@@ -1,6 +1,6 @@
 import type { Request } from "@modelcontextprotocol/sdk/types.js";
 
-import { closeKvStore, configureKvPath, openKvStore } from "$/app/kv/mod.ts";
+import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
 import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
 import { assert, assertEquals } from "./helpers.ts";
 

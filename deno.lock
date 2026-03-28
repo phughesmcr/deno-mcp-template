@@ -7,7 +7,7 @@
     "jsr:@cliffy/internal@1.0.0": "1.0.0",
     "jsr:@cliffy/table@1.0.0": "1.0.0",
     "jsr:@deno/sandbox@~0.13.2": "0.13.2",
-    "jsr:@hono/hono@^4.12.8": "4.12.8",
+    "jsr:@hono/hono@^4.12.9": "4.12.9",
     "jsr:@std/async@^1.2.0": "1.2.0",
     "jsr:@std/cli@^1.0.28": "1.0.28",
     "jsr:@std/fmt@^1.0.9": "1.0.9",
@@ -18,13 +18,11 @@
     "jsr:@std/semver@^1.0.8": "1.0.8",
     "jsr:@std/text@^1.0.17": "1.0.17",
     "jsr:@std/ulid@1": "1.0.0",
-    "npm:@modelcontextprotocol/ext-apps@1.3.1": "1.3.1_@modelcontextprotocol+sdk@1.27.1__zod@4.3.6__hono@4.12.2__ajv@8.18.0__express@5.2.1_zod@4.3.6",
-    "npm:@modelcontextprotocol/ext-apps@^1.3.1": "1.3.1_@modelcontextprotocol+sdk@1.27.1__zod@4.3.6__hono@4.12.2__ajv@8.18.0__express@5.2.1_zod@4.3.6",
-    "npm:@modelcontextprotocol/sdk@1.27.1": "1.27.1_zod@4.3.6_hono@4.12.2_ajv@8.18.0_express@5.2.1",
-    "npm:@modelcontextprotocol/sdk@^1.27.1": "1.27.1_zod@4.3.6_hono@4.12.2_ajv@8.18.0_express@5.2.1",
+    "npm:@modelcontextprotocol/ext-apps@^1.3.2": "1.3.2_@modelcontextprotocol+sdk@1.28.0__zod@4.3.6_zod@4.3.6",
+    "npm:@modelcontextprotocol/sdk@^1.28.0": "1.28.0_zod@4.3.6",
     "npm:@types/ws@^8.18.1": "8.18.1",
-    "npm:hono-rate-limiter@*": "0.5.3_hono@4.12.2",
-    "npm:hono-rate-limiter@~0.5.3": "0.5.3_hono@4.12.2",
+    "npm:hono-rate-limiter@*": "0.5.3_hono@4.12.9",
+    "npm:hono-rate-limiter@~0.5.3": "0.5.3_hono@4.12.9",
     "npm:ws@^8.18.3": "8.19.0",
     "npm:zod-validation-error@5": "5.0.0_zod@4.3.6",
     "npm:zod@^4.1.5": "4.3.6",
@@ -68,8 +66,8 @@
         "npm:zod@^4.1.5"
       ]
     },
-    "@hono/hono@4.12.8": {
-      "integrity": "1997fde8abf28e84d821c9c867229be020e268d4749397aec071305bf54db297"
+    "@hono/hono@4.12.9": {
+      "integrity": "53c2b0a721c1d782e6a347ad5bf15a3235ff624b98859c21f779b7ee2f5e040e"
     },
     "@std/async@1.2.0": {
       "integrity": "c059c6f6d95ca7cc012ae8e8d7164d1697113d54b0b679e4372b354b11c2dee5"
@@ -111,21 +109,21 @@
     }
   },
   "npm": {
-    "@hono/node-server@1.19.9_hono@4.12.2": {
+    "@hono/node-server@1.19.9_hono@4.12.9": {
       "integrity": "sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==",
       "dependencies": [
         "hono"
       ]
     },
-    "@modelcontextprotocol/ext-apps@1.3.1_@modelcontextprotocol+sdk@1.27.1__zod@4.3.6__hono@4.12.2__ajv@8.18.0__express@5.2.1_zod@4.3.6": {
-      "integrity": "sha512-XchYFGrCEO9JOLo6575MF3LWBrHOH9nVt1sC3ZaDL/JSgd6uN37/48Bcn5K1AIPXPxpsuQuczF8J+b4HxiYJpA==",
+    "@modelcontextprotocol/ext-apps@1.3.2_@modelcontextprotocol+sdk@1.28.0__zod@4.3.6_zod@4.3.6": {
+      "integrity": "sha512-DGG1FxN3s8g4KV+BF64dxph8j2mtxgU56Lu/WgBjylomqRIPshW0ut47OtBN4+V8r+Qp8kKUvCOBBzPY9+GurA==",
       "dependencies": [
         "@modelcontextprotocol/sdk",
         "zod"
       ]
     },
-    "@modelcontextprotocol/sdk@1.27.1_zod@4.3.6_hono@4.12.2_ajv@8.18.0_express@5.2.1": {
-      "integrity": "sha512-sr6GbP+4edBwFndLbM60gf07z0FQ79gaExpnsjMGePXqFcSSb7t6iscpjk9DhFhwd+mTEQrzNafGP8/iGGFYaA==",
+    "@modelcontextprotocol/sdk@1.28.0_zod@4.3.6": {
+      "integrity": "sha512-gmloF+i+flI8ouQK7MWW4mOwuMh4RePBuPFAEPC6+pdqyWOUMDOixb6qZ69owLJpz6XmyllCouc4t8YWO+E2Nw==",
       "dependencies": [
         "@hono/node-server",
         "ajv",
@@ -391,14 +389,14 @@
         "function-bind"
       ]
     },
-    "hono-rate-limiter@0.5.3_hono@4.12.2": {
+    "hono-rate-limiter@0.5.3_hono@4.12.9": {
       "integrity": "sha512-M0DxbVMpPELEzLi0AJg1XyBHLGJXz7GySjsPoK+gc5YeeBsdGDGe+2RvVuCAv8ydINiwlbxqYMNxUEyYfRji/A==",
       "dependencies": [
         "hono"
       ]
     },
-    "hono@4.12.2": {
-      "integrity": "sha512-gJnaDHXKDayjt8ue0n8Gs0A007yKXj4Xzb8+cNjZeYsSzzwKc0Lr+OZgYwVfB0pHfUs17EPoLvrOsEaJ9mj+Tg=="
+    "hono@4.12.9": {
+      "integrity": "sha512-wy3T8Zm2bsEvxKZM5w21VdHDDcwVS1yUFFY6i8UobSsKfFceT7TOwhbhfKsDyx7tYQlmRM5FLpIuYvNFyjctiA=="
     },
     "http-errors@2.0.1": {
       "integrity": "sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==",
@@ -665,13 +663,13 @@
       "jsr:@cliffy/command@1",
       "jsr:@cliffy/flags@1",
       "jsr:@deno/sandbox@~0.13.2",
-      "jsr:@hono/hono@^4.12.8",
+      "jsr:@hono/hono@^4.12.9",
       "jsr:@std/async@^1.2.0",
       "jsr:@std/cli@^1.0.28",
       "jsr:@std/path@^1.1.4",
       "jsr:@std/ulid@1",
-      "npm:@modelcontextprotocol/ext-apps@^1.3.1",
-      "npm:@modelcontextprotocol/sdk@^1.27.1",
+      "npm:@modelcontextprotocol/ext-apps@^1.3.2",
+      "npm:@modelcontextprotocol/sdk@^1.28.0",
       "npm:hono-rate-limiter@~0.5.3",
       "npm:zod-validation-error@5",
       "npm:zod@^4.3.6"

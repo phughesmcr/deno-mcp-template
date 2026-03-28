@@ -5,7 +5,7 @@ import type {
 import { isTerminal } from "@modelcontextprotocol/sdk/experimental/tasks/interfaces.js";
 import type { Request, RequestId, Result, Task } from "@modelcontextprotocol/sdk/types.js";
 
-import { getKvStore } from "$/app/kv/mod.ts";
+import { getKvStore } from "$/kv/mod.ts";
 
 const PAGE_SIZE = 10;
 const MAX_CONCURRENCY_RETRIES = 5;

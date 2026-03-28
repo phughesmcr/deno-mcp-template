@@ -1,7 +1,7 @@
 import type { CallToolResult, Request } from "@modelcontextprotocol/sdk/types.js";
 import { delay } from "@std/async/delay";
 
-import { closeKvStore, configureKvPath, openKvStore } from "$/app/kv/mod.ts";
+import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
 import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
 import {
   enqueueDelayedEchoTask,

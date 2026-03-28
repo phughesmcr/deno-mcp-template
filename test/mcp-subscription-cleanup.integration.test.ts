@@ -1,6 +1,6 @@
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
-import { createMcpServer, getSubscriptions, isSubscribed } from "$/mcp/mod.ts";
+import { createMcpServer, createResourceSubscriptionTracker } from "$/mcp/mod.ts";
 import { assert, assertEquals, hasResultForId, InMemoryTransport, waitFor } from "./helpers.ts";
 
 Deno.test({
@@ -8,10 +8,11 @@ Deno.test({
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
-    const server = createMcpServer();
+    const subscriptions = createResourceSubscriptionTracker();
+    const server = createMcpServer({ subscriptions });
     const transport = new InMemoryTransport();
     const testUri = "test://subscription-cleanup";
-    assertEquals(isSubscribed(testUri), false);
+    assertEquals(subscriptions.isSubscribed(testUri), false);
 
     try {
       await server.connect(transport as never);
@@ -47,12 +48,15 @@ Deno.test({
       });
       await waitFor(() => hasResultForId(transport.sentMessages, 2));
 
-      assert(isSubscribed(testUri), "Expected URI to be subscribed after resources/subscribe");
+      assert(
+        subscriptions.isSubscribed(testUri),
+        "Expected URI to be subscribed after resources/subscribe",
+      );
 
       await transport.close();
-      await waitFor(() => !isSubscribed(testUri), { timeoutMs: 2000 });
+      await waitFor(() => !subscriptions.isSubscribed(testUri), { timeoutMs: 2000 });
 
-      assertEquals(getSubscriptions().includes(testUri), false);
+      assertEquals(subscriptions.getSubscriptions().includes(testUri), false);
     } finally {
       await server.close().catch(() => {});
     }

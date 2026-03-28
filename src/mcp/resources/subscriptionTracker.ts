@@ -1,4 +1,5 @@
-import { createKvWatcher, type KvWatcher } from "$/app/kv/mod.ts";
+import type { KvWatcher } from "$/kv/mod.ts";
+import { createKvWatcher } from "$/kv/watch.ts";
 import { RESOURCE_KV_KEYS } from "./kvKeys.ts";
 
 export type ResourceUpdateNotifier = (uri: string) => Promise<void>;

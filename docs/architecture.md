@@ -52,6 +52,21 @@ The app uses `Deno.serve` with Hono to expose MCP over HTTP. The HTTP stack incl
 - STDIO transport is enabled by default.
   - Disable with `MCP_NO_STDIO=true` or `--no-stdio`.
 
+### Transport-scoped `McpServer` instances
+
+The MCP TypeScript SDK allows **one active transport per protocol instance**. This template therefore
+creates **a separate `McpServer` instance per transport binding**, not a single shared instance:
+
+- **STDIO:** one long-lived `McpServer` for the lifetime of the STDIO transport (see `createApp` in
+  `src/app/app.ts`).
+- **HTTP (streamable):** **one new `McpServer` per MCP HTTP session** (each session gets its own
+  server from the factory passed into `createHttpServer` / `createHonoApp`).
+
+Process-wide state—**Deno KV**, the **resource subscription tracker**, the **task queue worker**, and
+similar—is **outside** those instances. The factory receives the same `McpServerFactoryContext` on
+every invocation (notably the shared `subscriptions` object) so subscriptions and KV watches stay
+consistent across STDIO and all HTTP sessions.
+
 ## 2) Project Structure (Full Tree)
 
 The repository is structured to be easy for both humans and coding agents to parse: files are
@@ -73,16 +88,16 @@ src/
 │   │   ├── kvEventStore.ts         # Simple Deno KV event store for for session resumability
 │   │   ├── mod.ts                  # The main entrypoint for the HTTP server
 │   │   └── transport.ts            # Manages the StreamableHTTPServerTransports
-│   ├── kv/
-│   │   ├── mod.ts                  # Exports Deno KV store and watcher helpers
-│   │   ├── store.ts                # Deno KV open/close lifecycle and config
-│   │   └── watch.ts                # Subscription watcher for resource updates
 │   ├── app.ts                      # The main application class
 │   ├── cli.ts                      # Parses CLI args and env vars into an AppConfig object
 │   ├── cron.ts                     # Scheduled jobs (e.g., stale task cleanup)
 │   ├── permissions.ts              # Runtime permission preflight checks
 │   ├── signals.ts                  # Signal handling for SIGINT, SIGTERM, etc.
 │   └── stdio.ts                    # The STDIO transport & state manager
+├── kv/
+│   ├── mod.ts                      # Exports Deno KV store and watcher helpers
+│   ├── store.ts                    # Deno KV open/close lifecycle and config
+│   └── watch.ts                    # Subscription watcher for resource updates
 ├── mcp/
 │   ├── prompts/
 │   │   ├── codeReview.ts                   # A simple code-review prompt example
@@ -102,6 +117,8 @@ src/
 │   │   └── mod.ts                          # Exports task queue and task store
 │   ├── apps/
 │   │   └── fetchWebsiteInfoApp.ts          # MCP App UI registration (ext-apps) for fetch-website-info
+│   ├── context.ts                          # McpServerFactoryContext + subscription tracker factory export
+│   ├── serverDefinition.ts                 # Feature registry and derived SERVER_CAPABILITIES
 │   ├── tools/
 │   │   ├── elicitInput.ts                  # Elicitation tool example
 │   │   ├── delayedEchoTask.ts              # Task-based async tool example
@@ -118,7 +135,7 @@ src/
 │   ├── constants/
 │   │   ├── app.ts                  # Constants for the App (e.g., name, description, etc.)
 │   │   ├── http.ts                 # Constants for the HTTP server (e.g., headers, ports, etc.)
-│   │   └── mcp.ts                  # Constants for the MCP server (e.g., capabilities, etc.)
+│   │   └── mcp.ts                  # Re-exports MCP server info/capabilities (from serverDefinition)
 │   ├── validation/
 │   │   ├── config.ts               # Validation of the AppConfig object
 │   │   ├── header.ts               # Validation for headers

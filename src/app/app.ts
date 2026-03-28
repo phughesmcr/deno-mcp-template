@@ -1,6 +1,8 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
-import { closeKvStore, configureKvPath, openKvStore } from "$/app/kv/mod.ts";
+import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
+import {
+  createResourceSubscriptionTracker,
+  type CreateTransportScopedMcpServer,
+} from "$/mcp/context.ts";
 import { startTaskQueueWorker, stopTaskQueueWorker } from "$/mcp/tasks/mod.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
@@ -18,17 +20,24 @@ export interface App {
 }
 
 /**
- * Creates the main application instance with STDIO and HTTP transports
- * @param createMcpServer - Factory used to create MCP server instances
+ * Creates the main application instance with STDIO and HTTP transports.
+ *
+ * `createMcpServer` is a **transport-scoped factory**: it is invoked once for STDIO (one long-lived
+ * MCP server) and once per streamable HTTP MCP session. Pass the same
+ * `McpServerFactoryContext` (notably `subscriptions`) on every invocation so process-wide
+ * state stays consistent.
+ *
+ * @param createMcpServer - Factory invoked per transport / HTTP session (see module docs above)
  * @param config - The application configuration
- * @returns The application instance with start/stop methods
  */
-export function createApp(createMcpServer: () => McpServer, config: AppConfig): App {
+export function createApp(createMcpServer: CreateTransportScopedMcpServer, config: AppConfig): App {
   configureKvPath(config.kv.path);
+  const subscriptions = createResourceSubscriptionTracker();
+  const ctx = { subscriptions };
   // MCP SDK v1.27+ allows one active transport per protocol instance.
   // Create one MCP server per transport so HTTP and STDIO can run together.
-  const stdio = createStdioManager(createMcpServer(), config.stdio);
-  const http = createHttpServer(createMcpServer, config.http);
+  const stdio = createStdioManager(createMcpServer(ctx), config.stdio);
+  const http = createHttpServer(() => createMcpServer(ctx), config.http);
 
   let isRunning = false;
   let lastError: Error | null = null;

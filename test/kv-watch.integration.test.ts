@@ -1,6 +1,6 @@
 import { delay } from "@std/async/delay";
 
-import { closeKvStore, configureKvPath, createKvWatcher, openKvStore } from "$/app/kv/mod.ts";
+import { closeKvStore, configureKvPath, createKvWatcher, openKvStore } from "$/kv/mod.ts";
 import { COUNTER_KEY } from "$/mcp/resources/counterStore.ts";
 import { assert, assertEquals } from "./helpers.ts";
 

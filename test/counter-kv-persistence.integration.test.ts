@@ -1,4 +1,4 @@
-import { closeKvStore, configureKvPath, openKvStore } from "$/app/kv/mod.ts";
+import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
 import { getCounterValue, incrementCounterValue } from "$/mcp/resources/counter.ts";
 import { assertEquals } from "./helpers.ts";
 

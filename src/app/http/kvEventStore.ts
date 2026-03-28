@@ -8,7 +8,7 @@ import type { EventStore } from "@modelcontextprotocol/sdk/server/webStandardStr
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { monotonicUlid } from "@std/ulid";
 
-import { getKvStore } from "$/app/kv/mod.ts";
+import { getKvStore } from "$/kv/mod.ts";
 import { EVENT_EXPIRY, MAX_REPLAY_EVENTS_PER_STREAM } from "$/shared/constants/http.ts";
 
 /** An event in the MCP event stream */

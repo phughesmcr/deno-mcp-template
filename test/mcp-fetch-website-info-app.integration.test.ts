@@ -2,7 +2,7 @@ import { RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
 import { FETCH_WEBSITE_INFO_RESOURCE_URI } from "$/mcp/apps/fetchWebsiteInfoApp.ts";
-import { createMcpServer } from "$/mcp/mod.ts";
+import { createMcpServer, createResourceSubscriptionTracker } from "$/mcp/mod.ts";
 import { assert, hasResultForId, InMemoryTransport, waitFor } from "./helpers.ts";
 
 Deno.test({
@@ -10,7 +10,7 @@ Deno.test({
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
-    const server = createMcpServer();
+    const server = createMcpServer({ subscriptions: createResourceSubscriptionTracker() });
     const transport = new InMemoryTransport();
 
     try {

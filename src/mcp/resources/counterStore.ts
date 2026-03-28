@@ -1,4 +1,4 @@
-import { getKvStore } from "$/app/kv/mod.ts";
+import { getKvStore } from "$/kv/mod.ts";
 
 export const COUNTER_KEY: Deno.KvKey = ["resource", "counter", "value"];
 

@@ -1,7 +1,7 @@
-import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import type { CliOptions } from "$/app/cli.ts";
+import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import type { AppConfig } from "$/shared/types.ts";
-import { type JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
+import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { delay } from "@std/async/delay";
 
 export function assert(condition: unknown, message?: string): asserts condition {
