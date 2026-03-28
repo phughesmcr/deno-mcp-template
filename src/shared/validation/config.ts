@@ -1,7 +1,18 @@
 import type { CliOptions } from "$/app/cli.ts";
+import {
+  ABSOLUTE_MAX_TASK_TTL_MS,
+  DEFAULT_MAX_TASK_TTL_MS,
+  MIN_MAX_TASK_TTL_MS,
+} from "$/shared/constants.ts";
 import { isAllInterfacesBindHostname } from "$/shared/constants/http.ts";
 import { normalizePublicBaseUrl } from "$/shared/publicBaseUrl.ts";
-import type { AppConfig, HttpServerConfig, KvConfig, StdioConfig } from "$/shared/types.ts";
+import type {
+  AppConfig,
+  HttpServerConfig,
+  KvConfig,
+  StdioConfig,
+  TasksConfig,
+} from "$/shared/types.ts";
 import {
   validateHeaders,
   validateHostname,
@@ -195,6 +206,39 @@ export function validateKvConfig(config: CliOptions): ValidationResult<KvConfig>
 }
 
 /**
+ * Validates task-related limits from CLI options.
+ */
+export function validateTasksConfig(config: CliOptions): ValidationResult<TasksConfig> {
+  const raw = config.maxTaskTtlMs ?? DEFAULT_MAX_TASK_TTL_MS;
+  if (!Number.isSafeInteger(raw)) {
+    return {
+      success: false,
+      error: new Error("maxTaskTtlMs must be a safe integer."),
+    };
+  }
+  if (raw < MIN_MAX_TASK_TTL_MS) {
+    return {
+      success: false,
+      error: new Error(
+        `maxTaskTtlMs must be at least ${MIN_MAX_TASK_TTL_MS} ms (use MCP_MAX_TASK_TTL_MS or --max-task-ttl-ms).`,
+      ),
+    };
+  }
+  if (raw > ABSOLUTE_MAX_TASK_TTL_MS) {
+    return {
+      success: false,
+      error: new Error(
+        `maxTaskTtlMs must not exceed ${ABSOLUTE_MAX_TASK_TTL_MS} ms (one year).`,
+      ),
+    };
+  }
+  return {
+    success: true,
+    value: { maxTtlMs: raw },
+  };
+}
+
+/**
  * Validates the complete application configuration from CLI options
  * @param config - The CLI options to validate
  * @returns The validation result with app config or error
@@ -210,6 +254,9 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
     const validatedKv = validateKvConfig(config);
     if (!validatedKv.success) throw validatedKv.error;
 
+    const validatedTasks = validateTasksConfig(config);
+    if (!validatedTasks.success) throw validatedTasks.error;
+
     if (!config.stdio && !config.http) {
       throw new Error(
         "Both the HTTP and STDIO servers are disabled. Please enable at least one server.",
@@ -222,6 +269,7 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
         http: validatedHttp.value,
         stdio: validatedStdio.value,
         kv: validatedKv.value,
+        tasks: validatedTasks.value,
       },
     };
   } catch (error) {

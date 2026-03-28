@@ -93,7 +93,7 @@ See [docs/architecture.md](docs/architecture.md) for transport-scoped `McpServer
 | HTTP middleware | Rate limiting, CORS, optional bearer auth (not applied to `/mcp-elicitation/*` browser pages), security headers, timeouts, sessions | `src/app/http/hono.ts` |
 | Persistent state | Deno KV -- zero-config locally, built-in on Deploy | `src/kv/` |
 | Session resumability | KV-backed event store for stream recovery | `src/app/http/kvEventStore.ts` |
-| Background tasks | Durable async task queue with KV state | `src/mcp/tasks/` |
+| Background tasks | MCP experimental tasks: KV `TaskStore` + `TaskMessageQueue`, plus `listenQueue` worker for the delayed-echo demo | `src/mcp/tasks/` |
 | Scheduled jobs | `Deno.cron` for periodic maintenance | `src/app/cron.ts` |
 | Sandboxed execution | `@deno/sandbox` microVMs for untrusted code | `src/mcp/tools/sandbox.ts` |
 | MCP Apps (interactive UI) | Example tool + `ui://` HTML bundle via `@modelcontextprotocol/ext-apps` | `mcp-ui/`, `src/mcp/apps/`, `static/mcp-apps/` |
@@ -288,6 +288,7 @@ Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Acti
 | `MCP_ALLOWED_ORIGINS` | `--origin` | | Allowed CORS origins (collection) |
 | `MCP_ALLOWED_HOSTS` | `--host` | | Allowed hostnames (collection) |
 | `MCP_KV_PATH` | `--kv-path` | | Custom Deno KV database path |
+| `MCP_MAX_TASK_TTL_MS` | `--max-task-ttl-ms` | `86400000` (24h) | Max client-requested TTL (ms) for experimental MCP tasks; clamped in `KvTaskStore` (min 60s, max 1y — see `src/shared/validation/config.ts`) |
 | `DENO_DEPLOY_TOKEN` | | | Deploy token (required by `execute-code` sandbox tool) |
 
 CLI flags override env vars. Collection values (`-H`, `--origin`, `--host`) are merged from both sources.

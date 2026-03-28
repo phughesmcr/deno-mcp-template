@@ -56,8 +56,9 @@ src/
 │   │   └── fetchWebsiteInfoApp.ts  # MCP App UI registration (ext-apps) for fetch-website-info
 │   ├── tasks/
 │   │   ├── kvTaskStore.ts          # Durable task state storage in Deno KV
-│   │   ├── queue.ts                # Delayed task queue worker
-│   │   └── mod.ts                  # Exports task queue and task store
+│   │   ├── kvTaskMessageQueue.ts   # KV-backed MCP TaskMessageQueue (per-task FIFO)
+│   │   ├── queue.ts                # Delayed task queue worker (KV listenQueue)
+│   │   └── mod.ts                  # Exports task queue, task store, and message queue
 │   ├── tools/
 │   │   ├── delayedEchoTask.ts      # A task-based async tool example
 │   │   ├── fetchWebsiteInfoShared.ts # Shared logic for fetch-website-info (HEAD + structured output)
@@ -115,7 +116,7 @@ Comments: JSDoc for public APIs, inline comments for complex logic
 
 ## Best Practices
 
-Environment Variables: Parse env vars and CLI flags in `src/app/cli.ts`. Local run tasks load `.env` via `--env-file=.env`.
+Environment Variables: Parse env vars and CLI flags in `src/app/cli.ts`. Local run tasks load `.env` via `--env-file=.env`. Task TTL ceiling: `MCP_MAX_TASK_TTL_MS` / `--max-task-ttl-ms` (see `validateTasksConfig` in `src/shared/validation/config.ts`).
 File Paths: Use `@std/path` for cross-platform file path handling
 Data Validation: Use `zod` schemas for data validation
 HTTP Responses: Return proper status codes and structured JSON responses, including JSONRPC when necessary.

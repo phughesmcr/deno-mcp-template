@@ -30,8 +30,8 @@ export interface App {
  *
  * `createMcpServer` is a **transport-scoped factory**: it is invoked once for STDIO (one long-lived
  * MCP server) and once per streamable HTTP MCP session. Pass the same
- * `McpServerFactoryContext` (`subscriptions`, `urlElicitation`) on every invocation so process-wide
- * state stays consistent.
+ * `McpServerFactoryContext` (`subscriptions`, `urlElicitation`, `tasks`) on every invocation so
+ * process-wide state stays consistent.
  *
  * @param createMcpServer - Factory invoked per transport / HTTP session (see module docs above)
  * @param config - The application configuration
@@ -46,6 +46,7 @@ export function createApp(createMcpServer: CreateTransportScopedMcpServer, confi
       baseUrl: resolvePublicBaseUrl(config.http),
       registry: urlElicitationRegistry,
     },
+    tasks: config.tasks,
   };
   // MCP SDK v1.27+ allows one active transport per protocol instance.
   // Create one MCP server per transport so HTTP and STDIO can run together.

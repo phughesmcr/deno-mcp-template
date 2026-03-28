@@ -18,6 +18,10 @@ export interface McpServerFactoryContext {
     baseUrl: string | undefined;
     registry: UrlElicitationRegistry;
   };
+  /** Task store limits from app config (TTL clamp, etc.). */
+  tasks: {
+    maxTtlMs: number;
+  };
 }
 
 /** Factory invoked once per STDIO process and once per HTTP MCP session (see `createApp`). */

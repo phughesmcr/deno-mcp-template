@@ -6,6 +6,7 @@ import {
   APP_USAGE,
   APP_VERSION,
   DEFAULT_HOSTNAME,
+  DEFAULT_MAX_TASK_TTL_MS,
   DEFAULT_PORT,
 } from "$/shared/constants.ts";
 import type { AppConfig, Prettify } from "$/shared/types.ts";
@@ -37,6 +38,7 @@ export type CliOptions = Prettify<
     requireHttpAuth: boolean;
     httpBearerToken?: string;
     publicBaseUrl?: string;
+    maxTaskTtlMs: number;
   }
 >;
 
@@ -111,6 +113,17 @@ function createCommand() {
     // KV path
     .option("--kv-path <path:string>", "Path to the Deno KV database file.")
     .env("MCP_KV_PATH=<value:string>", "Path to the Deno KV database file.", { prefix })
+    // Task TTL ceiling (MCP experimental tasks)
+    .option(
+      "--max-task-ttl-ms <ms:integer>",
+      "Maximum task TTL in ms (client requests are clamped).",
+      { default: DEFAULT_MAX_TASK_TTL_MS },
+    )
+    .env(
+      "MCP_MAX_TASK_TTL_MS=<value:integer>",
+      "Maximum task TTL in ms (client requests are clamped).",
+      { prefix },
+    )
     // Headers
     .option("-H, --header <header:string>", "Set a custom header.", {
       collect: true,

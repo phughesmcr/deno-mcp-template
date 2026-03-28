@@ -153,9 +153,19 @@ export type KvConfig = {
   path?: string;
 };
 
+/** Task store limits (MCP experimental tasks). */
+export type TasksConfig = {
+  /**
+   * Upper bound for requested task TTL in milliseconds. Values above this are clamped;
+   * `null` / unlimited client TTL remains unlimited.
+   */
+  maxTtlMs: number;
+};
+
 /** Public app config */
 export interface AppConfig {
   http: HttpServerConfig;
   stdio: StdioConfig;
   kv: KvConfig;
+  tasks: TasksConfig;
 }

@@ -2,6 +2,7 @@ import type { CliOptions } from "$/app/cli.ts";
 import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import type { McpServerFactoryContext, ResourceSubscriptionTracker } from "$/mcp/context.ts";
 import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
+import { DEFAULT_MAX_TASK_TTL_MS } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { delay } from "@std/async/delay";
@@ -41,6 +42,13 @@ export function baseHttpConfig(overrides: Partial<AppConfig["http"]> = {}): AppC
   };
 }
 
+export function baseTasksConfig(overrides: Partial<AppConfig["tasks"]> = {}): AppConfig["tasks"] {
+  return {
+    maxTtlMs: DEFAULT_MAX_TASK_TTL_MS,
+    ...overrides,
+  };
+}
+
 /** Minimal `McpServerFactoryContext` for tests (URL elicitation unused). */
 export function mcpFactoryContext(
   subscriptions: ResourceSubscriptionTracker,
@@ -51,6 +59,7 @@ export function mcpFactoryContext(
       registry: createUrlElicitationRegistry(),
       baseUrl: undefined,
     },
+    tasks: baseTasksConfig(),
   };
 }
 
@@ -67,6 +76,7 @@ export function baseCliOptions(overrides: Partial<CliOptions> = {}): CliOptions 
     jsonResponse: false,
     trustProxy: false,
     requireHttpAuth: false,
+    maxTaskTtlMs: DEFAULT_MAX_TASK_TTL_MS,
     ...overrides,
   };
 }

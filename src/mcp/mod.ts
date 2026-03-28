@@ -1,4 +1,3 @@
-import { InMemoryTaskMessageQueue } from "@modelcontextprotocol/sdk/experimental/tasks/stores/in-memory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   SubscribeRequestSchema,
@@ -8,7 +7,7 @@ import {
 import { registerFetchWebsiteInfoApp } from "./apps/fetchWebsiteInfoApp.ts";
 import type { McpServerFactoryContext } from "./context.ts";
 import { mcpServerDefinition, SERVER_CAPABILITIES, SERVER_INFO } from "./serverDefinition.ts";
-import { KvTaskStore } from "./tasks/mod.ts";
+import { KvTaskMessageQueue, KvTaskStore } from "./tasks/mod.ts";
 import { registerTaskTools, ToolManager } from "./tools/mod.ts";
 import { registerUrlElicitationDemoTool } from "./tools/urlElicitationDemo.ts";
 
@@ -22,8 +21,8 @@ export function createMcpServer(ctx: McpServerFactoryContext): McpServer {
 
   const server = new McpServer(SERVER_INFO, {
     capabilities: SERVER_CAPABILITIES,
-    taskStore: new KvTaskStore(),
-    taskMessageQueue: new InMemoryTaskMessageQueue(),
+    taskStore: new KvTaskStore({ maxTtlMs: ctx.tasks.maxTtlMs }),
+    taskMessageQueue: new KvTaskMessageQueue(),
   });
   const notifyForServer = (uri: string): Promise<void> =>
     server.server.sendResourceUpdated({ uri });

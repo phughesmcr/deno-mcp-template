@@ -30,8 +30,27 @@ type TaskMetaRecord = {
   expiresAt?: number;
 };
 
+export type KvTaskStoreOptions = {
+  /**
+   * When set, positive client-requested TTL values are clamped to this ceiling.
+   * The returned `Task.ttl` reflects the effective value (per MCP `TaskStore`).
+   */
+  maxTtlMs?: number;
+};
+
+/** Session-bound tasks are invisible to `getTask` / `getTaskResult` unless `sessionId` matches. */
+function canReadTaskForSession(record: TaskMetaRecord, sessionId?: string): boolean {
+  if (record.sessionId === undefined) return true;
+  return sessionId !== undefined && record.sessionId === sessionId;
+}
+
 function toExpiry(ttl: number | null | undefined): number | undefined {
   return ttl && ttl > 0 ? ttl : undefined;
+}
+
+function clampRequestedTtl(requested: number | null, maxMs?: number): number | null {
+  if (requested === null || maxMs === undefined) return requested;
+  return requested > maxMs ? maxMs : requested;
 }
 
 function cloneTask(task: Task): Task {
@@ -44,7 +63,8 @@ function nextTimestamp(): string {
   return new Date().toISOString();
 }
 
-function createTaskMetaKey(taskId: string): Deno.KvKey {
+/** KV key for task metadata (`TaskMetaRecord`). Shared with task message queue TTL alignment. */
+export function createTaskMetaKey(taskId: string): Deno.KvKey {
   return [...TASK_META_PREFIX, taskId];
 }
 
@@ -101,11 +121,17 @@ export async function migrateWorkingTaskIndexIfNeeded(): Promise<void> {
 
 type TaskMetaEntry = Deno.KvEntryMaybe<TaskMetaRecord>;
 
-async function getMetaEntry(kv: Deno.Kv, taskId: string): Promise<TaskMetaEntry> {
-  return await kv.get<TaskMetaRecord>(createTaskMetaKey(taskId));
+function getMetaEntry(kv: Deno.Kv, taskId: string): Promise<TaskMetaEntry> {
+  return kv.get<TaskMetaRecord>(createTaskMetaKey(taskId));
 }
 
 export class KvTaskStore implements TaskStore {
+  readonly #maxTtlMs: number | undefined;
+
+  constructor(options?: KvTaskStoreOptions) {
+    this.#maxTtlMs = options?.maxTtlMs;
+  }
+
   async createTask(
     taskParams: CreateTaskOptions,
     requestId: RequestId,
@@ -114,7 +140,7 @@ export class KvTaskStore implements TaskStore {
   ): Promise<Task> {
     const kv = await getKvStore();
     const createdAt = nextTimestamp();
-    const actualTtl = taskParams.ttl ?? null;
+    const actualTtl = clampRequestedTtl(taskParams.ttl ?? null, this.#maxTtlMs);
     const ttlForExpiry = toExpiry(actualTtl);
     const expiresAt = ttlForExpiry ? Date.now() + ttlForExpiry : undefined;
 
@@ -148,10 +174,12 @@ export class KvTaskStore implements TaskStore {
     return cloneTask(task);
   }
 
-  async getTask(taskId: string, _sessionId?: string): Promise<Task | null> {
+  async getTask(taskId: string, sessionId?: string): Promise<Task | null> {
     const kv = await getKvStore();
     const entry = await getMetaEntry(kv, taskId);
-    return entry.value ? cloneTask(entry.value.task) : null;
+    if (!entry.value) return null;
+    if (!canReadTaskForSession(entry.value, sessionId)) return null;
+    return cloneTask(entry.value.task);
   }
 
   async storeTaskResult(
@@ -219,14 +247,18 @@ export class KvTaskStore implements TaskStore {
     throw new Error(`Failed to store task result for ${taskId} due to concurrent updates`);
   }
 
-  async getTaskResult(taskId: string, _sessionId?: string): Promise<Result> {
+  async getTaskResult(taskId: string, sessionId?: string): Promise<Result> {
     const kv = await getKvStore();
     const metaKey = createTaskMetaKey(taskId);
     const resultKey = createTaskResultKey(taskId);
     const entries = await kv.getMany([metaKey, resultKey]);
     const taskEntry = entries[0]!;
     const resultEntry = entries[1]!;
-    if (!taskEntry.value) {
+    const meta = taskEntry.value as TaskMetaRecord | null;
+    if (!meta) {
+      throw new Error(`Task with ID ${taskId} not found`);
+    }
+    if (!canReadTaskForSession(meta, sessionId)) {
       throw new Error(`Task with ID ${taskId} not found`);
     }
 
@@ -304,6 +336,10 @@ export class KvTaskStore implements TaskStore {
     throw new Error(`Failed to update task ${taskId} due to concurrent updates`);
   }
 
+  /**
+   * Paginates in KV key order (not necessarily creation order). `cursor` / `nextCursor` are opaque;
+   * not filtered by `sessionId`.
+   */
   async listTasks(
     cursor?: string,
     _sessionId?: string,

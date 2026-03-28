@@ -1,4 +1,5 @@
 import { getKvStore } from "$/kv/mod.ts";
+import { cleanupOrphanTaskQueues } from "$/mcp/tasks/kvTaskMessageQueue.ts";
 import { KvTaskStore, TASK_WORKING_PREFIX } from "$/mcp/tasks/kvTaskStore.ts";
 import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 const STALE_TASK_THRESHOLD_MS = 15 * 60 * 1000;
@@ -43,6 +44,11 @@ export function startMaintenanceCrons(
   Deno.cron("cleanup-stale-tasks", "*/15 * * * *", async () => {
     try {
       await cleanupStaleTasks();
+      try {
+        await cleanupOrphanTaskQueues();
+      } catch (error) {
+        console.error("Failed to clean up orphan task message queues", error);
+      }
     } catch (error) {
       console.error("Failed to run stale-task cleanup cron", error);
     }
