@@ -11,7 +11,7 @@ Deno version: ^2.6.0
 Start: `deno task start`
 Dev mode: `deno task dev`
 Format, lint, and type-check code: `deno task ci`
-Rebuild MCP App HTML (after editing `mcp-ui/`): `deno task build:mcp-ui`
+Rebuild MCP App HTML (after editing `mcp-ui/`): `deno task build:mcp-ui` (Deno installs npm deps from `mcp-ui/deno.json` `imports` into `mcp-ui/node_modules` using `mcp-ui/deno.lock`; no Node.js)
 Tests with coverage: `deno task test:coverage`
 Benchmarks: `deno task bench`
 

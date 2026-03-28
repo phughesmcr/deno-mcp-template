@@ -122,7 +122,7 @@ Run `deno task setup` first -- it rewrites package names, scopes, and metadata a
 1. **`src/shared/constants/`** -- server name, description, version, defaults
 2. **`src/mcp/tools/`** -- add your tools (follow existing patterns)
 3. **`src/mcp/apps/`** -- register MCP App tools/resources (`@modelcontextprotocol/ext-apps/server`) when you add interactive UIs
-4. **`mcp-ui/`** -- Vite bundle for MCP App HTML (run `deno task build:mcp-ui`; needs Node.js + npm)
+4. **`mcp-ui/`** -- Vite bundle for MCP App HTML (run `deno task build:mcp-ui`; Deno installs npm deps and runs Vite — see `mcp-ui/README.md`)
 5. **`src/mcp/resources/`** -- add your resources
 6. **`src/mcp/prompts/`** -- add your prompts
 7. **`src/mcp/serverDefinition.ts`** -- feature lists, capability flags, and derived `SERVER_CAPABILITIES` (re-exported from `src/shared/constants/mcp.ts`)
@@ -323,13 +323,13 @@ Use `--origin` for full origins (e.g. `https://example.com`) and `--host` for ho
 | --- | --- |
 | `deno task start` | Start server |
 | `deno task dev` | Start with MCP Inspector + watch mode |
-| `deno task build:mcp-ui` | Build MCP App HTML into `static/mcp-apps/` (Node.js + npm required) |
+| `deno task build:mcp-ui` | Build MCP App HTML into `static/mcp-apps/` (Deno + `mcp-ui/deno.lock`; no Node.js) |
 | `deno task ci` | Runs `build:mcp-ui`, then format, lint, type-check, and test |
 | `deno task test:integration` | Run integration tests |
 | `deno task test:coverage` | Tests with coverage report |
 | `deno task bench` | Run benchmarks |
 
-`deno task ci` invokes `npm` under `mcp-ui/`; ensure your machine and CI image have **Node.js** and **npm** available (GitHub-hosted runners do by default).
+`deno task ci` runs `build:mcp-ui` first, which uses Deno-only install + Vite under `mcp-ui/` (see `mcp-ui/README.md`). CI only needs **Deno** for that step.
 
 ### Runtime permissions
 
