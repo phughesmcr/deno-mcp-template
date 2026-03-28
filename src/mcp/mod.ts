@@ -24,18 +24,19 @@ export function createMcpServer(ctx: McpServerFactoryContext): McpServer {
     taskStore: new KvTaskStore({ maxTtlMs: ctx.tasks.maxTtlMs }),
     taskMessageQueue: new KvTaskMessageQueue(),
   });
-  const notifyForServer = (uri: string): Promise<void> =>
-    server.server.sendResourceUpdated({ uri });
+  function notifyForServer(uri: string): Promise<void> {
+    return server.server.sendResourceUpdated({ uri });
+  }
   let isNotifierReleased = false;
-  const releaseNotifier = async (): Promise<void> => {
+  async function releaseNotifier(): Promise<void> {
     if (isNotifierReleased) return;
     isNotifierReleased = true;
     await subscriptions.unregister(notifyForServer);
-  };
+  }
   const previousOnClose = server.server.onclose;
-  server.server.onclose = () => {
+  server.server.onclose = function onMcpServerClose(): void {
     previousOnClose?.();
-    void releaseNotifier().catch((error) => {
+    void releaseNotifier().catch(function onReleaseNotifierError(error: unknown): void {
       console.error("Failed to clean up subscriptions for closed MCP server", error);
     });
   };

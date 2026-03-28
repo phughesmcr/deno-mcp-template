@@ -7,7 +7,7 @@
         "./mcp": "./src/mcp/mod.ts",
         "./app": "./src/app/app.ts"
     },
-    "description": "A demo package for MCP servers in Deno",
+    "description": "A template for building MCP servers with Deno.",
     "keywords": [
         "demo",
         "deno",

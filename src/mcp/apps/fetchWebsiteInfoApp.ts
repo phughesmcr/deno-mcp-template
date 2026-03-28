@@ -60,14 +60,14 @@ function getAppHtml(): string {
 export function registerFetchWebsiteInfoApp(server: McpServer): void {
   const html = getAppHtml();
 
-  registerAppResource(
-    server,
-    "Fetch website info (MCP App UI)",
-    FETCH_WEBSITE_INFO_RESOURCE_URI,
-    {
-      description: "Interactive UI for website HEAD inspection results",
-    },
-    async () => ({
+  async function readFetchWebsiteInfoResource(): Promise<{
+    contents: Array<{
+      uri: string;
+      mimeType: string;
+      text: string;
+    }>;
+  }> {
+    return {
       contents: [
         {
           uri: FETCH_WEBSITE_INFO_RESOURCE_URI,
@@ -75,7 +75,17 @@ export function registerFetchWebsiteInfoApp(server: McpServer): void {
           text: html,
         },
       ],
-    }),
+    };
+  }
+
+  registerAppResource(
+    server,
+    "Fetch website info (MCP App UI)",
+    FETCH_WEBSITE_INFO_RESOURCE_URI,
+    {
+      description: "Interactive UI for website HEAD inspection results",
+    },
+    readFetchWebsiteInfoResource,
   );
 
   registerAppTool(

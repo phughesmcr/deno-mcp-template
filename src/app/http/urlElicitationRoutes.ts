@@ -124,19 +124,21 @@ export function registerUrlElicitationRoutes<E extends Env>(
 
     await registry.complete(gate.elicitation);
 
-    let title: string;
-    let message: string;
-    let bannerClass: string;
+    let outcome: { title: string; message: string; bannerClass: string };
     if (action === "confirm") {
-      title = "Confirmed";
-      message =
-        "The demo action was confirmed. You can close this tab and return to your MCP client.";
-      bannerClass = "ok";
+      outcome = {
+        title: "Confirmed",
+        message:
+          "The demo action was confirmed. You can close this tab and return to your MCP client.",
+        bannerClass: "ok",
+      };
     } else {
-      title = "Cancelled";
-      message =
-        "The demo action was cancelled. You can close this tab and return to your MCP client.";
-      bannerClass = "info";
+      outcome = {
+        title: "Cancelled",
+        message:
+          "The demo action was cancelled. You can close this tab and return to your MCP client.",
+        bannerClass: "info",
+      };
     }
 
     return c.html(
@@ -145,7 +147,7 @@ export function registerUrlElicitationRoutes<E extends Env>(
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>${escapeHtml(title)}</title>
+  <title>${escapeHtml(outcome.title)}</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 28rem; margin: 2rem auto; padding: 0 1rem; text-align: center; }
     .banner { padding: 1rem; border-radius: 8px; margin: 1rem 0; }
@@ -154,8 +156,8 @@ export function registerUrlElicitationRoutes<E extends Env>(
   </style>
 </head>
 <body>
-  <h1>${escapeHtml(title)}</h1>
-  <div class="banner ${bannerClass}">${escapeHtml(message)}</div>
+  <h1>${escapeHtml(outcome.title)}</h1>
+  <div class="banner ${outcome.bannerClass}">${escapeHtml(outcome.message)}</div>
 </body>
 </html>`,
     );

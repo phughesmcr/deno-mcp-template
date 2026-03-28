@@ -17,6 +17,10 @@ function extractBearer(authorization: string | undefined): string | undefined {
   return m?.[1];
 }
 
+async function skipBearerAuth(_c: Context, next: Next): Promise<void> {
+  await next();
+}
+
 /**
  * When a bearer token is configured, requires `Authorization: Bearer <token>` or matching `x-api-key`
  * for `/mcp` requests. Skips `OPTIONS` so CORS preflight succeeds.
@@ -26,7 +30,7 @@ export function createHttpBearerAuthMiddleware(
 ): MiddlewareHandler {
   const token = bearerToken?.trim();
   if (!token) {
-    return async (_c, next) => await next();
+    return skipBearerAuth;
   }
 
   return async (c: Context, next: Next) => {

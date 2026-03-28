@@ -49,9 +49,21 @@ function displayField(value: unknown): string {
 }
 
 function textFromResultContent(result: CallToolResult): string | undefined {
-  const block = result.content?.find((c) => c.type === "text");
+  const block = result.content?.find(function isTextBlock(c): boolean {
+    return c.type === "text";
+  });
   if (block && "text" in block) return String(block.text);
   return undefined;
+}
+
+/** When `structuredContent` or JSON text includes a string `url`, treat as success payload. */
+function asRenderableSuccessPayload(
+  value: unknown,
+): SuccessPayload | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const o = value as SuccessPayload;
+  if (typeof o.url !== "string") return undefined;
+  return o;
 }
 
 function renderArgs(args: Record<string, unknown> | undefined): void {
@@ -102,7 +114,8 @@ function renderSuccess(data: SuccessPayload): void {
 function renderErrorFromResult(result: CallToolResult): void {
   clearPanels();
   errorPanel.hidden = false;
-  errorTextEl.textContent = textFromResultContent(result) ?? JSON.stringify(result);
+  errorTextEl.textContent = textFromResultContent(result) ??
+    JSON.stringify(result);
 }
 
 function renderFromToolResult(result: CallToolResult): void {
@@ -110,17 +123,19 @@ function renderFromToolResult(result: CallToolResult): void {
     renderErrorFromResult(result);
     return;
   }
-  const structured = result.structuredContent as SuccessPayload | undefined;
-  if (structured && typeof structured.url === "string") {
-    renderSuccess(structured);
+  const fromStructured = asRenderableSuccessPayload(result.structuredContent);
+  if (fromStructured) {
+    renderSuccess(fromStructured);
     return;
   }
   const text = textFromResultContent(result);
   if (text !== undefined) {
     try {
-      const parsed = JSON.parse(text) as SuccessPayload;
-      if (parsed && typeof parsed.url === "string") {
-        renderSuccess(parsed);
+      const fromParsed = asRenderableSuccessPayload(
+        JSON.parse(text) as unknown,
+      );
+      if (fromParsed) {
+        renderSuccess(fromParsed);
         return;
       }
     } catch {
@@ -132,16 +147,21 @@ function renderFromToolResult(result: CallToolResult): void {
 
 const app = new App({ name: "Website info", version: "1.0.0" });
 
-app.onteardown = async () => ({});
+async function onTeardown(): Promise<Record<string, never>> {
+  return {};
+}
 
-app.ontoolinput = (params) => {
+function onToolInput(params: { arguments?: unknown }): void {
   renderArgs(params.arguments as Record<string, unknown> | undefined);
-};
+}
 
-app.ontoolresult = (result) => {
+function onToolResult(result: CallToolResult): void {
   renderFromToolResult(result);
-};
+}
 
+app.onteardown = onTeardown;
+app.ontoolinput = onToolInput;
+app.ontoolresult = onToolResult;
 app.onhostcontextchanged = onHostContextChanged;
 
 void (async () => {
