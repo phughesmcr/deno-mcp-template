@@ -2,7 +2,7 @@ import type { Request } from "@modelcontextprotocol/sdk/types.js";
 
 import { cleanupStaleTasks } from "$/app/cron.ts";
 import { closeKvStore, configureKvPath, getKvStore, openKvStore } from "$/kv/mod.ts";
-import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
+import { KvTaskStore, migrateWorkingTaskIndexIfNeeded } from "$/mcp/tasks/kvTaskStore.ts";
 import { assert, assertEquals } from "./helpers.ts";
 
 type TaskMetaRecord = {
@@ -52,6 +52,9 @@ Deno.test({
         },
       };
       await kv.set(staleTaskMetaKey, updatedStaleRecord);
+
+      // Working-task index keys include lastUpdatedAt; meta-only edits need a rebuild (app does this at startup).
+      await migrateWorkingTaskIndexIfNeeded();
 
       const cleanedCount = await cleanupStaleTasks(now);
       assertEquals(cleanedCount, 1);

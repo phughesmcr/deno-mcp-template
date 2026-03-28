@@ -1,15 +1,9 @@
 import { getKvStore } from "$/kv/mod.ts";
-import {
-  KvTaskStore,
-  migrateWorkingTaskIndexIfNeeded,
-  TASK_WORKING_PREFIX,
-} from "$/mcp/tasks/kvTaskStore.ts";
+import { KvTaskStore, TASK_WORKING_PREFIX } from "$/mcp/tasks/kvTaskStore.ts";
 const STALE_TASK_THRESHOLD_MS = 15 * 60 * 1000;
 const STALE_TASK_STATUS_MESSAGE = "Timed out by maintenance cron after inactivity";
 
 export async function cleanupStaleTasks(now: number = Date.now()): Promise<number> {
-  await migrateWorkingTaskIndexIfNeeded();
-
   const kv = await getKvStore();
   const taskStore = new KvTaskStore();
   let cleanedCount = 0;

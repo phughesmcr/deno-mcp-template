@@ -3,7 +3,7 @@ import {
   createResourceSubscriptionTracker,
   type CreateTransportScopedMcpServer,
 } from "$/mcp/context.ts";
-import { startTaskQueueWorker, stopTaskQueueWorker } from "$/mcp/tasks/mod.ts";
+import { migrateWorkingTaskIndexIfNeeded, startTaskQueueWorker, stopTaskQueueWorker } from "$/mcp/tasks/mod.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { getRejected } from "$/shared/utils.ts";
@@ -55,6 +55,7 @@ export function createApp(createMcpServer: CreateTransportScopedMcpServer, confi
         console.error(`${APP_NAME} starting...`);
         await verifyRuntimePermissions(config);
         await openKvStore(config.kv.path);
+        await migrateWorkingTaskIndexIfNeeded();
         startMaintenanceCrons();
         await startTaskQueueWorker();
         const results = await Promise.allSettled([
@@ -87,7 +88,7 @@ export function createApp(createMcpServer: CreateTransportScopedMcpServer, confi
   const stop = async (): Promise<void> => {
     if (startInProgress) await startInProgress.catch(() => {});
     if (!isRunning) return;
-    if (stopInProgress) return stopInProgress;
+    if (stopInProgress) return await stopInProgress;
 
     stopInProgress = (async () => {
       stopTaskQueueWorker();
