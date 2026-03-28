@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { InMemoryTaskMessageQueue } from "@modelcontextprotocol/sdk/experimental/tasks/stores/in-memory.js";
 import {
   SubscribeRequestSchema,
   UnsubscribeRequestSchema,
@@ -21,6 +22,7 @@ export function createMcpServer(ctx: McpServerFactoryContext): McpServer {
   const server = new McpServer(SERVER_INFO, {
     capabilities: SERVER_CAPABILITIES,
     taskStore: new KvTaskStore(),
+    taskMessageQueue: new InMemoryTaskMessageQueue(),
   });
   const notifyForServer = (uri: string): Promise<void> =>
     server.server.sendResourceUpdated({ uri });
