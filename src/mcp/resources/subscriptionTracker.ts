@@ -40,21 +40,18 @@ export function createResourceSubscriptionTracker(
     const subscriptions = subscriptionsByNotifier.get(notifier);
     if (!subscriptions) return;
     subscriptionsByNotifier.delete(notifier);
-    const uris = Array.from(subscriptions);
-    await Promise.allSettled(uris.map((uri) => releaseUri(uri)));
+    await Promise.allSettled([...subscriptions].map((uri) => releaseUri(uri)));
   };
 
   const notifySubscribers = async (uri: string): Promise<void> => {
-    const targets = Array.from(subscriptionsByNotifier.entries())
-      .filter(([, subscriptions]) => subscriptions.has(uri));
-
-    await Promise.allSettled(targets.map(async ([notifier]) => {
-      try {
-        await notifier(uri);
-      } catch {
-        await unregister(notifier);
-      }
-    }));
+    const promises: Promise<void>[] = [];
+    for (const [notifier, subscriptions] of subscriptionsByNotifier) {
+      if (!subscriptions.has(uri)) continue;
+      promises.push(
+        notifier(uri).catch(() => unregister(notifier)),
+      );
+    }
+    await Promise.allSettled(promises);
   };
 
   const retainUri = async (uri: string): Promise<void> => {
