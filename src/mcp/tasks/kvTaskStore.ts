@@ -118,39 +118,34 @@ export class KvTaskStore implements TaskStore {
     const ttlForExpiry = toExpiry(actualTtl);
     const expiresAt = ttlForExpiry ? Date.now() + ttlForExpiry : undefined;
 
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const taskId = crypto.randomUUID();
-      const task: Task = {
-        taskId,
-        status: "working",
-        ttl: actualTtl,
-        createdAt,
-        lastUpdatedAt: createdAt,
-        pollInterval: taskParams.pollInterval ?? 1000,
-      };
-      const record: TaskMetaRecord = {
-        task,
-        requestId,
-        request,
-        sessionId,
-        expiresAt,
-      };
-      let atomic = kv.atomic().check({ key: createTaskMetaKey(taskId), versionstamp: null });
-      atomic = withOptionalExpiry(atomic, createTaskMetaKey(taskId), record, ttlForExpiry);
-      atomic = withOptionalExpiry(
-        atomic,
-        createWorkingIndexKey(task.lastUpdatedAt, taskId),
-        { taskId },
-        ttlForExpiry,
-      );
+    const taskId = crypto.randomUUID();
+    const task: Task = {
+      taskId,
+      status: "working",
+      ttl: actualTtl,
+      createdAt,
+      lastUpdatedAt: createdAt,
+      pollInterval: taskParams.pollInterval ?? 1000,
+    };
+    const record: TaskMetaRecord = {
+      task,
+      requestId,
+      request,
+      sessionId,
+      expiresAt,
+    };
+    let atomic = kv.atomic().check({ key: createTaskMetaKey(taskId), versionstamp: null });
+    atomic = withOptionalExpiry(atomic, createTaskMetaKey(taskId), record, ttlForExpiry);
+    atomic = withOptionalExpiry(
+      atomic,
+      createWorkingIndexKey(task.lastUpdatedAt, taskId),
+      { taskId },
+      ttlForExpiry,
+    );
 
-      const result = await atomic.commit();
-      if (result.ok) {
-        return cloneTask(task);
-      }
-    }
-
-    throw new Error("Failed to create unique task after multiple attempts");
+    const result = await atomic.commit();
+    if (!result.ok) throw new Error("Failed to create task");
+    return cloneTask(task);
   }
 
   async getTask(taskId: string, _sessionId?: string): Promise<Task | null> {
