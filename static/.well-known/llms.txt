@@ -1,4 +1,23 @@
-A Model Context Protocol (MCP) server.
-## Documentation
+# Documentation
 
-- [README.md](https://github.com/modelcontextprotocol/servers/tree/main/src/memory/README.md): Comprehensive guide on the Memory Server's architecture, setup, and usage instructions.
+# Deno MCP Template
+
+[Deno MCP Template repository README](https://github.com/phughesmcr/deno-mcp-template/blob/main/README.md): A batteries-included starting point for production MCP servers in TypeScript on Deno—STDIO and Streamable HTTP transports, Deno KV, example tools/resources/prompts/tasks, sandboxed execution, and optional MCP Apps. Example feature names and client config live in the README.
+
+## Project documentation
+
+- [README.md](https://github.com/phughesmcr/deno-mcp-template/blob/main/README.md): Quick start, `deno task` commands, JSR subpath imports, infrastructure table, example MCP features, and customization checklist.
+  - [Development guide / architecture](https://github.com/phughesmcr/deno-mcp-template/blob/main/.cursor/rules/project.mdc): `src/mcp/` vs `src/app/`, transport-scoped `McpServer` instances, shared KV and workers, HTTP security (host, CORS, DNS rebinding), and project layout.
+
+## HTTP surface
+
+When this server is running, these paths are relative to the deployment base URL (local default is often `http://localhost:3001`—see the example server in `static/.well-known/openapi.yaml`).
+
+- `/mcp`: Streamable HTTP MCP endpoint (JSON-RPC).
+- `/llms.txt`: Redirects to this file at `/.well-known/llms.txt`.
+- `/openapi.yaml`: Redirects to `/.well-known/openapi.yaml` (example OpenAPI for the HTTP shell).
+
+## Specifications and registry
+
+- [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-06-18): Normative behavior for tools, resources, prompts, tasks, and transports.
+- [JSR package @phughesmcr/deno-mcp-template](https://jsr.io/@phughesmcr/deno-mcp-template): Published package entrypoint and docs for running without cloning the repository.

@@ -9,3 +9,4 @@ export * from "./validation/host.ts";
 export * from "./validation/hostname.ts";
 export * from "./validation/origin.ts";
 export * from "./validation/port.ts";
+export * from "./validation/safeToolFetchUrl.ts";

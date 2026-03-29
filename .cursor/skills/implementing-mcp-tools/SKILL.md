@@ -1,6 +1,6 @@
 ---
 name: implementing-mcp-tools
-description: Implement new MCP tools in the deno-mcp-template project. Provides the exact file structure, type signatures, registration steps, and patterns for standard tools, sampling tools, elicitation tools, resource-backed tools, and notification tools. Use when adding a new tool, creating MCP tools, or asking how tools work in this project.
+description: Implement new MCP tools in the deno-mcp-template project. Provides the exact file structure, type signatures, registration steps, and patterns for standard tools, sampling tools, form and URL elicitation, resource-backed tools, and notification tools. Use when adding a new tool, creating MCP tools, or asking how tools work in this project.
 ---
 
 # Implementing MCP Tools
@@ -170,9 +170,18 @@ const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> 
 };
 ```
 
-### Elicitation Tool (user input forms)
+### Elicitation Tool (user input)
 
-Use `mcp.server.elicitInput()` with a JSON Schema:
+Experimental elicitation is enabled in `src/mcp/serverDefinition.ts` (`experimentalElicitation: true`). Two modes matter in practice:
+
+| Mode | Use case | Mechanism |
+|------|----------|-----------|
+| **`form`** | Structured, non-sensitive fields; validated in the MCP client UI | `await mcp.server.elicitInput({ mode: "form", message, requestedSchema })` |
+| **`url`** | Sensitive or browser-only flows (confirmations, OAuth, secrets typed in your page) | Throw `UrlElicitationRequiredError` with a URL; complete out-of-band, then `createElicitationCompletionNotifier` fires `notifications/elicitation/complete` |
+
+#### Form mode
+
+Use `mcp.server.elicitInput()` with a JSON Schema (`requestedSchema`):
 
 ```typescript
 const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> => {
@@ -193,6 +202,22 @@ const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> 
   return createCallToolTextResponse({ elicitationResult: result });
 };
 ```
+
+Branch on `result.action` (`accept` with `content`, `decline`, or cancelled) before assuming data exists. For multiple steps, call `elicitInput` more than once in one tool (see `src/mcp/tools/elicitFormWizard.ts`).
+
+#### URL mode
+
+The client opens a **browser URL** you control. The tool does **not** return a normal success result; it throws `UrlElicitationRequiredError` from `@modelcontextprotocol/sdk/types.js` with an array of `{ mode: "url", message, url, elicitationId }`.
+
+In this template:
+
+1. **`McpServerFactoryContext`** includes `urlElicitation: { baseUrl, registry }` (`src/mcp/context.ts`). Resolve `baseUrl` with `MCP_PUBLIC_BASE_URL` or the derived bind URL (`src/shared/publicBaseUrl.ts`).
+2. Register pending state and the SDK notifier: `mcp.server.createElicitationCompletionNotifier(elicitationId)`, then `ctx.urlElicitation.registry.registerPending({ elicitationId, sessionId, label, completionNotifier })`.
+3. Require **`extra.sessionId`** on the tool handler (streamable HTTP). STDIO has no session; return `createCallToolErrorResponse` instead of throwing.
+4. Browser routes live in `src/app/http/urlElicitationRoutes.ts` (`GET`/`POST` `/mcp-elicitation/confirm`). They validate session + elicitation id against the registry and active transport, then call `registry.complete(elicitationId)`. Bearer auth is skipped for `/mcp-elicitation` so users are not prompted for the MCP token in a normal browser tab (`src/app/http/httpBearerAuthMiddleware.ts`).
+5. Reference implementation: `registerUrlElicitationDemoTool` in `src/mcp/tools/urlElicitationDemo.ts`, wired from `src/mcp/mod.ts` when `mcpServerDefinition.urlElicitationDemo` is true.
+
+Do not log secrets submitted on elicitation HTML forms.
 
 ### Resource-Backed Tool
 

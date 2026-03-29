@@ -3,12 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ToolManager } from "$/mcp/tools/mod.ts";
 import type { ToolModule } from "$/shared/types.ts";
 import { createCallToolTextResponse } from "$/shared/utils.ts";
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { assertEquals } from "./helpers.ts";
 
 Deno.test("ToolManager registers a tool only once by name", () => {
   let registrations = 0;

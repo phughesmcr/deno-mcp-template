@@ -2,35 +2,12 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { createHonoApp } from "$/app/http/hono.ts";
 import type { HTTPTransportManager } from "$/app/http/transport.ts";
-import type { AppConfig } from "$/shared/types.ts";
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-const defaultHttpConfig: AppConfig["http"] = {
-  enabled: true,
-  hostname: "127.0.0.1",
-  port: 3001,
-  headers: [],
-  allowedHosts: [],
-  allowedOrigins: [],
-  enableDnsRebinding: false,
-  jsonResponseMode: false,
-};
+import { assert, assertEquals, baseHttpConfig } from "./helpers.ts";
 
 function createTestApp(transports: HTTPTransportManager) {
   return createHonoApp({
     createMcpServer: () => ({}) as McpServer,
-    config: defaultHttpConfig,
+    config: baseHttpConfig(),
     transports,
   });
 }
@@ -104,5 +81,39 @@ Deno.test({
     assertEquals(response.status, 400);
     assertEquals(payload?.error?.message, "Empty request body");
     assertEquals(payload?.error?.code, -32600);
+  },
+});
+
+Deno.test({
+  name: "non-MCP routes do not expose Error.message in 500 responses",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const app = createTestApp({
+      acquire: async () => {
+        throw new Error("not used for this route");
+      },
+      get: () => undefined,
+      releaseAll: async () => {},
+      close: async () => {},
+    });
+
+    const leakMarker = "UNIQUE_INTERNAL_DETAIL_DO_NOT_EXPOSE";
+    app.get("/test-internal-error", () => {
+      throw new Error(leakMarker);
+    });
+
+    const response = await app.fetch(
+      new Request("http://localhost/test-internal-error"),
+      { clientIp: "127.0.0.1" },
+    );
+    const body = await response.text();
+
+    assertEquals(response.status, 500);
+    assert(
+      !body.includes(leakMarker),
+      "response body must not include internal error message",
+    );
+    assert(body.includes("Internal server error"), "expected generic error body");
   },
 });

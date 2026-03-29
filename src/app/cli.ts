@@ -6,6 +6,7 @@ import {
   APP_USAGE,
   APP_VERSION,
   DEFAULT_HOSTNAME,
+  DEFAULT_MAX_TASK_TTL_MS,
   DEFAULT_PORT,
 } from "$/shared/constants.ts";
 import type { AppConfig, Prettify } from "$/shared/types.ts";
@@ -14,7 +15,18 @@ import { validateConfig } from "$/shared/validation.ts";
 export type CliCommand = Awaited<ReturnType<typeof createCommand>>;
 
 export type CliOptions = Prettify<
-  & Omit<CliCommand["options"], "header" | "host" | "origin" | "noHttp" | "noStdio">
+  & Omit<
+    CliCommand["options"],
+    | "header"
+    | "host"
+    | "origin"
+    | "noHttp"
+    | "noStdio"
+    | "trustProxy"
+    | "requireHttpAuth"
+    | "httpBearerToken"
+    | "publicBaseUrl"
+  >
   & {
     http: boolean;
     stdio: boolean;
@@ -22,6 +34,11 @@ export type CliOptions = Prettify<
     headers: string[];
     allowedOrigins: string[];
     allowedHosts: string[];
+    trustProxy: boolean;
+    requireHttpAuth: boolean;
+    httpBearerToken?: string;
+    publicBaseUrl?: string;
+    maxTaskTtlMs: number;
   }
 >;
 
@@ -96,6 +113,17 @@ function createCommand() {
     // KV path
     .option("--kv-path <path:string>", "Path to the Deno KV database file.")
     .env("MCP_KV_PATH=<value:string>", "Path to the Deno KV database file.", { prefix })
+    // Task TTL ceiling (MCP experimental tasks)
+    .option(
+      "--max-task-ttl-ms <ms:integer>",
+      "Maximum task TTL in ms (client requests are clamped).",
+      { default: DEFAULT_MAX_TASK_TTL_MS },
+    )
+    .env(
+      "MCP_MAX_TASK_TTL_MS=<value:integer>",
+      "Maximum task TTL in ms (client requests are clamped).",
+      { prefix },
+    )
     // Headers
     .option("-H, --header <header:string>", "Set a custom header.", {
       collect: true,
@@ -115,6 +143,45 @@ function createCommand() {
       depends: ["origin", "host"],
     })
     .env("MCP_DNS_REBINDING=<value:boolean>", "Enable DNS rebinding protection.", { prefix })
+    // Trust proxy headers for rate limiting
+    .option("--trust-proxy", "Trust proxy headers for client IP (rate limiting only).", {
+      default: false,
+      conflicts: ["no-http"],
+    })
+    .env(
+      "MCP_TRUST_PROXY=<value:boolean>",
+      "Trust CF / X-Forwarded-For / X-Real-IP for rate limits.",
+      {
+        prefix,
+      },
+    )
+    // HTTP MCP bearer auth
+    .option(
+      "--http-bearer-token <token:string>",
+      "Shared secret for HTTP MCP (prefer MCP_HTTP_BEARER_TOKEN env).",
+      { conflicts: ["no-http"] },
+    )
+    .env("MCP_HTTP_BEARER_TOKEN=<value:string>", "Bearer token for HTTP /mcp requests.", { prefix })
+    .option(
+      "--require-http-auth",
+      "Require MCP_HTTP_BEARER_TOKEN (or --http-bearer-token); exit if unset.",
+      { default: false, conflicts: ["no-http"] },
+    )
+    .env(
+      "MCP_REQUIRE_HTTP_AUTH=<value:boolean>",
+      "Fail startup when no HTTP bearer token is configured.",
+      { prefix },
+    )
+    .option(
+      "--public-base-url <url:string>",
+      "Public origin for browser links (URL elicitation). Prefer MCP_PUBLIC_BASE_URL.",
+      { conflicts: ["no-http"] },
+    )
+    .env(
+      "MCP_PUBLIC_BASE_URL=<value:string>",
+      "Public http(s) origin for URL-mode elicitation (no trailing slash).",
+      { prefix },
+    )
     // Allowed origins
     .option("--origin <origin:string>", "Allow an origin for DNS rebinding.", {
       collect: true,
@@ -142,11 +209,19 @@ function transformCliOptions(rawOptions: CliCommand["options"]): CliOptions {
     headers: rawHeaders,
     allowedOrigins: rawAllowedOrigins,
     allowedHosts: rawAllowedHosts,
+    trustProxy: rawTrustProxy,
+    requireHttpAuth: rawRequireHttpAuth,
+    httpBearerToken: rawHttpBearerToken,
+    publicBaseUrl: rawPublicBaseUrl,
     ...cleanOptions
   } = rawOptions;
 
   return {
     ...cleanOptions,
+    trustProxy: rawTrustProxy ?? false,
+    requireHttpAuth: rawRequireHttpAuth ?? false,
+    httpBearerToken: rawHttpBearerToken,
+    publicBaseUrl: rawPublicBaseUrl,
     headers: mergeArrays(header, rawHeaders),
     allowedOrigins: mergeArrays(origin, rawAllowedOrigins),
     allowedHosts: mergeArrays(host, rawAllowedHosts),

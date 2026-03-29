@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { fromFileUrl, join } from "@std/path";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
@@ -10,6 +11,7 @@ import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 
+import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import {
   ALLOWED_HEADERS,
   ALLOWED_METHODS,
@@ -21,6 +23,7 @@ import {
   HEADER_KEYS,
   HTTP_STATUS,
   RATE_LIMIT,
+  RATE_LIMIT_UNKNOWN_CLIENT,
   RATE_LIMIT_WINDOW,
   RPC_ERROR_CODES,
   TIMEOUT,
@@ -31,6 +34,19 @@ import {
   createPostHandler,
   type EnsureTransportConnected,
 } from "./handlers.ts";
+import {
+  createHostHeaderValidationMiddleware,
+  createLocalhostHostValidationMiddleware,
+  resolveHostHeaderProtection,
+} from "./hostHeaderMiddleware.ts";
+import { createHttpBearerAuthMiddleware } from "./httpBearerAuthMiddleware.ts";
+import {
+  type RateLimitIdentity,
+  rateLimitKeyFromIdentity,
+  resolveRateLimitIdentity,
+} from "./rateLimitIdentity.ts";
+import { registerUrlElicitationRoutes } from "./urlElicitationRoutes.ts";
+
 import type { HTTPTransportManager } from "./transport.ts";
 
 export interface HonoBindings {
@@ -39,24 +55,26 @@ export interface HonoBindings {
 
 type HonoEnv = {
   Bindings: HonoBindings;
+  Variables: {
+    rateLimitIdentity: RateLimitIdentity;
+  };
 };
 
-interface RateLimitContextLike {
-  env: HonoBindings;
-  req: {
-    header: (name: string) => string | undefined;
-  };
-}
-
 export interface HonoAppSpec {
+  /**
+   * Bound factory: returns a **new** `McpServer` per streamable HTTP session. Usually
+   * `() => createMcpServer(ctx)` so each session shares the same app `ctx` (e.g. subscriptions).
+   */
   createMcpServer: () => McpServer;
   config: AppConfig["http"];
   transports: HTTPTransportManager;
+  /** When set, registers `/mcp-elicitation/*` browser routes for URL-mode elicitation. */
+  urlElicitationRegistry?: UrlElicitationRegistry;
 }
 
 const STATIC_ROOT = fromFileUrl(new URL("../../../static/", import.meta.url));
 
-function getNotFoundPageHtml(): string {
+function loadNotFoundPageHtml(): string {
   try {
     return Deno.readTextFileSync(join(STATIC_ROOT, "404.html"));
   } catch {
@@ -64,23 +82,27 @@ function getNotFoundPageHtml(): string {
   }
 }
 
-function getRateLimitKey(c: RateLimitContextLike): string {
-  const clientIp = c.env.clientIp?.trim();
-  if (clientIp) {
-    return `ip:${clientIp}`;
-  }
-
-  const sessionId = c.req.header(HEADER_KEYS.SESSION_ID)?.trim();
-  if (sessionId) {
-    return `session:${sessionId}`;
-  }
-
-  const host = c.req.header("host")?.trim() ?? "no-host";
-  const userAgent = c.req.header("user-agent")?.trim() ?? "no-user-agent";
-  return `fallback:${host}:${userAgent}`;
-}
-
 function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hono<HonoEnv> {
+  const trustProxy = !!config.trustProxy;
+
+  app.use(async (c, next) => {
+    c.set(
+      "rateLimitIdentity",
+      resolveRateLimitIdentity(
+        trustProxy,
+        c.env?.clientIp,
+        (name) => c.req.header(name),
+      ),
+    );
+    await next();
+  });
+  const hostProtection = resolveHostHeaderProtection(config);
+  if (hostProtection.kind === "localhost") {
+    app.use("*", createLocalhostHostValidationMiddleware());
+  } else if (hostProtection.kind === "explicit") {
+    app.use("*", createHostHeaderValidationMiddleware(hostProtection.allowedHostnames));
+  }
+
   app.use(secureHeaders());
   // Apply timeout to all routes except /mcp (SSE streams are long-lived)
   app.use("*", async (c, next) => {
@@ -111,9 +133,13 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
     // @ts-expect-error - rateLimiter does not preserve generic Hono env typing
     rateLimiter({
       windowMs: RATE_LIMIT_WINDOW,
-      limit: RATE_LIMIT,
+      limit: (c) => {
+        const identity = (c as unknown as Context<HonoEnv>).var.rateLimitIdentity;
+        return identity.type === "unknown" ? RATE_LIMIT_UNKNOWN_CLIENT : RATE_LIMIT;
+      },
       standardHeaders: "draft-7",
-      keyGenerator: (c) => getRateLimitKey(c as RateLimitContextLike),
+      keyGenerator: (c) =>
+        rateLimitKeyFromIdentity((c as unknown as Context<HonoEnv>).var.rateLimitIdentity),
     }),
   );
 
@@ -122,7 +148,6 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
   app.use(cors({
     origin: (origin: string | undefined) => {
       if (!origin) return null;
-      if (allowedOrigins?.includes("*")) return origin;
       return allowedOrigins?.includes(origin) ? origin : null;
     },
     credentials: true,
@@ -139,6 +164,8 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
       ...Object.values(HEADER_KEYS),
     ],
   }));
+
+  app.use(createHttpBearerAuthMiddleware(config.httpBearerToken));
 
   return app;
 }
@@ -182,6 +209,8 @@ function createRoutes(
   app: Hono<HonoEnv>,
   createMcpServer: () => McpServer,
   transports: HTTPTransportManager,
+  notFoundHtml: string,
+  urlElicitationRegistry: UrlElicitationRegistry | undefined,
 ) {
   const ensureTransportConnected = createEnsureTransportConnected(createMcpServer);
 
@@ -196,6 +225,10 @@ function createRoutes(
   );
   app.on(["GET", "DELETE"], "/mcp", getAndDeleteHandler);
 
+  if (urlElicitationRegistry) {
+    registerUrlElicitationRoutes(app, { registry: urlElicitationRegistry, transports });
+  }
+
   // Static Routes
   app.use("/static/*", serveStatic({ root: STATIC_ROOT }));
   app.use("/.well-known/*", serveStatic({ root: STATIC_ROOT }));
@@ -206,7 +239,7 @@ function createRoutes(
   app.get("/", (c) => c.text(`${APP_NAME} running. See \`/llms.txt\` for machine-readable docs.`));
 
   // 404 Route
-  app.notFound((c) => c.html(getNotFoundPageHtml(), 404));
+  app.notFound((c) => c.html(notFoundHtml, 404));
 }
 
 /**
@@ -214,10 +247,13 @@ function createRoutes(
  * @param spec - The Hono application specification
  * @returns The configured Hono application
  */
-export function createHonoApp({ createMcpServer, config, transports }: HonoAppSpec): Hono<HonoEnv> {
+export function createHonoApp(
+  { createMcpServer, config, transports, urlElicitationRegistry }: HonoAppSpec,
+): Hono<HonoEnv> {
   const app = new Hono<HonoEnv>();
+  const notFoundHtml = loadNotFoundPageHtml();
   configureMiddleware(app, config);
-  createRoutes(app, createMcpServer, transports);
+  createRoutes(app, createMcpServer, transports, notFoundHtml, urlElicitationRegistry);
   app.onError((err, c) => {
     console.error("Unhandled HTTP route error", err);
     const path = c.req.path;
@@ -227,7 +263,7 @@ export function createHonoApp({ createMcpServer, config, transports }: HonoAppSp
         isError: true,
       }, HTTP_STATUS.INTERNAL_SERVER_ERROR);
     }
-    return c.text(err.message, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    return c.text("Internal server error", HTTP_STATUS.INTERNAL_SERVER_ERROR);
   });
   return app;
 }

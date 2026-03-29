@@ -5,13 +5,22 @@ import type {
 import { isTerminal } from "@modelcontextprotocol/sdk/experimental/tasks/interfaces.js";
 import type { Request, RequestId, Result, Task } from "@modelcontextprotocol/sdk/types.js";
 
-import { getKvStore } from "$/app/kv/mod.ts";
+import { getKvStore } from "$/kv/mod.ts";
 
 const PAGE_SIZE = 10;
 const MAX_CONCURRENCY_RETRIES = 5;
 
 export const TASK_META_PREFIX = ["task", "meta"] as const;
 const TASK_RESULT_PREFIX = ["task", "result"] as const;
+
+/** Secondary index: working tasks ordered by `lastUpdatedAt` (ISO) for bounded stale cleanup. */
+export const TASK_WORKING_PREFIX = ["task", "working"] as const;
+const WORKING_INDEX_MIGRATED_KEY = ["task", "maintenance", "working_index_migrated"] as const;
+
+/** KV key for the working-task index row (used by maintenance cron). */
+export function createWorkingIndexKey(lastUpdatedAt: string, taskId: string): Deno.KvKey {
+  return [...TASK_WORKING_PREFIX, lastUpdatedAt, taskId];
+}
 
 type TaskMetaRecord = {
   task: Task;
@@ -21,8 +30,27 @@ type TaskMetaRecord = {
   expiresAt?: number;
 };
 
+export type KvTaskStoreOptions = {
+  /**
+   * When set, positive client-requested TTL values are clamped to this ceiling.
+   * The returned `Task.ttl` reflects the effective value (per MCP `TaskStore`).
+   */
+  maxTtlMs?: number;
+};
+
+/** Session-bound tasks are invisible to `getTask` / `getTaskResult` unless `sessionId` matches. */
+function canReadTaskForSession(record: TaskMetaRecord, sessionId?: string): boolean {
+  if (record.sessionId === undefined) return true;
+  return sessionId !== undefined && record.sessionId === sessionId;
+}
+
 function toExpiry(ttl: number | null | undefined): number | undefined {
   return ttl && ttl > 0 ? ttl : undefined;
+}
+
+function clampRequestedTtl(requested: number | null, maxMs?: number): number | null {
+  if (requested === null || maxMs === undefined) return requested;
+  return requested > maxMs ? maxMs : requested;
 }
 
 function cloneTask(task: Task): Task {
@@ -35,7 +63,8 @@ function nextTimestamp(): string {
   return new Date().toISOString();
 }
 
-function createTaskMetaKey(taskId: string): Deno.KvKey {
+/** KV key for task metadata (`TaskMetaRecord`). Shared with task message queue TTL alignment. */
+export function createTaskMetaKey(taskId: string): Deno.KvKey {
   return [...TASK_META_PREFIX, taskId];
 }
 
@@ -58,13 +87,51 @@ function getRemainingExpiry(record: TaskMetaRecord): number | undefined {
   return remaining > 0 ? remaining : 1;
 }
 
+/**
+ * One-time rebuild of the working-task index from task metadata (handles upgrades and meta drift).
+ * Safe to call on every process start; runs the heavy work only until the marker key is set.
+ */
+export async function migrateWorkingTaskIndexIfNeeded(): Promise<void> {
+  const kv = await getKvStore();
+  const marker = await kv.get(WORKING_INDEX_MIGRATED_KEY);
+  if (marker.value) return;
+
+  const keysToDelete: Deno.KvKey[] = [];
+  for await (const entry of kv.list({ prefix: [...TASK_WORKING_PREFIX] })) {
+    keysToDelete.push(entry.key);
+  }
+  for (const key of keysToDelete) {
+    await kv.delete(key);
+  }
+
+  for await (const entry of kv.list<TaskMetaRecord>({ prefix: TASK_META_PREFIX })) {
+    const rec = entry.value;
+    if (!rec?.task || rec.task.status !== "working") continue;
+    const expireIn = getRemainingExpiry(rec);
+    const wk = createWorkingIndexKey(rec.task.lastUpdatedAt, rec.task.taskId);
+    if (expireIn) {
+      await kv.set(wk, { taskId: rec.task.taskId }, { expireIn });
+    } else {
+      await kv.set(wk, { taskId: rec.task.taskId });
+    }
+  }
+
+  await kv.set(WORKING_INDEX_MIGRATED_KEY, true);
+}
+
 type TaskMetaEntry = Deno.KvEntryMaybe<TaskMetaRecord>;
 
-async function getMetaEntry(kv: Deno.Kv, taskId: string): Promise<TaskMetaEntry> {
-  return await kv.get<TaskMetaRecord>(createTaskMetaKey(taskId));
+function getMetaEntry(kv: Deno.Kv, taskId: string): Promise<TaskMetaEntry> {
+  return kv.get<TaskMetaRecord>(createTaskMetaKey(taskId));
 }
 
 export class KvTaskStore implements TaskStore {
+  readonly #maxTtlMs: number | undefined;
+
+  constructor(options?: KvTaskStoreOptions) {
+    this.#maxTtlMs = options?.maxTtlMs;
+  }
+
   async createTask(
     taskParams: CreateTaskOptions,
     requestId: RequestId,
@@ -73,47 +140,46 @@ export class KvTaskStore implements TaskStore {
   ): Promise<Task> {
     const kv = await getKvStore();
     const createdAt = nextTimestamp();
-    const actualTtl = taskParams.ttl ?? null;
+    const actualTtl = clampRequestedTtl(taskParams.ttl ?? null, this.#maxTtlMs);
     const ttlForExpiry = toExpiry(actualTtl);
     const expiresAt = ttlForExpiry ? Date.now() + ttlForExpiry : undefined;
 
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const taskId = crypto.randomUUID();
-      const task: Task = {
-        taskId,
-        status: "working",
-        ttl: actualTtl,
-        createdAt,
-        lastUpdatedAt: createdAt,
-        pollInterval: taskParams.pollInterval ?? 1000,
-      };
-      const record: TaskMetaRecord = {
-        task,
-        requestId,
-        request,
-        sessionId,
-        expiresAt,
-      };
-      const commit = withOptionalExpiry(
-        kv.atomic().check({ key: createTaskMetaKey(taskId), versionstamp: null }),
-        createTaskMetaKey(taskId),
-        record,
-        ttlForExpiry,
-      );
+    const taskId = crypto.randomUUID();
+    const task: Task = {
+      taskId,
+      status: "working",
+      ttl: actualTtl,
+      createdAt,
+      lastUpdatedAt: createdAt,
+      pollInterval: taskParams.pollInterval ?? 1000,
+    };
+    const record: TaskMetaRecord = {
+      task,
+      requestId,
+      request,
+      sessionId,
+      expiresAt,
+    };
+    let atomic = kv.atomic().check({ key: createTaskMetaKey(taskId), versionstamp: null });
+    atomic = withOptionalExpiry(atomic, createTaskMetaKey(taskId), record, ttlForExpiry);
+    atomic = withOptionalExpiry(
+      atomic,
+      createWorkingIndexKey(task.lastUpdatedAt, taskId),
+      { taskId },
+      ttlForExpiry,
+    );
 
-      const result = await commit.commit();
-      if (result.ok) {
-        return cloneTask(task);
-      }
-    }
-
-    throw new Error("Failed to create unique task after multiple attempts");
+    const result = await atomic.commit();
+    if (!result.ok) throw new Error("Failed to create task");
+    return cloneTask(task);
   }
 
-  async getTask(taskId: string, _sessionId?: string): Promise<Task | null> {
+  async getTask(taskId: string, sessionId?: string): Promise<Task | null> {
     const kv = await getKvStore();
     const entry = await getMetaEntry(kv, taskId);
-    return entry.value ? cloneTask(entry.value.task) : null;
+    if (!entry.value) return null;
+    if (!canReadTaskForSession(entry.value, sessionId)) return null;
+    return cloneTask(entry.value.task);
   }
 
   async storeTaskResult(
@@ -157,6 +223,9 @@ export class KvTaskStore implements TaskStore {
       }
 
       let atomic = kv.atomic().check({ key: taskMetaKey, versionstamp });
+      if (record.task.status === "working") {
+        atomic = atomic.delete(createWorkingIndexKey(record.task.lastUpdatedAt, taskId));
+      }
       atomic = withOptionalExpiry(
         atomic,
         taskMetaKey,
@@ -178,18 +247,25 @@ export class KvTaskStore implements TaskStore {
     throw new Error(`Failed to store task result for ${taskId} due to concurrent updates`);
   }
 
-  async getTaskResult(taskId: string, _sessionId?: string): Promise<Result> {
+  async getTaskResult(taskId: string, sessionId?: string): Promise<Result> {
     const kv = await getKvStore();
-    const taskEntry = await getMetaEntry(kv, taskId);
-    if (!taskEntry.value) {
+    const metaKey = createTaskMetaKey(taskId);
+    const resultKey = createTaskResultKey(taskId);
+    const entries = await kv.getMany([metaKey, resultKey]);
+    const taskEntry = entries[0]!;
+    const resultEntry = entries[1]!;
+    const meta = taskEntry.value as TaskMetaRecord | null;
+    if (!meta) {
+      throw new Error(`Task with ID ${taskId} not found`);
+    }
+    if (!canReadTaskForSession(meta, sessionId)) {
       throw new Error(`Task with ID ${taskId} not found`);
     }
 
-    const result = await kv.get<Result>(createTaskResultKey(taskId));
-    if (!result.value) {
+    if (!resultEntry.value) {
       throw new Error(`Task ${taskId} has no result stored`);
     }
-    return result.value;
+    return resultEntry.value as Result;
   }
 
   async updateTaskStatus(
@@ -238,12 +314,20 @@ export class KvTaskStore implements TaskStore {
         throw new Error(`Task with ID ${taskId} not found`);
       }
 
-      const commitResult = await withOptionalExpiry(
-        kv.atomic().check({ key: taskMetaKey, versionstamp }),
-        taskMetaKey,
-        updatedRecord,
-        expireIn,
-      ).commit();
+      let atomic = kv.atomic().check({ key: taskMetaKey, versionstamp });
+      if (record.task.status === "working") {
+        atomic = atomic.delete(createWorkingIndexKey(record.task.lastUpdatedAt, taskId));
+      }
+      atomic = withOptionalExpiry(atomic, taskMetaKey, updatedRecord, expireIn);
+      if (updatedTask.status === "working") {
+        atomic = withOptionalExpiry(
+          atomic,
+          createWorkingIndexKey(updatedTask.lastUpdatedAt, taskId),
+          { taskId },
+          expireIn,
+        );
+      }
+      const commitResult = await atomic.commit();
       if (commitResult.ok) {
         return;
       }
@@ -252,6 +336,10 @@ export class KvTaskStore implements TaskStore {
     throw new Error(`Failed to update task ${taskId} due to concurrent updates`);
   }
 
+  /**
+   * Paginates in KV key order (not necessarily creation order). `cursor` / `nextCursor` are opaque;
+   * not filtered by `sessionId`.
+   */
   async listTasks(
     cursor?: string,
     _sessionId?: string,

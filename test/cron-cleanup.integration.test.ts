@@ -1,20 +1,9 @@
 import type { Request } from "@modelcontextprotocol/sdk/types.js";
 
 import { cleanupStaleTasks } from "$/app/cron.ts";
-import { closeKvStore, configureKvPath, getKvStore, openKvStore } from "$/app/kv/mod.ts";
-import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { closeKvStore, configureKvPath, getKvStore, openKvStore } from "$/kv/mod.ts";
+import { KvTaskStore, migrateWorkingTaskIndexIfNeeded } from "$/mcp/tasks/kvTaskStore.ts";
+import { assert, assertEquals } from "./helpers.ts";
 
 type TaskMetaRecord = {
   task: {
@@ -63,6 +52,9 @@ Deno.test({
         },
       };
       await kv.set(staleTaskMetaKey, updatedStaleRecord);
+
+      // Working-task index keys include lastUpdatedAt; meta-only edits need a rebuild (app does this at startup).
+      await migrateWorkingTaskIndexIfNeeded();
 
       const cleanedCount = await cleanupStaleTasks(now);
       assertEquals(cleanedCount, 1);

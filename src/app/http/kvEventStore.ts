@@ -8,8 +8,8 @@ import type { EventStore } from "@modelcontextprotocol/sdk/server/webStandardStr
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { monotonicUlid } from "@std/ulid";
 
-import { getKvStore } from "$/app/kv/mod.ts";
-import { EVENT_EXPIRY } from "$/shared/constants/http.ts";
+import { getKvStore } from "$/kv/mod.ts";
+import { EVENT_EXPIRY, MAX_REPLAY_EVENTS_PER_STREAM } from "$/shared/constants/http.ts";
 
 /** An event in the MCP event stream */
 type McpEvent = { streamId: string; message: JSONRPCMessage; id: string };
@@ -79,31 +79,28 @@ export class KvEventStore implements EventStore {
       return "";
     }
 
-    const streamId = lastEventId.split("_")[0] ?? "";
-    if (!streamId) {
-      return "";
-    }
-
-    // Verify the lastEventId exists
     const lastEvent = await this.getEvent(lastEventId);
     if (!lastEvent) {
       return "";
     }
 
-    // Get all events for this stream, sorted chronologically by event ID
-    const streamEvents = (await this.getStreamEvents(streamId))
-      .sort((a, b) => a.id.localeCompare(b.id));
+    const streamId = lastEvent.streamId;
+    const prefix = [...EVENTS_KEY, streamId];
 
-    // Find position of lastEventId and get all events after it
-    const lastEventIndex = streamEvents.findIndex((event) => event.id === lastEventId);
-    if (lastEventIndex === -1) {
-      return streamId; // Event not found in stream, but stream exists
-    }
-
-    // Send all events after the lastEventId
-    const eventsToReplay = streamEvents.slice(lastEventIndex + 1);
-    for (const { id, message } of eventsToReplay) {
-      await send(id, message);
+    // Stream keys are ordered lexicographically; event IDs use `${streamId}_${monotonicUlid()}`.
+    let replayed = 0;
+    for await (const entry of this.#kv.list({ prefix })) {
+      const id = entry.key[entry.key.length - 1];
+      if (typeof id !== "string" || id <= lastEventId) {
+        continue;
+      }
+      const mcpEvent = entry.value as McpEvent | null | undefined;
+      if (!mcpEvent?.message) continue;
+      await send(mcpEvent.id, mcpEvent.message);
+      replayed += 1;
+      if (replayed >= MAX_REPLAY_EVENTS_PER_STREAM) {
+        break;
+      }
     }
 
     return streamId;

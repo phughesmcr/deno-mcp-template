@@ -2,8 +2,12 @@
     "name": "@phughesmcr/deno-mcp-template",
     "version": "0.6.1",
     "license": "MIT",
-    "exports": "./main.ts",
-    "description": "A demo package for MCP servers in Deno",
+    "exports": {
+        ".": "./main.ts",
+        "./mcp": "./src/mcp/mod.ts",
+        "./app": "./src/app/app.ts"
+    },
+    "description": "A template for building MCP servers with Deno.",
     "keywords": [
         "demo",
         "deno",
@@ -28,13 +32,14 @@
         "$/": "./src/",
         "@cliffy/command": "jsr:@cliffy/command@^1.0.0",
         "@cliffy/flags": "jsr:@cliffy/flags@^1.0.0",
-        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.27.1",
+        "@modelcontextprotocol/ext-apps/server": "npm:@modelcontextprotocol/ext-apps@^1.3.2/server",
+        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.28.0",
         "@std/async": "jsr:@std/async@^1.2.0",
         "@std/cli": "jsr:@std/cli@^1.0.28",
         "@std/path": "jsr:@std/path@^1.1.4",
-        "@deno/sandbox": "jsr:@deno/sandbox@^0.12.0",
+        "@deno/sandbox": "jsr:@deno/sandbox@^0.13.2",
         "@std/ulid": "jsr:@std/ulid@^1.0.0",
-        "hono": "jsr:@hono/hono@^4.12.3",
+        "hono": "jsr:@hono/hono@^4.12.9",
         "hono-rate-limiter": "npm:hono-rate-limiter@^0.5.3",
         "zod": "npm:zod@^4.3.6",
         "zod-validation-error": "npm:zod-validation-error@^5.0.0"
@@ -42,11 +47,15 @@
     "tasks": {
         "setup": "deno run -A scripts/setup-template.ts",
         "start": "deno run --env-file=.env -A main.ts",
-        "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts -l=debug",
-        "test:integration": "deno test --frozen -P",
-        "test:coverage": "deno test --frozen -P --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
+        "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts",
+        "test:integration": "deno test --frozen -P --ignore=test/cli-env-prefix.integration.test.ts && deno test --frozen -P --allow-run test/cli-env-prefix.integration.test.ts",
+        "test:coverage": "deno test --frozen -P --ignore=test/cli-env-prefix.integration.test.ts --coverage=coverage && deno test --frozen -P --allow-run test/cli-env-prefix.integration.test.ts --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
         "bench": "deno bench --frozen -P",
-        "ci": "CI=1 deno fmt --check && deno lint && deno check --frozen main.ts src/**/*.ts scripts/**/*.ts test/**/*.ts && deno task test:integration",
+        "build:mcp-ui": "deno task --cwd mcp-ui install-deps && deno task --cwd mcp-ui build",
+        "ci": {
+            "dependencies": ["build:mcp-ui"],
+            "command": "CI=1 deno fmt --check && deno lint && deno check --frozen main.ts src/**/*.ts scripts/**/*.ts test/**/*.ts && deno task test:integration"
+        },
         "clean:dist": "deno run -A scripts/clean-dist.ts",
         "compile:win": {
             "description": "Create a binary for Windows",
@@ -123,7 +132,6 @@
         ],
         "permissions": {
             "env": true,
-            "run": true,
             "read": true,
             "write": true,
             "net": true,
@@ -143,6 +151,9 @@
         }
     },
     "fmt": {
+        "exclude": [
+            "mcp-ui/"
+        ],
         "include": [
             "main.ts",
             "src/**/*.ts",
@@ -162,6 +173,9 @@
         "useBraces": "whenNotSingleLine"
     },
     "lint": {
+        "exclude": [
+            "mcp-ui/"
+        ],
         "include": [
             "main.ts",
             "src/**/*.ts",
@@ -183,7 +197,7 @@
     },
     "lock": {
         "path": "./deno.lock",
-        "frozen": false
+        "frozen": true
     },
     "unstable": [
         "kv",

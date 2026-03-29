@@ -4,61 +4,51 @@ import {
   UnsubscribeRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { SERVER_CAPABILITIES, SERVER_INFO } from "$/shared/constants.ts";
-import { prompts } from "./prompts/mod.ts";
-import { resources } from "./resources/mod.ts";
-import { createResourceSubscriptionTracker } from "./resources/subscriptionTracker.ts";
-import { KvTaskStore } from "./tasks/mod.ts";
-import { registerTaskTools, ToolManager, tools } from "./tools/mod.ts";
-
-const subscriptions = createResourceSubscriptionTracker();
-
-/** Check if a URI is subscribed */
-export function isSubscribed(uri: string): boolean {
-  return subscriptions.isSubscribed(uri);
-}
-
-/** Get all subscribed URIs */
-export function getSubscriptions(): string[] {
-  return subscriptions.getSubscriptions();
-}
+import { registerFetchWebsiteInfoApp } from "./apps/fetchWebsiteInfoApp.ts";
+import type { McpServerFactoryContext } from "./context.ts";
+import { mcpServerDefinition, SERVER_CAPABILITIES, SERVER_INFO } from "./serverDefinition.ts";
+import { KvTaskMessageQueue, KvTaskStore } from "./tasks/mod.ts";
+import { registerTaskTools, ToolManager } from "./tools/mod.ts";
+import { registerUrlElicitationDemoTool } from "./tools/urlElicitationDemo.ts";
 
 /**
- * Creates a new MCP server and initializes the request handlers
- * @returns The configured MCP server instance
+ * Creates a new MCP server and initializes the request handlers.
+ * @param ctx - App-scoped context; reuse the same `subscriptions` for every instance in one process.
  */
-export function createMcpServer(): McpServer {
-  // You can edit the server capabilities in `src/constants.ts`
+export function createMcpServer(ctx: McpServerFactoryContext): McpServer {
+  const { subscriptions } = ctx;
+  const def = mcpServerDefinition;
+
   const server = new McpServer(SERVER_INFO, {
     capabilities: SERVER_CAPABILITIES,
-    taskStore: new KvTaskStore(),
+    taskStore: new KvTaskStore({ maxTtlMs: ctx.tasks.maxTtlMs }),
+    taskMessageQueue: new KvTaskMessageQueue(),
   });
-  const notifyForServer = (uri: string): Promise<void> =>
-    server.server.sendResourceUpdated({ uri });
+  function notifyForServer(uri: string): Promise<void> {
+    return server.server.sendResourceUpdated({ uri });
+  }
   let isNotifierReleased = false;
-  const releaseNotifier = async (): Promise<void> => {
+  async function releaseNotifier(): Promise<void> {
     if (isNotifierReleased) return;
     isNotifierReleased = true;
     await subscriptions.unregister(notifyForServer);
-  };
+  }
   const previousOnClose = server.server.onclose;
-  server.server.onclose = () => {
+  server.server.onclose = function onMcpServerClose(): void {
     previousOnClose?.();
-    void releaseNotifier().catch((error) => {
+    void releaseNotifier().catch(function onReleaseNotifierError(error: unknown): void {
       console.error("Failed to clean up subscriptions for closed MCP server", error);
     });
   };
 
-  // Prompt handlers
-  if ("prompts" in SERVER_CAPABILITIES) {
-    for (const prompt of prompts) {
+  if (def.prompts.length > 0) {
+    for (const prompt of def.prompts) {
       server.registerPrompt(...prompt);
     }
   }
 
-  // Resource handlers
-  if ("resources" in SERVER_CAPABILITIES) {
-    for (const resource of resources) {
+  if (def.resources.length > 0) {
+    for (const resource of def.resources) {
       if (resource.type === "template") {
         server.registerResource(
           resource.name,
@@ -76,11 +66,7 @@ export function createMcpServer(): McpServer {
       }
     }
 
-    // Resource subscription handlers
-    const resourceCapabilities = SERVER_CAPABILITIES.resources;
-    if (
-      resourceCapabilities && "subscribe" in resourceCapabilities && resourceCapabilities.subscribe
-    ) {
+    if (def.resourceSubscribe) {
       server.server.setRequestHandler(SubscribeRequestSchema, async (request) => {
         const uri = request.params.uri;
         await subscriptions.subscribe(notifyForServer, uri);
@@ -95,18 +81,38 @@ export function createMcpServer(): McpServer {
     }
   }
 
-  // Tool handlers
-  if ("tools" in SERVER_CAPABILITIES) {
+  if (def.tools.length > 0) {
+    if (def.fetchWebsiteInfoApp) {
+      registerFetchWebsiteInfoApp(server);
+    }
     const toolManager = new ToolManager(server);
-    for (const tool of tools) {
+    for (const tool of def.tools) {
       toolManager.addTool(tool);
     }
   }
 
-  // Experimental task-based tool handlers
-  if ("tasks" in SERVER_CAPABILITIES) {
+  if (def.tasksEnabled) {
     registerTaskTools(server);
+  }
+
+  if (def.urlElicitationDemo) {
+    registerUrlElicitationDemoTool(server, ctx);
   }
 
   return server;
 }
+
+export {
+  createResourceSubscriptionTracker,
+  type CreateTransportScopedMcpServer,
+  type McpServerFactoryContext,
+  type ResourceSubscriptionTracker,
+} from "./context.ts";
+
+export {
+  buildServerCapabilities,
+  type DeclaredServerCapabilities,
+  MCP_APPS_EXTENSION_ID,
+  type McpServerDefinition,
+  mcpServerDefinition,
+} from "./serverDefinition.ts";

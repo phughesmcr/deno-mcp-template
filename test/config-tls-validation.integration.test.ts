@@ -1,31 +1,6 @@
 import type { CliOptions } from "$/app/cli.ts";
 import { validateHttpConfig } from "$/shared/validation/config.ts";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
-
-function createBaseCliOptions(): CliOptions {
-  return {
-    http: true,
-    stdio: true,
-    hostname: "localhost",
-    port: 3001,
-    headers: [],
-    allowedOrigins: [],
-    allowedHosts: [],
-    dnsRebinding: false,
-    jsonResponse: false,
-  } as CliOptions;
-}
+import { assert, assertEquals, baseCliOptions as createBaseCliOptions } from "./helpers.ts";
 
 Deno.test("validateHttpConfig requires both TLS cert and key", () => {
   const options = createBaseCliOptions();

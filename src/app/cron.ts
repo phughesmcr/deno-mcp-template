@@ -1,39 +1,26 @@
-import type { Task } from "@modelcontextprotocol/sdk/types.js";
-
-import { getKvStore } from "$/app/kv/mod.ts";
-import { KvTaskStore, TASK_META_PREFIX } from "$/mcp/tasks/kvTaskStore.ts";
+import { getKvStore } from "$/kv/mod.ts";
+import { cleanupOrphanTaskQueues } from "$/mcp/tasks/kvTaskMessageQueue.ts";
+import { KvTaskStore, TASK_WORKING_PREFIX } from "$/mcp/tasks/kvTaskStore.ts";
+import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 const STALE_TASK_THRESHOLD_MS = 15 * 60 * 1000;
 const STALE_TASK_STATUS_MESSAGE = "Timed out by maintenance cron after inactivity";
-
-type TaskLike = {
-  taskId: string;
-  status: Task["status"];
-  lastUpdatedAt: string;
-};
-
-type TaskMetaLike = {
-  task?: Partial<TaskLike>;
-};
-
-function isWorkingStaleTask(task: Partial<TaskLike>, now: number): task is TaskLike {
-  if (!task.taskId || !task.lastUpdatedAt) return false;
-  if (task.status !== "working") return false;
-  const updatedAt = Date.parse(task.lastUpdatedAt);
-  if (Number.isNaN(updatedAt)) return false;
-  return now - updatedAt >= STALE_TASK_THRESHOLD_MS;
-}
 
 export async function cleanupStaleTasks(now: number = Date.now()): Promise<number> {
   const kv = await getKvStore();
   const taskStore = new KvTaskStore();
   let cleanedCount = 0;
+  const cutoffIso = new Date(now - STALE_TASK_THRESHOLD_MS).toISOString();
 
-  for await (const entry of kv.list<TaskMetaLike>({ prefix: TASK_META_PREFIX })) {
-    const task = entry.value?.task ?? {};
-    if (!isWorkingStaleTask(task, now)) continue;
+  for await (const entry of kv.list({ prefix: [...TASK_WORKING_PREFIX] })) {
+    const lastUpdatedAt = String(entry.key[2] ?? "");
+    if (lastUpdatedAt > cutoffIso) break;
+
+    const taskId = String(entry.key[3] ?? "");
+    if (!taskId) continue;
+
     try {
       await taskStore.updateTaskStatus(
-        task.taskId,
+        taskId,
         "failed",
         STALE_TASK_STATUS_MESSAGE,
       );
@@ -48,7 +35,9 @@ export async function cleanupStaleTasks(now: number = Date.now()): Promise<numbe
 
 let started = false;
 
-export function startMaintenanceCrons(): void {
+export function startMaintenanceCrons(
+  deps?: { urlElicitationRegistry?: UrlElicitationRegistry },
+): void {
   if (started) return;
   started = true;
 
@@ -57,6 +46,23 @@ export function startMaintenanceCrons(): void {
       await cleanupStaleTasks();
     } catch (error) {
       console.error("Failed to run stale-task cleanup cron", error);
+      return;
+    }
+    try {
+      await cleanupOrphanTaskQueues();
+    } catch (error) {
+      console.error("Failed to clean up orphan task message queues", error);
     }
   });
+
+  const registry = deps?.urlElicitationRegistry;
+  if (registry) {
+    Deno.cron("cleanup-expired-url-elicitations", "*/10 * * * *", () => {
+      try {
+        registry.cleanupExpired();
+      } catch (error) {
+        console.error("Failed to run URL elicitation TTL cleanup cron", error);
+      }
+    });
+  }
 }

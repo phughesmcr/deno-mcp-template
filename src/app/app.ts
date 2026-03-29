@@ -1,8 +1,16 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
-import { closeKvStore, configureKvPath, openKvStore } from "$/app/kv/mod.ts";
-import { startTaskQueueWorker, stopTaskQueueWorker } from "$/mcp/tasks/mod.ts";
+import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
+import {
+  createResourceSubscriptionTracker,
+  type CreateTransportScopedMcpServer,
+} from "$/mcp/context.ts";
+import {
+  migrateWorkingTaskIndexIfNeeded,
+  startTaskQueueWorker,
+  stopTaskQueueWorker,
+} from "$/mcp/tasks/mod.ts";
+import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import { APP_NAME } from "$/shared/constants.ts";
+import { resolvePublicBaseUrl } from "$/shared/publicBaseUrl.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { getRejected } from "$/shared/utils.ts";
 import { startMaintenanceCrons } from "./cron.ts";
@@ -18,17 +26,34 @@ export interface App {
 }
 
 /**
- * Creates the main application instance with STDIO and HTTP transports
- * @param createMcpServer - Factory used to create MCP server instances
+ * Creates the main application instance with STDIO and HTTP transports.
+ *
+ * `createMcpServer` is a **transport-scoped factory**: it is invoked once for STDIO (one long-lived
+ * MCP server) and once per streamable HTTP MCP session. Pass the same
+ * `McpServerFactoryContext` (`subscriptions`, `urlElicitation`, `tasks`) on every invocation so
+ * process-wide state stays consistent.
+ *
+ * @param createMcpServer - Factory invoked per transport / HTTP session (see module docs above)
  * @param config - The application configuration
- * @returns The application instance with start/stop methods
  */
-export function createApp(createMcpServer: () => McpServer, config: AppConfig): App {
+export function createApp(createMcpServer: CreateTransportScopedMcpServer, config: AppConfig): App {
   configureKvPath(config.kv.path);
+  const subscriptions = createResourceSubscriptionTracker();
+  const urlElicitationRegistry = createUrlElicitationRegistry();
+  const ctx = {
+    subscriptions,
+    urlElicitation: {
+      baseUrl: resolvePublicBaseUrl(config.http),
+      registry: urlElicitationRegistry,
+    },
+    tasks: config.tasks,
+  };
   // MCP SDK v1.27+ allows one active transport per protocol instance.
   // Create one MCP server per transport so HTTP and STDIO can run together.
-  const stdio = createStdioManager(createMcpServer(), config.stdio);
-  const http = createHttpServer(createMcpServer, config.http);
+  const stdio = createStdioManager(createMcpServer(ctx), config.stdio);
+  const http = createHttpServer(() => createMcpServer(ctx), config.http, {
+    urlElicitationRegistry,
+  });
 
   let isRunning = false;
   let lastError: Error | null = null;
@@ -46,7 +71,8 @@ export function createApp(createMcpServer: () => McpServer, config: AppConfig): 
         console.error(`${APP_NAME} starting...`);
         await verifyRuntimePermissions(config);
         await openKvStore(config.kv.path);
-        startMaintenanceCrons();
+        await migrateWorkingTaskIndexIfNeeded();
+        startMaintenanceCrons({ urlElicitationRegistry });
         await startTaskQueueWorker();
         const results = await Promise.allSettled([
           stdio.connect(),
@@ -78,7 +104,7 @@ export function createApp(createMcpServer: () => McpServer, config: AppConfig): 
   const stop = async (): Promise<void> => {
     if (startInProgress) await startInProgress.catch(() => {});
     if (!isRunning) return;
-    if (stopInProgress) return stopInProgress;
+    if (stopInProgress) return await stopInProgress;
 
     stopInProgress = (async () => {
       stopTaskQueueWorker();

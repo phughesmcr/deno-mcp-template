@@ -170,7 +170,7 @@ For resources with persistent mutable state:
 1. **Create a store file** (e.g. `myStore.ts`) with KV read/write functions:
 
 ```typescript
-import { getKvStore } from "$/app/kv/mod.ts";
+import { getKvStore } from "$/kv/mod.ts";
 
 export const MY_KEY: Deno.KvKey = ["resource", "my-resource", "value"];
 
@@ -213,7 +213,7 @@ This enables automatic subscription notifications — when a tool mutates the KV
 
 ## Subscription Flow
 
-Resources with `subscribe: true` in `SERVER_CAPABILITIES` get automatic subscription support:
+When `resourceSubscribe: true` in `mcpServerDefinition` (`src/mcp/serverDefinition.ts`), resources get subscription support:
 
 1. Client subscribes to a URI
 2. `subscriptionTracker.subscribe()` starts watching the mapped KV key

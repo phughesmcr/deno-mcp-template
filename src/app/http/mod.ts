@@ -1,8 +1,13 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import type { HttpServerConfig, Transport } from "$/shared/types.ts";
 import { createHonoApp } from "./hono.ts";
+import {
+  shouldWarnAllInterfacesBindWithoutHostAllowlist,
+  shouldWarnUnauthenticatedHttp,
+} from "./hostHeaderMiddleware.ts";
 import { createHTTPTransportManager } from "./transport.ts";
 
 function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undefined {
@@ -25,14 +30,33 @@ function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undef
 export function createHttpServer(
   createMcpServer: () => McpServer,
   config: HttpServerConfig,
+  deps?: { urlElicitationRegistry?: UrlElicitationRegistry },
 ): Transport {
   const { enabled, hostname, port, tlsCert, tlsKey } = config;
   const transports = createHTTPTransportManager(config);
-  const hono = createHonoApp({ createMcpServer, config, transports });
+  const hono = createHonoApp({
+    createMcpServer,
+    config,
+    transports,
+    urlElicitationRegistry: deps?.urlElicitationRegistry,
+  });
   let server: Deno.HttpServer | null = null;
 
   const connect = () => {
     if (!enabled || server !== null) return;
+    if (shouldWarnAllInterfacesBindWithoutHostAllowlist(config)) {
+      console.error(
+        `${APP_NAME}: HTTP is binding to ${hostname} without Host allowlist middleware. ` +
+          "DNS rebinding protection is disabled. Use --hostname localhost (or 127.0.0.1), " +
+          "or enable --dnsRebinding with --host / MCP_ALLOWED_HOSTS for explicit Host validation.",
+      );
+    }
+    if (shouldWarnUnauthenticatedHttp(config)) {
+      console.error(
+        `${APP_NAME}: HTTP is listening on a non-loopback address (${hostname}) without MCP_HTTP_BEARER_TOKEN. ` +
+          "Any client that can reach this port can use MCP. Set a bearer token or place the server behind authenticated TLS.",
+      );
+    }
     const isTlsEnabled = !!tlsCert && !!tlsKey;
     const serveOptions = isTlsEnabled ?
       {

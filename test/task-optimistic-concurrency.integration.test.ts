@@ -1,19 +1,8 @@
 import type { Request } from "@modelcontextprotocol/sdk/types.js";
 
-import { closeKvStore, configureKvPath, openKvStore } from "$/app/kv/mod.ts";
+import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
 import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
-
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { assert, assertEquals } from "./helpers.ts";
 
 Deno.test({
   name: "concurrent status updates do not overwrite terminal transitions",

@@ -1,5 +1,5 @@
 import { createHTTPTransportManager } from "$/app/http/transport.ts";
-import { closeKvStore, openKvStore } from "$/app/kv/mod.ts";
+import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
 import type { AppConfig } from "$/shared/types.ts";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
@@ -31,14 +31,20 @@ const initializeRequestBody = JSON.stringify({
 Deno.bench({
   name: "transport acquire creates session from initialize",
   fn: async () => {
-    await openKvStore();
-    const manager = createHTTPTransportManager(httpConfig);
+    const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
     try {
-      const transport = await manager.acquire(initializeRequestBody);
-      await transport.close();
+      configureKvPath(kvPath);
+      await openKvStore(kvPath);
+      const manager = createHTTPTransportManager(httpConfig);
+      try {
+        const transport = await manager.acquire(initializeRequestBody);
+        await transport.close();
+      } finally {
+        await manager.close();
+      }
     } finally {
-      await manager.close();
       await closeKvStore();
+      await Deno.remove(kvPath).catch(() => {});
     }
   },
 });
@@ -46,16 +52,22 @@ Deno.bench({
 Deno.bench({
   name: "transport acquire reuses existing session",
   fn: async () => {
-    await openKvStore();
-    const manager = createHTTPTransportManager(httpConfig);
-    const sessionId = "bench-session-id";
+    const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
     try {
-      const transport = await manager.acquire(initializeRequestBody, sessionId);
-      await manager.acquire("{}", sessionId);
-      await transport.close();
+      configureKvPath(kvPath);
+      await openKvStore(kvPath);
+      const manager = createHTTPTransportManager(httpConfig);
+      const sessionId = "bench-session-id";
+      try {
+        const transport = await manager.acquire(initializeRequestBody, sessionId);
+        await manager.acquire("{}", sessionId);
+        await transport.close();
+      } finally {
+        await manager.close();
+      }
     } finally {
-      await manager.close();
       await closeKvStore();
+      await Deno.remove(kvPath).catch(() => {});
     }
   },
 });

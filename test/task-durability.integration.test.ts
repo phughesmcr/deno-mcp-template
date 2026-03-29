@@ -1,7 +1,7 @@
 import type { CallToolResult, Request } from "@modelcontextprotocol/sdk/types.js";
 import { delay } from "@std/async/delay";
 
-import { closeKvStore, configureKvPath, openKvStore } from "$/app/kv/mod.ts";
+import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
 import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
 import {
   enqueueDelayedEchoTask,
@@ -9,17 +9,7 @@ import {
   stopTaskQueueWorker,
 } from "$/mcp/tasks/queue.ts";
 
-function assert(condition: boolean, message: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { assert, assertEquals } from "./helpers.ts";
 
 async function waitForTaskResult(
   store: KvTaskStore,

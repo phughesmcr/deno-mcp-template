@@ -1,50 +1,25 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { createHonoApp } from "$/app/http/hono.ts";
-import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import type { AppConfig } from "$/shared/types.ts";
+import { assertEquals, baseHttpConfig, noopTransports } from "./helpers.ts";
 
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
-
-const defaultHttpConfig: AppConfig["http"] = {
-  enabled: true,
-  hostname: "127.0.0.1",
-  port: 3001,
-  headers: [],
-  allowedHosts: [],
-  allowedOrigins: [],
-  enableDnsRebinding: false,
-  jsonResponseMode: false,
-};
-
-const noopTransports: HTTPTransportManager = {
-  acquire: async () => {
-    throw new Error("not used in rate-limit tests");
-  },
-  get: () => undefined,
-  releaseAll: async () => {},
-  close: async () => {},
-};
-
-function createTestApp() {
+function createTestApp(config: AppConfig["http"] = baseHttpConfig()) {
   return createHonoApp({
     createMcpServer: () => ({}) as McpServer,
-    config: defaultHttpConfig,
+    config,
     transports: noopTransports,
   });
 }
 
 async function performRequest(
   app: ReturnType<typeof createTestApp>,
-  clientIp: string,
+  clientIp: string | undefined,
   headers?: HeadersInit,
 ): Promise<Response> {
   const req = new Request("http://localhost/", { method: "GET", headers });
-  return await app.fetch(req, { clientIp } as never);
+  const bindings = clientIp !== undefined ? { clientIp } : {};
+  return await app.fetch(req, bindings as never);
 }
 
 Deno.test({
@@ -86,5 +61,44 @@ Deno.test({
 
     const otherClient = await performRequest(app, "10.0.0.2");
     assertEquals(otherClient.status, 200);
+  },
+});
+
+Deno.test({
+  name: "with trust-proxy, rate limiter uses X-Forwarded-For when socket IP is absent",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const app = createTestApp(baseHttpConfig({ trustProxy: true }));
+    const xff = "203.0.113.77";
+
+    for (let i = 0; i < 100; i++) {
+      const response = await performRequest(app, undefined, {
+        "x-forwarded-for": xff,
+      });
+      assertEquals(response.status, 200);
+    }
+
+    const blocked = await performRequest(app, undefined, {
+      "x-forwarded-for": xff,
+    });
+    assertEquals(blocked.status, 429);
+  },
+});
+
+Deno.test({
+  name: "requests with no IP and no session use strict unknown-client rate limit",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const app = createTestApp();
+
+    for (let i = 0; i < 20; i++) {
+      const response = await performRequest(app, undefined, {});
+      assertEquals(response.status, 200);
+    }
+
+    const blocked = await performRequest(app, undefined, {});
+    assertEquals(blocked.status, 429);
   },
 });

@@ -6,21 +6,10 @@ import { isInitializeRequest, LATEST_PROTOCOL_VERSION } from "@modelcontextproto
 
 import { createHonoApp } from "$/app/http/hono.ts";
 import type { HTTPTransportManager } from "$/app/http/transport.ts";
-import { createMcpServer, isSubscribed } from "$/mcp/mod.ts";
+import { createMcpServer, createResourceSubscriptionTracker } from "$/mcp/mod.ts";
 import { HEADER_KEYS } from "$/shared/constants.ts";
 import type { AppConfig } from "$/shared/types.ts";
-
-function assert(condition: unknown, message: string): asserts condition {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { assert, assertEquals, baseHttpConfig, mcpFactoryContext } from "./helpers.ts";
 
 async function waitFor(
   predicate: () => boolean,
@@ -36,16 +25,7 @@ async function waitFor(
   throw new Error("Timed out waiting for condition");
 }
 
-const defaultHttpConfig: AppConfig["http"] = {
-  enabled: true,
-  hostname: "127.0.0.1",
-  port: 3001,
-  headers: [],
-  allowedHosts: [],
-  allowedOrigins: [],
-  enableDnsRebinding: false,
-  jsonResponseMode: true,
-};
+const defaultHttpConfig = baseHttpConfig({ jsonResponseMode: true });
 
 function createTestTransportManager(config: AppConfig["http"]): HTTPTransportManager {
   const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
@@ -115,8 +95,9 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const transportManager = createTestTransportManager(defaultHttpConfig);
+    const subscriptions = createResourceSubscriptionTracker();
     const app = createHonoApp({
-      createMcpServer,
+      createMcpServer: () => createMcpServer(mcpFactoryContext(subscriptions)),
       config: defaultHttpConfig,
       transports: transportManager,
     });
@@ -185,7 +166,10 @@ Deno.test({
       });
       const subscribeResponse = await app.fetch(subscribeRequest, { clientIp: "127.0.0.1" });
       assertEquals(subscribeResponse.status, 200);
-      assert(isSubscribed(testUri), "Expected URI to be subscribed before DELETE /mcp");
+      assert(
+        subscriptions.isSubscribed(testUri),
+        "Expected URI to be subscribed before DELETE /mcp",
+      );
 
       const deleteRequest = new Request("http://localhost/mcp", {
         method: "DELETE",
@@ -198,11 +182,13 @@ Deno.test({
       const deleteResponse = await app.fetch(deleteRequest, { clientIp: "127.0.0.1" });
       assertEquals(deleteResponse.status, 200);
 
-      await waitFor(() => !isSubscribed(testUri), { timeoutMs: 2000 });
+      await waitFor(() => !subscriptions.isSubscribed(testUri), { timeoutMs: 2000 });
     } finally {
       await transportManager.close();
       if (sessionId) {
-        await waitFor(() => !isSubscribed(testUri), { timeoutMs: 2000 }).catch(() => {});
+        await waitFor(() => !subscriptions.isSubscribed(testUri), { timeoutMs: 2000 }).catch(
+          () => {},
+        );
       }
     }
   },
@@ -214,8 +200,9 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const transportManager = createTestTransportManager(defaultHttpConfig);
+    const subscriptions = createResourceSubscriptionTracker();
     const app = createHonoApp({
-      createMcpServer,
+      createMcpServer: () => createMcpServer(mcpFactoryContext(subscriptions)),
       config: defaultHttpConfig,
       transports: transportManager,
     });

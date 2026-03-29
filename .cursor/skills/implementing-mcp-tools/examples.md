@@ -4,7 +4,7 @@ Complete, working examples from the codebase for each tool category.
 
 ## Standard Tool — HTTP Request
 
-`src/mcp/tools/domain.ts` fetches website info via HEAD request:
+`src/mcp/tools/fetchWebsiteInfoShared.ts` implements the `fetch-website-info` tool logic (HEAD request); the tool and `ui://` resource are registered in `src/mcp/apps/fetchWebsiteInfoApp.ts` via `@modelcontextprotocol/ext-apps/server`. The snippet below shows the classic `ToolModule` shape used by other tools in this repo:
 
 ```typescript
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

@@ -1,5 +1,18 @@
 import type { CliOptions } from "$/app/cli.ts";
-import type { AppConfig, HttpServerConfig, KvConfig, StdioConfig } from "$/shared/types.ts";
+import {
+  ABSOLUTE_MAX_TASK_TTL_MS,
+  DEFAULT_MAX_TASK_TTL_MS,
+  MIN_MAX_TASK_TTL_MS,
+} from "$/shared/constants.ts";
+import { isAllInterfacesBindHostname } from "$/shared/constants/http.ts";
+import { normalizePublicBaseUrl } from "$/shared/publicBaseUrl.ts";
+import type {
+  AppConfig,
+  HttpServerConfig,
+  KvConfig,
+  StdioConfig,
+  TasksConfig,
+} from "$/shared/types.ts";
 import {
   validateHeaders,
   validateHostname,
@@ -72,6 +85,10 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
     jsonResponse,
     tlsCert,
     tlsKey,
+    trustProxy,
+    httpBearerToken: rawHttpBearerToken,
+    requireHttpAuth,
+    publicBaseUrl: rawPublicBaseUrl,
   } = config;
   try {
     const validatedHostname = validateHostname(hostname);
@@ -92,6 +109,40 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
     const validatedTlsKey = normalizedTlsKey ?
       validateTlsFilePath(normalizedTlsKey, "TLS private key") :
       undefined;
+
+    if (
+      !!http &&
+      isAllInterfacesBindHostname(validatedHostname) &&
+      (!dnsRebinding || validatedAllowedHosts.length === 0)
+    ) {
+      throw new Error(
+        "Binding to all interfaces (0.0.0.0 or ::) requires DNS rebinding protection with at least one allowed host. " +
+          "Use --dnsRebinding with --host / MCP_ALLOWED_HOSTS, or bind to localhost (e.g. -n localhost).",
+      );
+    }
+
+    const bearerTrimmed = typeof rawHttpBearerToken === "string" ?
+      rawHttpBearerToken.trim() :
+      undefined;
+    if (rawHttpBearerToken !== undefined && rawHttpBearerToken !== "" && !bearerTrimmed) {
+      throw new Error("HTTP bearer token cannot be empty or whitespace-only.");
+    }
+    if (requireHttpAuth && !bearerTrimmed) {
+      throw new Error(
+        "MCP_REQUIRE_HTTP_AUTH is set but no bearer token was configured. Set MCP_HTTP_BEARER_TOKEN or --http-bearer-token.",
+      );
+    }
+
+    let validatedPublicBaseUrl: string | undefined;
+    if (rawPublicBaseUrl !== undefined && String(rawPublicBaseUrl).trim() !== "") {
+      if (!http) {
+        throw new Error(
+          "publicBaseUrl is set but HTTP is disabled; remove MCP_PUBLIC_BASE_URL or enable HTTP.",
+        );
+      }
+      validatedPublicBaseUrl = normalizePublicBaseUrl(String(rawPublicBaseUrl));
+    }
+
     return {
       success: true,
       value: {
@@ -105,6 +156,9 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
         jsonResponseMode: !!jsonResponse,
         tlsCert: validatedTlsCert,
         tlsKey: validatedTlsKey,
+        trustProxy: !!trustProxy,
+        ...(bearerTrimmed ? { httpBearerToken: bearerTrimmed } : {}),
+        ...(validatedPublicBaseUrl ? { publicBaseUrl: validatedPublicBaseUrl } : {}),
       },
     };
   } catch (error) {
@@ -152,6 +206,39 @@ export function validateKvConfig(config: CliOptions): ValidationResult<KvConfig>
 }
 
 /**
+ * Validates task-related limits from CLI options.
+ */
+export function validateTasksConfig(config: CliOptions): ValidationResult<TasksConfig> {
+  const raw = config.maxTaskTtlMs ?? DEFAULT_MAX_TASK_TTL_MS;
+  if (!Number.isSafeInteger(raw)) {
+    return {
+      success: false,
+      error: new Error("maxTaskTtlMs must be a safe integer."),
+    };
+  }
+  if (raw < MIN_MAX_TASK_TTL_MS) {
+    return {
+      success: false,
+      error: new Error(
+        `maxTaskTtlMs must be at least ${MIN_MAX_TASK_TTL_MS} ms (use MCP_MAX_TASK_TTL_MS or --max-task-ttl-ms).`,
+      ),
+    };
+  }
+  if (raw > ABSOLUTE_MAX_TASK_TTL_MS) {
+    return {
+      success: false,
+      error: new Error(
+        `maxTaskTtlMs must not exceed ${ABSOLUTE_MAX_TASK_TTL_MS} ms (one year).`,
+      ),
+    };
+  }
+  return {
+    success: true,
+    value: { maxTtlMs: raw },
+  };
+}
+
+/**
  * Validates the complete application configuration from CLI options
  * @param config - The CLI options to validate
  * @returns The validation result with app config or error
@@ -167,6 +254,9 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
     const validatedKv = validateKvConfig(config);
     if (!validatedKv.success) throw validatedKv.error;
 
+    const validatedTasks = validateTasksConfig(config);
+    if (!validatedTasks.success) throw validatedTasks.error;
+
     if (!config.stdio && !config.http) {
       throw new Error(
         "Both the HTTP and STDIO servers are disabled. Please enable at least one server.",
@@ -179,6 +269,7 @@ export function validateConfig(config: CliOptions): ValidationResult<AppConfig> 
         http: validatedHttp.value,
         stdio: validatedStdio.value,
         kv: validatedKv.value,
+        tasks: validatedTasks.value,
       },
     };
   } catch (error) {

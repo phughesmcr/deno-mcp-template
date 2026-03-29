@@ -9,6 +9,18 @@ export const DEFAULT_PORT = 3001;
 /** The default hostname for the HTTP server. */
 export const DEFAULT_HOSTNAME = "localhost";
 
+/** Hostnames that bind all interfaces (require DNS rebinding + host allowlist when HTTP is enabled). */
+const ALL_INTERFACES_BIND_HOSTNAMES = new Set([
+  "0.0.0.0",
+  "::",
+  "[::]",
+]);
+
+/** True when {@linkcode hostname} binds every interface (e.g. `0.0.0.0`, `::`). */
+export function isAllInterfacesBindHostname(hostname: string): boolean {
+  return ALL_INTERFACES_BIND_HOSTNAMES.has(hostname.trim().toLowerCase());
+}
+
 /** The default headers for the MCP server. */
 export const DEFAULT_HEADERS: string[] = [];
 
@@ -22,7 +34,7 @@ export const DEFAULT_ALLOWED_HOSTS: string[] = [];
 /**
  * The expected origins for the MCP server's DNS rebinding protection to accept.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Origin}
- * @note The presence of "*" will allow all origins.
+ * @note Wildcard origins are not supported; list each origin explicitly.
  * @note This is ignored if env.MCP_ALLOWED_ORIGINS is set or CLI --origin is provided.
  */
 export const DEFAULT_ALLOWED_ORIGINS: string[] = [];
@@ -78,11 +90,19 @@ export const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 /** The rate limit for the MCP server. */
 export const RATE_LIMIT = 100; // Limit each IP to 100 requests per window
 
+/**
+ * Stricter limit for clients with no socket IP, no trusted proxy headers (when enabled), and no session id.
+ */
+export const RATE_LIMIT_UNKNOWN_CLIENT = 20;
+
 /** The maximum age for the MCP server's CORS protection. */
 export const CORS_MAX_AGE = 86400; // 24 hours
 
 /** The expiry time for events */
 export const EVENT_EXPIRY = 60 * 60 * 24 * 1000; // 1 day in milliseconds
+
+/** Cap MCP stream replay per resume to bound CPU/KV read time (demo store). */
+export const MAX_REPLAY_EVENTS_PER_STREAM = 10_000;
 
 /** Required headers for the MCP server. */
 export const HEADER_KEYS = {
@@ -111,4 +131,6 @@ export const RPC_ERROR_CODES = {
   METHOD_NOT_FOUND: -32601,
   INVALID_PARAMS: -32602,
   INTERNAL_ERROR: -32603,
+  /** Session ID was valid but the session no longer exists (maps to HTTP 404). */
+  SESSION_NOT_FOUND: -32001,
 } as const;

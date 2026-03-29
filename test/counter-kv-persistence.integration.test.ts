@@ -1,11 +1,6 @@
-import { closeKvStore, configureKvPath, openKvStore } from "$/app/kv/mod.ts";
+import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
 import { getCounterValue, incrementCounterValue } from "$/mcp/resources/counter.ts";
-
-function assertEquals<T>(actual: T, expected: T): void {
-  if (actual !== expected) {
-    throw new Error(`Assertion failed: expected ${String(expected)}, received ${String(actual)}`);
-  }
-}
+import { assertEquals } from "./helpers.ts";
 
 Deno.test({
   name: "counter persists and increments atomically in KV",
