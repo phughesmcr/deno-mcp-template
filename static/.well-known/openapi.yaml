@@ -8,7 +8,7 @@ info:
     [MCP specification — Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http)
     for protocol details. Responses may be `application/json` (including JSON-RPC envelopes)
     or `text/event-stream` depending on the request and server mode.
-  version: 0.6.1
+  version: 0.7.0
 servers:
   - url: http://localhost:3001
     description: |
