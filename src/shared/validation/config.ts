@@ -1,4 +1,4 @@
-import type { CliOptions } from "$/app/cli.ts";
+import type { McpConfigInput, ValidateConfigDeps } from "$/shared/config-input.ts";
 import type {
   AppConfig,
   HttpServerConfig,
@@ -30,24 +30,20 @@ function normalizePath(path?: string): string | undefined {
   return normalized ? normalized : undefined;
 }
 
-function validateTlsFilePath(path: string, label: string): string {
-  try {
-    const stat = Deno.statSync(path);
-    if (!stat.isFile) {
-      throw new Error(`${label} must point to a file: ${path}`);
-    }
-    return path;
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) {
+function validateTlsFilePath(path: string, label: string, deps: ValidateConfigDeps): string {
+  const result = deps.files.statFile(path);
+  if (result.kind === "file") return path;
+  switch (result.code) {
+    case "not_found":
       throw new Error(`${label} not found: ${path}`);
-    }
-    if (error instanceof Deno.errors.PermissionDenied) {
+    case "permission_denied":
       throw new Error(`${label} is not readable with current permissions: ${path}`);
-    }
-    if (error instanceof Error) {
-      throw new Error(`${label} is invalid: ${error.message}`);
-    }
-    throw new Error(`${label} is invalid: ${path}`);
+    case "not_file":
+      throw new Error(`${label} must point to a file: ${path}`);
+    default:
+      throw new Error(
+        result.message ? `${label} is invalid: ${result.message}` : `${label} is invalid: ${path}`,
+      );
   }
 }
 
@@ -69,11 +65,15 @@ export type ValidationResult<T, E extends Error = Error> = {
 };
 
 /**
- * Validates HTTP server configuration from CLI options
- * @param config - The CLI options to validate
+ * Validates HTTP server configuration from neutral input.
+ * @param config - Parsed config input (e.g. from CLI)
+ * @param deps - Injectable dependencies (e.g. filesystem checks for TLS paths)
  * @returns The validation result with HTTP server config or error
  */
-export function validateHttpConfig(config: CliOptions): ValidationResult<HttpServerConfig> {
+export function validateHttpConfig(
+  config: McpConfigInput,
+  deps: ValidateConfigDeps,
+): ValidationResult<HttpServerConfig> {
   const {
     http,
     hostname,
@@ -104,10 +104,10 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
       );
     }
     const validatedTlsCert = normalizedTlsCert ?
-      validateTlsFilePath(normalizedTlsCert, "TLS certificate") :
+      validateTlsFilePath(normalizedTlsCert, "TLS certificate", deps) :
       undefined;
     const validatedTlsKey = normalizedTlsKey ?
-      validateTlsFilePath(normalizedTlsKey, "TLS private key") :
+      validateTlsFilePath(normalizedTlsKey, "TLS private key", deps) :
       undefined;
 
     if (
@@ -174,7 +174,7 @@ export function validateHttpConfig(config: CliOptions): ValidationResult<HttpSer
  * @param config - The CLI options to validate
  * @returns The validation result with STDIO config or error
  */
-export function validateStdioConfig(config: CliOptions): ValidationResult<StdioConfig> {
+export function validateStdioConfig(config: McpConfigInput): ValidationResult<StdioConfig> {
   const { stdio } = config;
   return {
     success: true,
@@ -189,7 +189,7 @@ export function validateStdioConfig(config: CliOptions): ValidationResult<StdioC
  * @param config - The CLI options to validate
  * @returns The validation result with KV config or error
  */
-export function validateKvConfig(config: CliOptions): ValidationResult<KvConfig> {
+export function validateKvConfig(config: McpConfigInput): ValidationResult<KvConfig> {
   const kvPath = config.kvPath?.trim();
   if (config.kvPath !== undefined && !kvPath) {
     return {
@@ -208,7 +208,7 @@ export function validateKvConfig(config: CliOptions): ValidationResult<KvConfig>
 /**
  * Validates task-related limits from CLI options.
  */
-export function validateTasksConfig(config: CliOptions): ValidationResult<TasksConfig> {
+export function validateTasksConfig(config: McpConfigInput): ValidationResult<TasksConfig> {
   const raw = config.maxTaskTtlMs ?? DEFAULT_MAX_TASK_TTL_MS;
   if (!Number.isSafeInteger(raw)) {
     return {
@@ -239,13 +239,17 @@ export function validateTasksConfig(config: CliOptions): ValidationResult<TasksC
 }
 
 /**
- * Validates the complete application configuration from CLI options
- * @param config - The CLI options to validate
+ * Validates the complete application configuration from neutral input.
+ * @param config - Parsed config input
+ * @param deps - Injectable dependencies (e.g. {@link FileStatPort} for TLS paths)
  * @returns The validation result with app config or error
  */
-export function validateConfig(config: CliOptions): ValidationResult<AppConfig> {
+export function validateConfig(
+  config: McpConfigInput,
+  deps: ValidateConfigDeps,
+): ValidationResult<AppConfig> {
   try {
-    const validatedHttp = validateHttpConfig(config);
+    const validatedHttp = validateHttpConfig(config, deps);
     if (!validatedHttp.success) throw validatedHttp.error;
 
     const validatedStdio = validateStdioConfig(config);

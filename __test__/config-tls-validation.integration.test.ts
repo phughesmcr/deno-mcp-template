@@ -1,10 +1,17 @@
-import type { CliOptions } from "$/app/cli.ts";
 import { validateHttpConfig } from "$/shared/validation/config.ts";
-import { assert, assertEquals, baseCliOptions as createBaseCliOptions } from "./helpers.ts";
+import {
+  assert,
+  assertEquals,
+  baseCliOptions as createBaseCliOptions,
+  defaultValidateConfigDeps,
+} from "./helpers.ts";
 
 Deno.test("validateHttpConfig requires both TLS cert and key", () => {
   const options = createBaseCliOptions();
-  const result = validateHttpConfig({ ...options, tlsCert: "/tmp/cert.pem" } as CliOptions);
+  const result = validateHttpConfig(
+    { ...options, tlsCert: "/tmp/cert.pem" },
+    defaultValidateConfigDeps,
+  );
   assert(!result.success, "Expected validation to fail when TLS key is missing");
   if (result.success) return;
   assert(
@@ -19,7 +26,7 @@ Deno.test("validateHttpConfig rejects missing TLS files", () => {
     ...options,
     tlsCert: "/tmp/definitely-missing-cert.pem",
     tlsKey: "/tmp/definitely-missing-key.pem",
-  } as CliOptions);
+  }, defaultValidateConfigDeps);
   assert(!result.success, "Expected validation to fail for missing TLS files");
 });
 
@@ -40,7 +47,7 @@ Deno.test("validateHttpConfig accepts valid TLS cert and key paths", async () =>
       ...options,
       tlsCert: certPath,
       tlsKey: keyPath,
-    } as CliOptions);
+    }, defaultValidateConfigDeps);
 
     assert(result.success, "Expected validation to pass for valid TLS files");
     if (!result.success) return;

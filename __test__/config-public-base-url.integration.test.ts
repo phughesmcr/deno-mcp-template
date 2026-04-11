@@ -1,9 +1,10 @@
 import { validateHttpConfig } from "$/shared/validation/config.ts";
-import { baseCliOptions as baseCli } from "./helpers.ts";
+import { baseCliOptions as baseCli, defaultValidateConfigDeps } from "./helpers.ts";
 
 Deno.test("validateHttpConfig rejects publicBaseUrl when HTTP disabled", () => {
   const result = validateHttpConfig(
     baseCli({ http: false, publicBaseUrl: "https://example.com" }),
+    defaultValidateConfigDeps,
   );
   if (result.success) throw new Error("expected validation to fail");
   if (!result.error.message.includes("HTTP")) {
@@ -14,6 +15,7 @@ Deno.test("validateHttpConfig rejects publicBaseUrl when HTTP disabled", () => {
 Deno.test("validateHttpConfig accepts publicBaseUrl when HTTP enabled", () => {
   const result = validateHttpConfig(
     baseCli({ publicBaseUrl: "https://example.com" }),
+    defaultValidateConfigDeps,
   );
   if (!result.success) throw new Error(result.error.message);
   if (result.value.publicBaseUrl !== "https://example.com") {

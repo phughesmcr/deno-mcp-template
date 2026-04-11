@@ -1,11 +1,12 @@
 import { validateHttpConfig } from "$/shared/validation/config.ts";
-import { assertEquals, baseCliOptions as baseCli } from "./helpers.ts";
+import { assertEquals, baseCliOptions as baseCli, defaultValidateConfigDeps } from "./helpers.ts";
 
 Deno.test({
   name: "validateHttpConfig rejects 0.0.0.0 without DNS rebinding and allowed hosts",
   fn: () => {
     const result = validateHttpConfig(
       baseCli({ hostname: "0.0.0.0" }),
+      defaultValidateConfigDeps,
     );
     if (result.success) throw new Error("expected validation to fail");
     if (!result.error.message.includes("all interfaces")) {
@@ -19,6 +20,7 @@ Deno.test({
   fn: () => {
     const result = validateHttpConfig(
       baseCli({ hostname: "::" }),
+      defaultValidateConfigDeps,
     );
     if (result.success) throw new Error("expected validation to fail");
   },
@@ -34,6 +36,7 @@ Deno.test({
         allowedHosts: ["example.com"],
         allowedOrigins: ["https://example.com"],
       }),
+      defaultValidateConfigDeps,
     );
     if (!result.success) throw new Error(result.error.message);
     assertEquals(result.value.hostname, "0.0.0.0");
@@ -46,6 +49,7 @@ Deno.test({
   fn: () => {
     const result = validateHttpConfig(
       baseCli({ http: false, hostname: "0.0.0.0" }),
+      defaultValidateConfigDeps,
     );
     if (!result.success) throw new Error(result.error.message);
   },

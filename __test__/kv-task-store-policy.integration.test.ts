@@ -4,7 +4,7 @@ import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
 import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
 import { validateConfig } from "$/shared/validation.ts";
 
-import { assert, assertEquals, baseCliOptions } from "./helpers.ts";
+import { assert, assertEquals, baseCliOptions, defaultValidateConfigDeps } from "./helpers.ts";
 
 async function withTempKv(run: () => Promise<void>): Promise<void> {
   const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
@@ -95,7 +95,10 @@ Deno.test({
 Deno.test({
   name: "validateConfig rejects maxTaskTtlMs below minimum",
   fn: () => {
-    const result = validateConfig(baseCliOptions({ maxTaskTtlMs: 30_000 }));
+    const result = validateConfig(
+      baseCliOptions({ maxTaskTtlMs: 30_000 }),
+      defaultValidateConfigDeps,
+    );
     assertEquals(result.success, false);
     if (result.success) {
       throw new Error("expected validation failure");
