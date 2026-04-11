@@ -1,7 +1,9 @@
-import type { CliOptions } from "$/app/cli.ts";
+import { denoFileStatPort } from "$/app/denoFileStatPort.ts";
 import type { HTTPTransportManager } from "$/app/http/transport.ts";
+import { getProcessKvRuntime } from "$/kv/mod.ts";
 import type { McpServerFactoryContext, ResourceSubscriptionTracker } from "$/mcp/context.ts";
 import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
+import type { McpConfigInput, ValidateConfigDeps } from "$/shared/config-input.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 import { DEFAULT_MAX_TASK_TTL_MS } from "$/shared/constants.ts";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
@@ -55,6 +57,7 @@ export function mcpFactoryContext(
 ): McpServerFactoryContext {
   return {
     subscriptions,
+    kv: getProcessKvRuntime(),
     urlElicitation: {
       registry: createUrlElicitationRegistry(),
       baseUrl: undefined,
@@ -63,7 +66,7 @@ export function mcpFactoryContext(
   };
 }
 
-export function baseCliOptions(overrides: Partial<CliOptions> = {}): CliOptions {
+export function baseMcpConfigInput(overrides: Partial<McpConfigInput> = {}): McpConfigInput {
   return {
     http: true,
     stdio: true,
@@ -80,6 +83,12 @@ export function baseCliOptions(overrides: Partial<CliOptions> = {}): CliOptions 
     ...overrides,
   };
 }
+
+/** @deprecated Use {@link baseMcpConfigInput}. */
+export const baseCliOptions = baseMcpConfigInput;
+
+/** Production file stat — use with {@link validateConfig} / {@link validateHttpConfig} in integration tests. */
+export const defaultValidateConfigDeps: ValidateConfigDeps = { files: denoFileStatPort };
 
 export async function waitFor(
   predicate: () => boolean,

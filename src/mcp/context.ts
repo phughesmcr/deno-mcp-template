@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import type { KvRuntime } from "$/kv/runtime.ts";
 import type { ResourceSubscriptionTracker } from "./resources/subscriptionTracker.ts";
 import type { UrlElicitationRegistry } from "./urlElicitation/registry.ts";
 
@@ -13,6 +14,8 @@ export type { ResourceSubscriptionTracker } from "./resources/subscriptionTracke
  */
 export interface McpServerFactoryContext {
   subscriptions: ResourceSubscriptionTracker;
+  /** Process-scoped Deno KV (same instance the app opens/closes in lifecycle). */
+  kv: KvRuntime;
   /** Browser base URL and registry for URL-mode elicitation (HTTP sessions). */
   urlElicitation: {
     baseUrl: string | undefined;
