@@ -7,8 +7,8 @@ import { isInitializeRequest, LATEST_PROTOCOL_VERSION } from "@modelcontextproto
 import { createHonoApp } from "$/app/http/hono.ts";
 import type { HTTPTransportManager } from "$/app/http/transport.ts";
 import { createMcpServer, createResourceSubscriptionTracker } from "$/mcp/mod.ts";
+import type { AppConfig } from "$/shared/config-types.ts";
 import { HEADER_KEYS } from "$/shared/constants.ts";
-import type { AppConfig } from "$/shared/types.ts";
 import { assert, assertEquals, baseHttpConfig, mcpFactoryContext } from "./helpers.ts";
 
 async function waitFor(

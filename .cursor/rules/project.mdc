@@ -93,6 +93,7 @@ src/
 │   └── watch.ts                    # Subscription watcher for resource updates
 ├── mcp/
 │   ├── context.ts                  # McpServerFactoryContext + subscription tracker factory
+│   ├── plugin-types.ts             # Tool/prompt/resource registration types for new MCP features
 │   ├── prompts/
 │   │   ├── codeReview.ts           # A code-review prompt example
 │   │   ├── languagePrompt.ts       # A prompt example with arguments
@@ -143,7 +144,9 @@ src/
 │   │   └── port.ts                 # Validation for ports
 │   ├── publicBaseUrl.ts            # Resolve MCP_PUBLIC_BASE_URL / dev default for browser links
 │   ├── constants.ts                # Single point of export for all shared constants
-│   ├── types.ts                    # Shared types
+│   ├── config-types.ts             # AppConfig, HTTP/STDIO/KV/tasks (host shell)
+│   ├── type-utils.ts               # Prettify and small TS utilities
+│   ├── types.ts                    # Re-exports config + utils (not plugin types)
 │   ├── utils.ts                    # Shared utility functions
 │   └── validation.ts               # Single point of export for all shared validation functions
 static/

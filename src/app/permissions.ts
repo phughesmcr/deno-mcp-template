@@ -1,5 +1,5 @@
 import { mcpRuntimeRequiresNet, mcpServerDefinition } from "$/mcp/serverDefinition.ts";
-import type { AppConfig } from "$/shared/types.ts";
+import type { AppConfig } from "$/shared/config-types.ts";
 
 type RequiredPermission = {
   descriptor: Deno.PermissionDescriptor;

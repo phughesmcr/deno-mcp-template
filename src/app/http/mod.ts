@@ -1,8 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
+import type { HttpServerConfig, Transport } from "$/shared/config-types.ts";
 import { APP_NAME } from "$/shared/constants.ts";
-import type { HttpServerConfig, Transport } from "$/shared/types.ts";
 import { createHonoApp } from "./hono.ts";
 import {
   shouldWarnAllInterfacesBindWithoutHostAllowlist,

@@ -5,7 +5,7 @@ import {
   resolveHostHeaderProtection,
   validateHostHeaderAgainstAllowlist,
 } from "$/app/http/hostHeaderMiddleware.ts";
-import type { AppConfig } from "$/shared/types.ts";
+import type { AppConfig } from "$/shared/config-types.ts";
 import { assertEquals, baseHttpConfig, noopTransports } from "./helpers.ts";
 
 function baseHttp(overrides: Partial<AppConfig["http"]> = {}): AppConfig["http"] {

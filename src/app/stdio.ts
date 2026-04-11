@@ -1,8 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import type { AppConfig, Transport } from "$/shared/config-types.ts";
 import { APP_NAME } from "$/shared/constants.ts";
-import type { AppConfig, Transport } from "$/shared/types.ts";
 
 /**
  * Creates a new STDIO transport manager

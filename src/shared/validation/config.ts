@@ -1,4 +1,11 @@
 import type { CliOptions } from "$/app/cli.ts";
+import type {
+  AppConfig,
+  HttpServerConfig,
+  KvConfig,
+  StdioConfig,
+  TasksConfig,
+} from "$/shared/config-types.ts";
 import {
   ABSOLUTE_MAX_TASK_TTL_MS,
   DEFAULT_MAX_TASK_TTL_MS,
@@ -6,13 +13,6 @@ import {
 } from "$/shared/constants.ts";
 import { isAllInterfacesBindHostname } from "$/shared/constants/http.ts";
 import { normalizePublicBaseUrl } from "$/shared/publicBaseUrl.ts";
-import type {
-  AppConfig,
-  HttpServerConfig,
-  KvConfig,
-  StdioConfig,
-  TasksConfig,
-} from "$/shared/types.ts";
 import {
   validateHeaders,
   validateHostname,

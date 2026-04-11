@@ -1,5 +1,5 @@
 import { verifyRuntimePermissions } from "$/app/permissions.ts";
-import type { AppConfig } from "$/shared/types.ts";
+import type { AppConfig } from "$/shared/config-types.ts";
 import { assert, baseTasksConfig } from "./helpers.ts";
 
 const baseConfig: AppConfig = {

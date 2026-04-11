@@ -1,7 +1,7 @@
 import type { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
-import type { PromptPlugin } from "$/shared/types.ts";
+import type { PromptPlugin } from "$/mcp/plugin-types.ts";
 
 const schema = z.object({
   code: z.string().min(1, "Code required").max(50000, "Code too long"),

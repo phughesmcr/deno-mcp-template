@@ -2,8 +2,8 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
 import { KvEventStore } from "$/app/http/kvEventStore.ts";
+import type { AppConfig } from "$/shared/config-types.ts";
 import { INVALID_SESSION_ID, RPC_ERROR_CODES } from "$/shared/constants.ts";
-import type { AppConfig } from "$/shared/types.ts";
 import { RPCError } from "$/shared/utils.ts";
 
 export interface HTTPTransportManager {

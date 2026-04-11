@@ -1,7 +1,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 
+import type { AppConfig } from "$/shared/config-types.ts";
 import { HTTP_STATUS, isAllInterfacesBindHostname } from "$/shared/constants.ts";
-import type { AppConfig } from "$/shared/types.ts";
 
 /** Hostnames allowed by {@link createLocalhostHostValidationMiddleware} (matches MCP SDK). */
 export const SDK_LOCALHOST_ALLOWED_HOSTNAMES = [

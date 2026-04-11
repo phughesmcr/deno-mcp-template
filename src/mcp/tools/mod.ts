@@ -7,7 +7,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ZodRawShape } from "zod/v3";
 
-import type { ToolModule, ToolPlugin } from "$/shared/types.ts";
+import type { ToolModule, ToolPlugin } from "$/mcp/plugin-types.ts";
 import { registerDelayedEchoTask } from "./delayedEchoTask.ts";
 import elicitFormWizard from "./elicitFormWizard.ts";
 import elicitInput from "./elicitInput.ts";

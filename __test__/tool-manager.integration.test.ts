@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import type { ToolModule } from "$/mcp/plugin-types.ts";
 import { ToolManager } from "$/mcp/tools/mod.ts";
-import type { ToolModule } from "$/shared/types.ts";
 import { createCallToolTextResponse } from "$/shared/utils.ts";
 import { assertEquals } from "./helpers.ts";
 

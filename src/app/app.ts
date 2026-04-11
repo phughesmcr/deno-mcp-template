@@ -9,9 +9,9 @@ import {
   stopTaskQueueWorker,
 } from "$/mcp/tasks/mod.ts";
 import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
+import type { AppConfig } from "$/shared/config-types.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import { resolvePublicBaseUrl } from "$/shared/publicBaseUrl.ts";
-import type { AppConfig } from "$/shared/types.ts";
 import { getRejected } from "$/shared/utils.ts";
 import { startMaintenanceCrons } from "./cron.ts";
 import { createHttpServer } from "./http/mod.ts";

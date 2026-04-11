@@ -1,6 +1,7 @@
 import { Command, ValidationError } from "@cliffy/command";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
+import type { AppConfig } from "$/shared/config-types.ts";
 import {
   APP_DESCRIPTION,
   APP_USAGE,
@@ -9,7 +10,7 @@ import {
   DEFAULT_MAX_TASK_TTL_MS,
   DEFAULT_PORT,
 } from "$/shared/constants.ts";
-import type { AppConfig, Prettify } from "$/shared/types.ts";
+import type { Prettify } from "$/shared/type-utils.ts";
 import { validateConfig } from "$/shared/validation.ts";
 
 export type CliCommand = Awaited<ReturnType<typeof createCommand>>;

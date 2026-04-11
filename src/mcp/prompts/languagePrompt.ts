@@ -2,7 +2,7 @@ import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import type { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
-import type { PromptPlugin } from "$/shared/types.ts";
+import type { PromptPlugin } from "$/mcp/plugin-types.ts";
 
 const languageOptions = [
   "TypeScript",

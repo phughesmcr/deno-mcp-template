@@ -4,8 +4,8 @@
  * @module
  */
 
+import type { HttpServerConfig } from "$/shared/config-types.ts";
 import { isAllInterfacesBindHostname } from "$/shared/constants/http.ts";
-import type { HttpServerConfig } from "$/shared/types.ts";
 
 /**
  * Normalizes a configured public base URL to `scheme://host[:port]` with no trailing slash.

@@ -1,7 +1,7 @@
 import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 
-import type { ResourcePlugin } from "$/shared/types.ts";
+import type { ResourcePlugin } from "$/mcp/plugin-types.ts";
 import { getPersistedCounterValue, incrementPersistedCounterValue } from "./counterStore.ts";
 
 export const COUNTER_URI = "counter://value";

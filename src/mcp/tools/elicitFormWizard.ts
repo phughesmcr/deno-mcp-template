@@ -7,7 +7,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
-import type { ToolConfig, ToolModule } from "$/shared/types.ts";
+import type { ToolConfig, ToolModule } from "$/mcp/plugin-types.ts";
 import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
 
 const schema = z.object({});

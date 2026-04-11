@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { AnyResourcePlugin } from "$/shared/types.ts";
+import type { AnyResourcePlugin } from "$/mcp/plugin-types.ts";
 
 import counter from "./counter.ts";
 import greetings from "./greetings.ts";

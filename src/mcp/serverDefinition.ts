@@ -6,8 +6,8 @@
 
 import type { ServerCapabilities } from "@modelcontextprotocol/sdk/types";
 
+import type { AnyResourcePlugin, PromptPlugin, ToolModule } from "$/mcp/plugin-types.ts";
 import { APP_NAME, APP_TITLE, APP_VERSION } from "$/shared/constants/app.ts";
-import type { AnyResourcePlugin, PromptPlugin, ToolModule } from "$/shared/types.ts";
 import { prompts } from "./prompts/mod.ts";
 import { resources } from "./resources/mod.ts";
 import { tools } from "./tools/mod.ts";

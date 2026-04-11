@@ -1,6 +1,6 @@
 import { createHTTPTransportManager } from "$/app/http/transport.ts";
 import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
-import type { AppConfig } from "$/shared/types.ts";
+import type { AppConfig } from "$/shared/config-types.ts";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
 const httpConfig: AppConfig["http"] = {

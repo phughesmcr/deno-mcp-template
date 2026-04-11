@@ -12,6 +12,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 
 import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
+import type { AppConfig } from "$/shared/config-types.ts";
 import {
   ALLOWED_HEADERS,
   ALLOWED_METHODS,
@@ -28,7 +29,6 @@ import {
   RPC_ERROR_CODES,
   TIMEOUT,
 } from "$/shared/constants.ts";
-import type { AppConfig } from "$/shared/types.ts";
 import {
   createGetAndDeleteHandler,
   createPostHandler,

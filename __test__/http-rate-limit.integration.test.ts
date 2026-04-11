@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { createHonoApp } from "$/app/http/hono.ts";
-import type { AppConfig } from "$/shared/types.ts";
+import type { AppConfig } from "$/shared/config-types.ts";
 import { assertEquals, baseHttpConfig, noopTransports } from "./helpers.ts";
 
 function createTestApp(config: AppConfig["http"] = baseHttpConfig()) {

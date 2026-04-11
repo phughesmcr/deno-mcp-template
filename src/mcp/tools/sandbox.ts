@@ -14,7 +14,7 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
-import type { ToolConfig, ToolModule } from "$/shared/types.ts";
+import type { ToolConfig, ToolModule } from "$/mcp/plugin-types.ts";
 import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
 
 const DEFAULT_TIMEOUT_MS = 5_000;

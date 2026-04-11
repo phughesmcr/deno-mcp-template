@@ -5,7 +5,7 @@ import {
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 
-import type { ResourceTemplatePlugin } from "$/shared/types.ts";
+import type { ResourceTemplatePlugin } from "$/mcp/plugin-types.ts";
 
 const name = "greetings";
 
