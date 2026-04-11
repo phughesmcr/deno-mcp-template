@@ -1,6 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
+  type SubscribeRequest,
   SubscribeRequestSchema,
+  type UnsubscribeRequest,
   UnsubscribeRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
@@ -67,17 +69,20 @@ export function createMcpServer(ctx: McpServerFactoryContext): McpServer {
     }
 
     if (def.resourceSubscribe) {
-      server.server.setRequestHandler(SubscribeRequestSchema, async (request) => {
+      server.server.setRequestHandler(SubscribeRequestSchema, async (request: SubscribeRequest) => {
         const uri = request.params.uri;
         await subscriptions.subscribe(notifyForServer, uri);
         return {};
       });
 
-      server.server.setRequestHandler(UnsubscribeRequestSchema, async (request) => {
-        const uri = request.params.uri;
-        await subscriptions.unsubscribe(notifyForServer, uri);
-        return {};
-      });
+      server.server.setRequestHandler(
+        UnsubscribeRequestSchema,
+        async (request: UnsubscribeRequest) => {
+          const uri = request.params.uri;
+          await subscriptions.unsubscribe(notifyForServer, uri);
+          return {};
+        },
+      );
     }
   }
 

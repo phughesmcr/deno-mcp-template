@@ -3,12 +3,16 @@
  */
 import {
   App,
+  type AppEventMap,
   applyDocumentTheme,
   applyHostFonts,
   applyHostStyleVariables,
   type McpUiHostContext,
 } from "@modelcontextprotocol/ext-apps";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolResult,
+  ContentBlock,
+} from "@modelcontextprotocol/sdk/types.js";
 
 import "./mcp-app.css";
 
@@ -16,10 +20,36 @@ const argUrlEl = document.getElementById("arg-url") as HTMLElement;
 const resultPanel = document.getElementById("result-panel") as HTMLElement;
 const errorPanel = document.getElementById("error-panel") as HTMLElement;
 const errorTextEl = document.getElementById("error-text") as HTMLElement;
+const cancelPanel = document.getElementById("cancel-panel") as HTMLElement;
+const cancelTextEl = document.getElementById("cancel-text") as HTMLElement;
 const resultMetaEl = document.getElementById("result-meta") as HTMLElement;
 const headersBody = document.querySelector(
   "#headers-table tbody",
 ) as HTMLTableSectionElement;
+const btnDownload = document.getElementById(
+  "btn-download",
+) as HTMLButtonElement;
+const btnDone = document.getElementById("btn-done") as HTMLButtonElement;
+const btnRefreshResources = document.getElementById(
+  "btn-refresh-resources",
+) as HTMLButtonElement;
+const resourcesErrorEl = document.getElementById(
+  "resources-error",
+) as HTMLElement;
+const resourceListEl = document.getElementById(
+  "resource-list",
+) as HTMLUListElement;
+const resourcePreviewEl = document.getElementById(
+  "resource-preview",
+) as HTMLElement;
+const resourcesHintEl = document.getElementById(
+  "resources-hint",
+) as HTMLElement;
+
+/** Latest successful structured payload for host-mediated download. */
+let lastSuccessPayload: SuccessPayload | null = null;
+
+let appRef: App | null = null;
 
 function applySafeArea(ctx: McpUiHostContext): void {
   if (!ctx.safeAreaInsets) return;
@@ -32,6 +62,7 @@ function onHostContextChanged(ctx: McpUiHostContext): void {
   if (ctx.styles?.variables) applyHostStyleVariables(ctx.styles.variables);
   if (ctx.styles?.css?.fonts) applyHostFonts(ctx.styles.css.fonts);
   applySafeArea(ctx);
+  syncCapabilityHints();
 }
 
 type SuccessPayload = {
@@ -49,9 +80,11 @@ function displayField(value: unknown): string {
 }
 
 function textFromResultContent(result: CallToolResult): string | undefined {
-  const block = result.content?.find(function isTextBlock(c): boolean {
-    return c.type === "text";
-  });
+  const block = result.content?.find(
+    function isTextBlock(c: ContentBlock): boolean {
+      return c.type === "text";
+    },
+  );
   if (block && "text" in block) return String(block.text);
   return undefined;
 }
@@ -74,12 +107,15 @@ function renderArgs(args: Record<string, unknown> | undefined): void {
 function clearPanels(): void {
   resultPanel.hidden = true;
   errorPanel.hidden = true;
+  cancelPanel.hidden = true;
   resultMetaEl.replaceChildren();
   headersBody.replaceChildren();
 }
 
 function renderSuccess(data: SuccessPayload): void {
   clearPanels();
+  lastSuccessPayload = data;
+  updateDownloadButton();
   resultPanel.hidden = false;
 
   const rows: [string, string][] = [
@@ -113,6 +149,8 @@ function renderSuccess(data: SuccessPayload): void {
 
 function renderErrorFromResult(result: CallToolResult): void {
   clearPanels();
+  lastSuccessPayload = null;
+  updateDownloadButton();
   errorPanel.hidden = false;
   errorTextEl.textContent = textFromResultContent(result) ??
     JSON.stringify(result);
@@ -145,27 +183,180 @@ function renderFromToolResult(result: CallToolResult): void {
   renderErrorFromResult(result);
 }
 
-const app = new App({ name: "Website info", version: "1.0.0" });
-
-async function onTeardown(): Promise<Record<string, never>> {
-  return {};
+function syncCapabilityHints(): void {
+  const app = appRef;
+  if (!app) return;
+  const caps = app.getHostCapabilities();
+  const parts: string[] = [
+    "Load resources from the MCP server via the host proxy (list + read).",
+  ];
+  if (!caps?.serverResources) {
+    parts.push(
+      "This host did not advertise `serverResources`; list/read may still work.",
+    );
+  }
+  if (!caps?.downloadFile) {
+    parts.push("Download needs host support for `downloadFile`.");
+  }
+  resourcesHintEl.textContent = parts.join(" ");
+  updateDownloadButton();
 }
 
-function onToolInput(params: { arguments?: unknown }): void {
+function updateDownloadButton(): void {
+  const app = appRef;
+  const supported = app?.getHostCapabilities()?.downloadFile != null;
+  btnDownload.disabled = !supported || lastSuccessPayload === null;
+}
+
+function onToolInput(params: AppEventMap["toolinput"]): void {
   renderArgs(params.arguments as Record<string, unknown> | undefined);
 }
 
-function onToolResult(result: CallToolResult): void {
-  renderFromToolResult(result);
+function onToolResult(params: AppEventMap["toolresult"]): void {
+  renderFromToolResult(params as unknown as CallToolResult);
 }
 
+function onToolCancelled(params: AppEventMap["toolcancelled"]): void {
+  clearPanels();
+  lastSuccessPayload = null;
+  updateDownloadButton();
+  cancelPanel.hidden = false;
+  cancelTextEl.textContent = params.reason?.trim()
+    ? params.reason
+    : "The host cancelled this tool run.";
+}
+
+const app = new App({ name: "Website info", version: "1.0.0" });
+appRef = app;
+
+async function onTeardown(): Promise<Record<string, never>> {
+  app.removeEventListener("toolinput", onToolInput);
+  app.removeEventListener("toolresult", onToolResult);
+  app.removeEventListener("toolcancelled", onToolCancelled);
+  app.removeEventListener("hostcontextchanged", onHostContextChanged);
+  return {};
+}
+
+app.addEventListener("toolinput", onToolInput);
+app.addEventListener("toolresult", onToolResult);
+app.addEventListener("toolcancelled", onToolCancelled);
+app.addEventListener("hostcontextchanged", onHostContextChanged);
+
 app.onteardown = onTeardown;
-app.ontoolinput = onToolInput;
-app.ontoolresult = onToolResult;
-app.onhostcontextchanged = onHostContextChanged;
+
+async function onDownloadClick(): Promise<void> {
+  if (!lastSuccessPayload || !appRef) return;
+  const json = JSON.stringify(lastSuccessPayload, null, 2);
+  const { isError } = await appRef.downloadFile({
+    contents: [
+      {
+        type: "resource",
+        resource: {
+          uri: "file:///fetch-website-info-result.json",
+          mimeType: "application/json",
+          text: json,
+        },
+      },
+    ],
+  });
+  if (isError) {
+    void appRef.sendLog({
+      level: "warning",
+      data: "Download was denied or cancelled by the host.",
+      logger: "fetch-website-info",
+    });
+  }
+}
+
+async function onDoneClick(): Promise<void> {
+  await app.requestTeardown();
+}
+
+function setResourcesError(message: string): void {
+  resourcesErrorEl.hidden = false;
+  resourcesErrorEl.textContent = message;
+}
+
+function clearResourcesError(): void {
+  resourcesErrorEl.hidden = true;
+  resourcesErrorEl.textContent = "";
+}
+
+async function onRefreshResourcesClick(): Promise<void> {
+  if (!appRef) return;
+  clearResourcesError();
+  resourceListEl.replaceChildren();
+  resourcePreviewEl.textContent = "Loading…";
+  try {
+    const result = await appRef.listServerResources();
+    resourcePreviewEl.textContent = result.resources?.length
+      ? "Select a resource to read."
+      : "No resources returned.";
+    for (const r of result.resources ?? []) {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      const title = r.title ?? r.name ?? r.uri;
+      b.textContent = title;
+      b.addEventListener("click", () => {
+        void readResourceIntoPreview(r.uri);
+      });
+      li.append(b);
+      resourceListEl.append(li);
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    setResourcesError(`resources/list failed: ${msg}`);
+    resourcePreviewEl.textContent = "Could not list resources.";
+  }
+}
+
+async function readResourceIntoPreview(uri: string): Promise<void> {
+  if (!appRef) return;
+  clearResourcesError();
+  resourcePreviewEl.textContent = "Reading…";
+  try {
+    const result = await appRef.readServerResource({ uri });
+    const first = result.contents?.[0];
+    if (!first) {
+      resourcePreviewEl.textContent = "(empty contents)";
+      return;
+    }
+    if ("text" in first && typeof first.text === "string") {
+      const t = first.text;
+      resourcePreviewEl.textContent = t.length > 12000
+        ? `${t.slice(0, 12000)}\n… [truncated]`
+        : t;
+      return;
+    }
+    if ("blob" in first && typeof first.blob === "string") {
+      resourcePreviewEl.textContent =
+        `[binary resource, ${first.blob.length} base64 chars]`;
+      return;
+    }
+    resourcePreviewEl.textContent = JSON.stringify(first, null, 2);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    setResourcesError(`resources/read failed: ${msg}`);
+    resourcePreviewEl.textContent = "Could not read resource.";
+  }
+}
+
+btnDownload.addEventListener("click", () => {
+  void onDownloadClick();
+});
+
+btnDone.addEventListener("click", () => {
+  void onDoneClick();
+});
+
+btnRefreshResources.addEventListener("click", () => {
+  void onRefreshResourcesClick();
+});
 
 void (async () => {
   await app.connect();
+  syncCapabilityHints();
   const ctx = app.getHostContext();
   if (ctx) onHostContextChanged(ctx);
 })();

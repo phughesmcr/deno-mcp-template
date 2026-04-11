@@ -33,12 +33,12 @@ function createTestTransportManager(config: AppConfig["http"]): HTTPTransportMan
   const create = async (sessionId: string = crypto.randomUUID()) => {
     const options: WebStandardStreamableHTTPServerTransportOptions = {
       sessionIdGenerator: () => sessionId,
-      onsessioninitialized: (id) => {
+      onsessioninitialized: (id: string) => {
         if (!transports.has(id)) {
           transports.set(id, transport);
         }
       },
-      onsessionclosed: (id) => {
+      onsessionclosed: (id: string) => {
         transports.delete(id);
       },
       enableJsonResponse: !!config.jsonResponseMode,

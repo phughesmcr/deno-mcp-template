@@ -81,18 +81,18 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
   const create = async (sessionId: string = crypto.randomUUID()) => {
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: () => sessionId,
-      onsessioninitialized: (id) => {
+      onsessioninitialized: (id: string) => {
         if (!transports.has(id)) {
           transports.set(id, transport);
         }
       },
-      onsessionclosed: (id) => {
+      onsessionclosed: (id: string) => {
         transports.delete(id);
       },
       enableJsonResponse: !!jsonResponseMode,
       eventStore: await getEventStore(),
     });
-    transport.onerror = (_error) => {
+    transport.onerror = (_error: Error) => {
       // Uncomment this to log transport errors - will dangerously expose tracebacks to clients
       // console.error(`MCP transport error (session: ${transport.sessionId ?? sessionId})`, error);
     };

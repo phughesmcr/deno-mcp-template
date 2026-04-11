@@ -82,9 +82,7 @@ export function registerFetchWebsiteInfoApp(server: McpServer): void {
     server,
     "Fetch website info (MCP App UI)",
     FETCH_WEBSITE_INFO_RESOURCE_URI,
-    {
-      description: "Interactive UI for website HEAD inspection results",
-    },
+    {},
     readFetchWebsiteInfoResource,
   );
 

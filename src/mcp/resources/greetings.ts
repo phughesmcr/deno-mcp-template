@@ -18,7 +18,7 @@ const nameSuggestions = [
   "Ken",
 ];
 
-const completeName: CompleteResourceTemplateCallback = (value) => {
+const completeName: CompleteResourceTemplateCallback = (value: string) => {
   const prefix = value.trim().toLowerCase();
   return nameSuggestions
     .filter((name) => name.toLowerCase().startsWith(prefix))

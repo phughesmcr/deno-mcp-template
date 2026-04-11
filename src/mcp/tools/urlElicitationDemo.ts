@@ -4,7 +4,12 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
+import type {
+  CallToolResult,
+  ServerNotification,
+  ServerRequest,
+} from "@modelcontextprotocol/sdk/types.js";
 import { UrlElicitationRequiredError } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v3";
 
@@ -33,7 +38,10 @@ export function registerUrlElicitationDemoTool(mcp: McpServer, ctx: McpServerFac
         "Only works over streamable HTTP with an MCP session; use the link the client shows after calling this tool.",
       inputSchema: schema.shape,
     },
-    async (args: unknown, extra): Promise<CallToolResult> => {
+    async (
+      args: unknown,
+      extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ): Promise<CallToolResult> => {
       const parsed = schema.safeParse(args);
       if (!parsed.success) {
         return createCallToolErrorResponse({

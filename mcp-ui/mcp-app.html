@@ -8,8 +8,23 @@
   <body>
     <div id="root" class="root">
       <header class="header">
-        <h1 class="title">Website info</h1>
-        <p class="subtitle">HEAD response preview (MCP App)</p>
+        <div class="header-main">
+          <h1 class="title">Website info</h1>
+          <p class="subtitle">HEAD response preview (MCP App)</p>
+        </div>
+        <div class="header-actions">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-download"
+            disabled
+          >
+            Download JSON
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-done">
+            Done
+          </button>
+        </div>
       </header>
       <section class="panel" id="input-panel">
         <p class="label">Request URL</p>
@@ -33,6 +48,32 @@
         <p class="label">Error</p>
         <pre class="mono" id="error-text"></pre>
       </section>
+      <section class="panel" id="cancel-panel" hidden>
+        <p class="label">Tool cancelled</p>
+        <p class="cancel-msg" id="cancel-text"></p>
+      </section>
+      <details class="panel details-panel" id="resources-details">
+        <summary class="details-summary">Server resources</summary>
+        <p class="hint" id="resources-hint">
+          Load resources from the MCP server via the host proxy (list + read).
+        </p>
+        <div class="resource-toolbar">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-refresh-resources"
+          >
+            Refresh list
+          </button>
+        </div>
+        <p class="resource-error mono" id="resources-error" hidden></p>
+        <ul class="resource-list" id="resource-list"></ul>
+        <p class="label">Resource preview</p>
+        <pre
+          class="resource-preview mono"
+          id="resource-preview"
+        >Select a resource to read.</pre>
+      </details>
     </div>
     <script type="module" src="./src/mcp-app.ts"></script>
   </body>

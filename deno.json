@@ -128,7 +128,7 @@
     },
     "test": {
         "include": [
-            "test/**/*.test.ts"
+            "__test__/**/*.test.ts"
         ],
         "permissions": {
             "env": true,
@@ -140,7 +140,7 @@
     },
     "bench": {
         "include": [
-            "test/**/*.bench.ts"
+            "__bench__/**/*.bench.ts"
         ],
         "permissions": {
             "env": true,
@@ -158,7 +158,8 @@
             "main.ts",
             "src/**/*.ts",
             "scripts/**/*.ts",
-            "test/**/*.ts"
+            "__test__/**/*.ts",
+            "__bench__/**/*.ts"
         ],
         "proseWrap": "always",
         "semiColons": true,
@@ -180,7 +181,8 @@
             "main.ts",
             "src/**/*.ts",
             "scripts/**/*.ts",
-            "test/**/*.ts"
+            "__test__/**/*.ts",
+            "__bench__/**/*.ts"
         ],
         "rules": {
             "tags": [
