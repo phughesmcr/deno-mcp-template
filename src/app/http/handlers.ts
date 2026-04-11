@@ -1,6 +1,8 @@
 import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Context } from "hono";
 
+import { parseMcpPostJsonBody } from "$/app/http/mcpStreamableSession.ts";
+import type { EnsureTransportConnected } from "$/app/http/transportMcpBinding.ts";
 import {
   HEADER_KEYS,
   HTTP_STATUS,
@@ -11,9 +13,7 @@ import { RPCError } from "$/shared/utils.ts";
 import { isUUID } from "$/shared/validation.ts";
 import type { HTTPTransportManager } from "./transport.ts";
 
-export type EnsureTransportConnected = (
-  transport: WebStandardStreamableHTTPServerTransport,
-) => Promise<void>;
+export type { EnsureTransportConnected } from "$/app/http/transportMcpBinding.ts";
 
 /** Handles MCP errors and returns appropriate JSON-RPC error responses */
 function handleMCPError(c: Context, error?: unknown): Response {
@@ -86,26 +86,18 @@ export function createPostHandler(
       const sessionId = getSessionId(c);
       const originalRequest = c.req.raw.clone();
       const bodyText = await c.req.raw.text();
-      if (!bodyText.length) {
+      const requestId = sessionId ?? INVALID_SESSION_ID;
+      const parsed = parseMcpPostJsonBody(bodyText, requestId);
+      if (!parsed.ok) {
         throw new RPCError({
-          code: RPC_ERROR_CODES.INVALID_REQUEST,
-          message: "Empty request body",
-          requestId: sessionId ?? INVALID_SESSION_ID,
+          code: parsed.code,
+          message: parsed.message,
+          requestId,
         });
       }
-      let parsedBody: unknown;
-      try {
-        parsedBody = JSON.parse(bodyText);
-      } catch (error) {
-        throw new RPCError({
-          code: RPC_ERROR_CODES.PARSE_ERROR,
-          message: error instanceof Error ? error.message : "Invalid JSON in request body",
-          requestId: sessionId ?? INVALID_SESSION_ID,
-        });
-      }
-      const transport = await transports.acquire(bodyText, sessionId, parsedBody);
+      const transport = await transports.acquire(bodyText, sessionId, parsed.parsed);
       await ensureTransportConnected(transport);
-      return await handleMCPRequest(transport, originalRequest, parsedBody);
+      return await handleMCPRequest(transport, originalRequest, parsed.parsed);
     } catch (error) {
       return handleMCPError(c, error);
     }

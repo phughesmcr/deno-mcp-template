@@ -1,13 +1,16 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Hono } from "hono";
 
+import type { KvRuntime } from "$/kv/runtime.ts";
 import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import type { HttpServerConfig, Transport } from "$/shared/config-types.ts";
 import { APP_NAME } from "$/shared/constants.ts";
-import { createHonoApp } from "./hono.ts";
 import {
   shouldWarnAllInterfacesBindWithoutHostAllowlist,
   shouldWarnUnauthenticatedHttp,
-} from "./hostHeaderMiddleware.ts";
+} from "$/shared/httpSecurityPolicy.ts";
+import { createHonoApp } from "./hono.ts";
+import type { HonoEnv } from "./honoEnv.ts";
 import { createHTTPTransportManager } from "./transport.ts";
 
 function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undefined {
@@ -30,20 +33,29 @@ function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undef
 export function createHttpServer(
   createMcpServer: () => McpServer,
   config: HttpServerConfig,
-  deps?: { urlElicitationRegistry?: UrlElicitationRegistry },
+  deps?: { urlElicitationRegistry?: UrlElicitationRegistry; kv?: KvRuntime },
 ): Transport {
   const { enabled, hostname, port, tlsCert, tlsKey } = config;
-  const transports = createHTTPTransportManager(config);
-  const hono = createHonoApp({
-    createMcpServer,
-    config,
-    transports,
-    urlElicitationRegistry: deps?.urlElicitationRegistry,
-  });
+  /** Lazily built when HTTP is enabled and {@linkcode connect} runs (avoids rate-limiter timers when HTTP is off). */
+  let transports: ReturnType<typeof createHTTPTransportManager> | null = null;
+  let hono: Hono<HonoEnv> | null = null;
   let server: Deno.HttpServer | null = null;
+
+  const ensureStack = (): void => {
+    if (!enabled) return;
+    transports ??= createHTTPTransportManager(config, { kv: deps?.kv });
+    hono ??= createHonoApp({
+      createMcpServer,
+      config,
+      transports,
+      urlElicitationRegistry: deps?.urlElicitationRegistry,
+    });
+  };
 
   const connect = () => {
     if (!enabled || server !== null) return;
+    ensureStack();
+    if (!hono) return;
     if (shouldWarnAllInterfacesBindWithoutHostAllowlist(config)) {
       console.error(
         `${APP_NAME}: HTTP is binding to ${hostname} without Host allowlist middleware. ` +
@@ -77,15 +89,17 @@ export function createHttpServer(
       };
     server = Deno.serve(serveOptions, (request, info) => {
       const clientIp = resolveClientIp(info);
-      return hono.fetch(request, { clientIp });
+      return hono!.fetch(request, { clientIp });
     });
   };
 
   const disconnect = async () => {
     if (!enabled || server === null) return;
     try {
-      await transports.releaseAll();
-      await transports.close();
+      if (transports) {
+        await transports.releaseAll();
+        await transports.close();
+      }
     } catch (error) {
       console.error(`${APP_NAME}: HTTP transport cleanup failed`, error);
     } finally {

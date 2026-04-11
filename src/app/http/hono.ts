@@ -1,27 +1,20 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { fromFileUrl, join } from "@std/path";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
-import { cors } from "hono/cors";
 import { serveStatic } from "hono/deno";
 import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 
+import { createEnsureTransportConnected } from "$/app/http/transportMcpBinding.ts";
 import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 import {
-  ALLOWED_HEADERS,
-  ALLOWED_METHODS,
   APP_NAME,
   BODY_LIMIT,
-  CORS_MAX_AGE,
-  DEFAULT_ALLOWED_ORIGINS,
-  EXPOSED_HEADERS,
-  HEADER_KEYS,
   HTTP_STATUS,
   RATE_LIMIT,
   RATE_LIMIT_UNKNOWN_CLIENT,
@@ -29,36 +22,20 @@ import {
   RPC_ERROR_CODES,
   TIMEOUT,
 } from "$/shared/constants.ts";
-import {
-  createGetAndDeleteHandler,
-  createPostHandler,
-  type EnsureTransportConnected,
-} from "./handlers.ts";
-import {
-  createHostHeaderValidationMiddleware,
-  createLocalhostHostValidationMiddleware,
-  resolveHostHeaderProtection,
-} from "./hostHeaderMiddleware.ts";
+import { httpSecurityPolicyFromHttpConfig } from "$/shared/httpSecurityPolicy.ts";
+import { createGetAndDeleteHandler, createPostHandler } from "./handlers.ts";
+import type { HonoBindings, HonoEnv } from "./honoEnv.ts";
 import { createHttpBearerAuthMiddleware } from "./httpBearerAuthMiddleware.ts";
 import {
-  type RateLimitIdentity,
-  rateLimitKeyFromIdentity,
-  resolveRateLimitIdentity,
-} from "./rateLimitIdentity.ts";
+  applyHttpCorsMiddleware,
+  applyHttpHostProtectionMiddleware,
+} from "./httpSecurityMiddleware.ts";
+import { rateLimitKeyFromIdentity, resolveRateLimitIdentity } from "./rateLimitIdentity.ts";
 import { registerUrlElicitationRoutes } from "./urlElicitationRoutes.ts";
 
 import type { HTTPTransportManager } from "./transport.ts";
 
-export interface HonoBindings {
-  clientIp?: string;
-}
-
-type HonoEnv = {
-  Bindings: HonoBindings;
-  Variables: {
-    rateLimitIdentity: RateLimitIdentity;
-  };
-};
+export type { HonoBindings, HonoEnv };
 
 export interface HonoAppSpec {
   /**
@@ -96,12 +73,8 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
     );
     await next();
   });
-  const hostProtection = resolveHostHeaderProtection(config);
-  if (hostProtection.kind === "localhost") {
-    app.use("*", createLocalhostHostValidationMiddleware());
-  } else if (hostProtection.kind === "explicit") {
-    app.use("*", createHostHeaderValidationMiddleware(hostProtection.allowedHostnames));
-  }
+  const httpSecurityPolicy = httpSecurityPolicyFromHttpConfig(config);
+  applyHttpHostProtectionMiddleware(app, httpSecurityPolicy);
 
   app.use(secureHeaders());
   // Apply timeout to all routes except /mcp (SSE streams are long-lived)
@@ -143,66 +116,11 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
     }),
   );
 
-  const allowedOrigins = config.allowedOrigins ?? DEFAULT_ALLOWED_ORIGINS;
-
-  app.use(cors({
-    origin: (origin: string | undefined) => {
-      if (!origin) return null;
-      return allowedOrigins?.includes(origin) ? origin : null;
-    },
-    credentials: true,
-    maxAge: CORS_MAX_AGE,
-    allowMethods: ALLOWED_METHODS,
-    allowHeaders: [
-      ...ALLOWED_HEADERS,
-      ...(config.headers ?? []),
-      ...Object.values(HEADER_KEYS),
-    ],
-    exposeHeaders: [
-      ...EXPOSED_HEADERS,
-      ...(config.headers ?? []),
-      ...Object.values(HEADER_KEYS),
-    ],
-  }));
+  applyHttpCorsMiddleware(app, config, httpSecurityPolicy);
 
   app.use(createHttpBearerAuthMiddleware(config.httpBearerToken));
 
   return app;
-}
-
-function createEnsureTransportConnected(
-  createMcpServer: () => McpServer,
-): EnsureTransportConnected {
-  const mcpByTransport = new WeakMap<WebStandardStreamableHTTPServerTransport, McpServer>();
-  const connectionByTransport = new WeakMap<
-    WebStandardStreamableHTTPServerTransport,
-    Promise<void>
-  >();
-
-  return async (transport: WebStandardStreamableHTTPServerTransport): Promise<void> => {
-    const existingConnection = connectionByTransport.get(transport);
-    if (existingConnection) {
-      await existingConnection;
-      return;
-    }
-
-    let mcp = mcpByTransport.get(transport);
-    if (!mcp) {
-      mcp = createMcpServer();
-      mcpByTransport.set(transport, mcp);
-    }
-
-    const connection = mcp.connect(transport);
-    connectionByTransport.set(transport, connection);
-
-    try {
-      await connection;
-    } catch (error) {
-      connectionByTransport.delete(transport);
-      mcpByTransport.delete(transport);
-      throw error;
-    }
-  };
 }
 
 function createRoutes(

@@ -2,15 +2,18 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
 import { KvEventStore } from "$/app/http/kvEventStore.ts";
+import { parseMcpPostJsonBody, planMcpStreamableAcquire } from "$/app/http/mcpStreamableSession.ts";
+import { getProcessKvRuntime } from "$/kv/mod.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
-import { INVALID_SESSION_ID, RPC_ERROR_CODES } from "$/shared/constants.ts";
+import { INVALID_SESSION_ID } from "$/shared/constants.ts";
 import { RPCError } from "$/shared/utils.ts";
 
 export interface HTTPTransportManager {
   acquire(
     requestBody: string,
     sessionId?: string,
-    /** When provided, initialize validation uses this instead of re-parsing {@linkcode requestBody}. */
+    /** When provided, session policy uses this instead of re-parsing {@linkcode requestBody}. */
     parsedBody?: unknown,
   ): Promise<WebStandardStreamableHTTPServerTransport>;
   get(sessionId: string): WebStandardStreamableHTTPServerTransport | undefined;
@@ -18,62 +21,24 @@ export interface HTTPTransportManager {
   close(): Promise<void>;
 }
 
-function validateParsedInitializeBody(
-  sessionId: string | undefined,
-  jsonBody: unknown,
-):
-  | { valid: true; body: unknown }
-  | { valid: false; error: string; code: number } {
-  const isInit = isInitializeRequest(jsonBody);
-  if (isInit) return { valid: true, body: jsonBody };
-  if (!sessionId) {
-    return {
-      valid: false,
-      error: "No valid session ID provided",
-      code: RPC_ERROR_CODES.INVALID_REQUEST,
-    };
-  }
-  return {
-    valid: false,
-    error: `No transport found for session ID: ${sessionId}`,
-    code: RPC_ERROR_CODES.SESSION_NOT_FOUND,
-  };
-}
-
-function isValidInitializeRequest(
-  sessionId: string | undefined,
-  requestBody: string,
-):
-  | { valid: true; body: unknown }
-  | { valid: false; error: string; code: number } {
-  if (!requestBody.length) {
-    return { valid: false, error: "Empty request body", code: RPC_ERROR_CODES.INVALID_REQUEST };
-  }
-  try {
-    const jsonBody = JSON.parse(requestBody);
-    return validateParsedInitializeBody(sessionId, jsonBody);
-  } catch {
-    return {
-      valid: false,
-      error: "Invalid JSON in request body",
-      code: RPC_ERROR_CODES.PARSE_ERROR,
-    };
-  }
-}
-
 /**
  * Creates an HTTP transport manager for handling MCP sessions
  * @param config - The HTTP configuration
+ * @param deps - Optional {@link KvRuntime} for event store (defaults to process runtime).
  * @returns The HTTP transport manager
  */
-export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTransportManager {
+export function createHTTPTransportManager(
+  config: AppConfig["http"],
+  deps?: { kv?: KvRuntime },
+): HTTPTransportManager {
   const { jsonResponseMode } = config;
+  const kvRuntime = deps?.kv ?? getProcessKvRuntime();
   const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
   let eventStorePromise: Promise<KvEventStore> | null = null;
 
   const getEventStore = async (): Promise<KvEventStore> => {
     if (!eventStorePromise) {
-      eventStorePromise = KvEventStore.create();
+      eventStorePromise = KvEventStore.create(kvRuntime);
     }
     return await eventStorePromise;
   };
@@ -110,14 +75,28 @@ export function createHTTPTransportManager(config: AppConfig["http"]): HTTPTrans
       const transport = transports.get(sessionId);
       if (transport) return transport;
     }
-    const validation = parsedBodyHint !== undefined ?
-      validateParsedInitializeBody(sessionId, parsedBodyHint) :
-      isValidInitializeRequest(sessionId, requestBody);
-    if (!validation.valid) {
+    const requestId = sessionId ?? INVALID_SESSION_ID;
+    const parsedBody = parsedBodyHint !== undefined ? parsedBodyHint : (() => {
+      const parsed = parseMcpPostJsonBody(requestBody, requestId);
+      if (!parsed.ok) {
+        throw new RPCError({
+          code: parsed.code,
+          message: parsed.message,
+          requestId,
+        });
+      }
+      return parsed.parsed;
+    })();
+
+    const decision = planMcpStreamableAcquire(
+      { sessionId, parsedBody },
+      isInitializeRequest,
+    );
+    if (!decision.ok) {
       throw new RPCError({
-        code: validation.code,
-        message: validation.error,
-        requestId: sessionId ?? INVALID_SESSION_ID,
+        code: decision.error.code,
+        message: decision.error.message,
+        requestId,
       });
     }
     return await create(sessionId ?? crypto.randomUUID());

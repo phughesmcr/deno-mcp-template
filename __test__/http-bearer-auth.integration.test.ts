@@ -3,7 +3,13 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createHonoApp } from "$/app/http/hono.ts";
 import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import { validateHttpConfig } from "$/shared/validation/config.ts";
-import { assertEquals, baseCliOptions, baseHttpConfig, noopTransports } from "./helpers.ts";
+import {
+  assertEquals,
+  baseCliOptions,
+  baseHttpConfig,
+  defaultValidateConfigDeps,
+  noopTransports,
+} from "./helpers.ts";
 
 const secret = "test-bearer-secret-xyz";
 
@@ -122,7 +128,7 @@ Deno.test({
   name: "validateHttpConfig fails when requireHttpAuth is set without token",
   fn: () => {
     const cli = baseCliOptions({ requireHttpAuth: true });
-    const result = validateHttpConfig(cli);
+    const result = validateHttpConfig(cli, defaultValidateConfigDeps);
     if (result.success) throw new Error("expected failure");
     if (!result.error.message.includes("MCP_REQUIRE_HTTP_AUTH")) {
       throw new Error(result.error.message);

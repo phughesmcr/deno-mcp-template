@@ -8,7 +8,8 @@ import type { EventStore } from "@modelcontextprotocol/sdk/server/webStandardStr
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { monotonicUlid } from "@std/ulid";
 
-import { getKvStore } from "$/kv/mod.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
+import { getProcessKvRuntime } from "$/kv/runtime.ts";
 import { EVENT_EXPIRY, MAX_REPLAY_EVENTS_PER_STREAM } from "$/shared/constants/http.ts";
 
 /** An event in the MCP event stream */
@@ -26,9 +27,9 @@ const EVENTS_KEY = ["events"];
 export class KvEventStore implements EventStore {
   #kv: Deno.Kv;
 
-  static async create() {
-    const kv = await getKvStore();
-    return new KvEventStore(kv);
+  static async create(kv?: KvRuntime): Promise<KvEventStore> {
+    const rt = kv ?? getProcessKvRuntime();
+    return new KvEventStore(await rt.get());
   }
 
   constructor(kv: Deno.Kv) {
