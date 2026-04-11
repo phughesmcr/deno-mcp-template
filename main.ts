@@ -51,12 +51,9 @@
  * @module
  */
 
-import { createApp } from "$/app/app.ts";
-import { handleCliArgs } from "$/app/cli.ts";
+import { runMcpApp } from "$/app/runMcpApp.ts";
 import { createMcpServer } from "$/mcp/mod.ts";
 
 if (import.meta.main) {
-  const config = await handleCliArgs();
-  const app = createApp(createMcpServer, config);
-  await app.start();
+  await runMcpApp(createMcpServer);
 }
