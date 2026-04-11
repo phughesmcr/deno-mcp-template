@@ -23,9 +23,9 @@ export type McpRuntimeRequirements = Readonly<{
  * in sync with the fetch-website-info MCP App registration.
  */
 export function deriveMcpRuntimeRequirements(def: McpServerDefinition): McpRuntimeRequirements {
-  if (def.fetchWebsiteInfoApp) return { net: true };
-  const needsNetFromTool = def.tools.some((tool) => tool[1].runtime?.requiresNet === true);
-  return { net: needsNetFromTool };
+  const net = def.fetchWebsiteInfoApp ||
+    def.tools.some((tool) => tool[1].runtime?.requiresNet === true);
+  return { net };
 }
 
 /**

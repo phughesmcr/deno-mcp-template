@@ -40,9 +40,12 @@ export class RPCError extends Error {
 
   /** Convert to JSON-RPC 2.0 error response format */
   toJSONRPC(): JSONRPCErrorResponse {
-    const errorData = this.data ?
-      { ...this.data, timestamp: this.timestamp } :
-      { timestamp: this.timestamp };
+    let errorData: Record<string, unknown>;
+    if (this.data) {
+      errorData = { ...this.data, timestamp: this.timestamp };
+    } else {
+      errorData = { timestamp: this.timestamp };
+    }
 
     return {
       jsonrpc: JSONRPC_VERSION,
@@ -143,10 +146,8 @@ export function getRejected(results: PromiseSettledResult<unknown>[]): Error | n
   const firstRejected = results.find((r) => r.status === "rejected") as
     | PromiseRejectedResult
     | undefined;
-  if (firstRejected) {
-    return firstRejected.reason instanceof Error ?
-      firstRejected.reason :
-      new Error(String(firstRejected.reason));
-  }
-  return null;
+  if (!firstRejected) return null;
+  const { reason } = firstRejected;
+  if (reason instanceof Error) return reason;
+  return new Error(String(reason));
 }

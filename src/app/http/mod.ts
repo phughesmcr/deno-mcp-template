@@ -70,22 +70,21 @@ export function createHttpServer(
       );
     }
     const isTlsEnabled = !!tlsCert && !!tlsKey;
+    function logListening(scheme: "http" | "https"): void {
+      console.error(`${APP_NAME} listening on ${scheme}://${hostname}:${port}`);
+    }
     const serveOptions = isTlsEnabled ?
       {
         hostname,
         port,
         cert: Deno.readTextFileSync(tlsCert),
         key: Deno.readTextFileSync(tlsKey),
-        onListen: () => {
-          console.error(`${APP_NAME} listening on https://${hostname}:${port}`);
-        },
+        onListen: () => logListening("https"),
       } :
       {
         hostname,
         port,
-        onListen: () => {
-          console.error(`${APP_NAME} listening on http://${hostname}:${port}`);
-        },
+        onListen: () => logListening("http"),
       };
     server = Deno.serve(serveOptions, (request, info) => {
       const clientIp = resolveClientIp(info);
