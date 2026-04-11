@@ -5,7 +5,16 @@ import type {
 import { isTerminal } from "@modelcontextprotocol/sdk/experimental/tasks/interfaces.js";
 import type { Request, RequestId, Result, Task } from "@modelcontextprotocol/sdk/types.js";
 
-import { getKvStore } from "$/kv/mod.ts";
+import { getProcessKvRuntime } from "$/kv/mod.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
+import {
+  canReadTaskForSession,
+  clampRequestedTtl,
+  cloneTask,
+  getRemainingExpiry,
+  nextTimestamp,
+  toExpiry,
+} from "$/mcp/tasks/kvTaskPolicy.ts";
 
 const PAGE_SIZE = 10;
 const MAX_CONCURRENCY_RETRIES = 5;
@@ -36,32 +45,9 @@ export type KvTaskStoreOptions = {
    * The returned `Task.ttl` reflects the effective value (per MCP `TaskStore`).
    */
   maxTtlMs?: number;
+  /** KV handle; defaults to {@link getProcessKvRuntime}. */
+  kv?: KvRuntime;
 };
-
-/** Session-bound tasks are invisible to `getTask` / `getTaskResult` unless `sessionId` matches. */
-function canReadTaskForSession(record: TaskMetaRecord, sessionId?: string): boolean {
-  if (record.sessionId === undefined) return true;
-  return sessionId !== undefined && record.sessionId === sessionId;
-}
-
-function toExpiry(ttl: number | null | undefined): number | undefined {
-  return ttl && ttl > 0 ? ttl : undefined;
-}
-
-function clampRequestedTtl(requested: number | null, maxMs?: number): number | null {
-  if (requested === null || maxMs === undefined) return requested;
-  return requested > maxMs ? maxMs : requested;
-}
-
-function cloneTask(task: Task): Task {
-  return {
-    ...task,
-  };
-}
-
-function nextTimestamp(): string {
-  return new Date().toISOString();
-}
 
 /** KV key for task metadata (`TaskMetaRecord`). Shared with task message queue TTL alignment. */
 export function createTaskMetaKey(taskId: string): Deno.KvKey {
@@ -81,42 +67,37 @@ function withOptionalExpiry<T>(
   return expireIn ? atomic.set(key, value, { expireIn }) : atomic.set(key, value);
 }
 
-function getRemainingExpiry(record: TaskMetaRecord): number | undefined {
-  if (!record.expiresAt) return undefined;
-  const remaining = record.expiresAt - Date.now();
-  return remaining > 0 ? remaining : 1;
-}
-
 /**
  * One-time rebuild of the working-task index from task metadata (handles upgrades and meta drift).
  * Safe to call on every process start; runs the heavy work only until the marker key is set.
  */
-export async function migrateWorkingTaskIndexIfNeeded(): Promise<void> {
-  const kv = await getKvStore();
-  const marker = await kv.get(WORKING_INDEX_MIGRATED_KEY);
+export async function migrateWorkingTaskIndexIfNeeded(kvRuntime?: KvRuntime): Promise<void> {
+  const runtime = kvRuntime ?? getProcessKvRuntime();
+  const kvdb = await runtime.get();
+  const marker = await kvdb.get(WORKING_INDEX_MIGRATED_KEY);
   if (marker.value) return;
 
   const keysToDelete: Deno.KvKey[] = [];
-  for await (const entry of kv.list({ prefix: [...TASK_WORKING_PREFIX] })) {
+  for await (const entry of kvdb.list({ prefix: [...TASK_WORKING_PREFIX] })) {
     keysToDelete.push(entry.key);
   }
   for (const key of keysToDelete) {
-    await kv.delete(key);
+    await kvdb.delete(key);
   }
 
-  for await (const entry of kv.list<TaskMetaRecord>({ prefix: TASK_META_PREFIX })) {
+  for await (const entry of kvdb.list<TaskMetaRecord>({ prefix: TASK_META_PREFIX })) {
     const rec = entry.value;
     if (!rec?.task || rec.task.status !== "working") continue;
     const expireIn = getRemainingExpiry(rec);
     const wk = createWorkingIndexKey(rec.task.lastUpdatedAt, rec.task.taskId);
     if (expireIn) {
-      await kv.set(wk, { taskId: rec.task.taskId }, { expireIn });
+      await kvdb.set(wk, { taskId: rec.task.taskId }, { expireIn });
     } else {
-      await kv.set(wk, { taskId: rec.task.taskId });
+      await kvdb.set(wk, { taskId: rec.task.taskId });
     }
   }
 
-  await kv.set(WORKING_INDEX_MIGRATED_KEY, true);
+  await kvdb.set(WORKING_INDEX_MIGRATED_KEY, true);
 }
 
 type TaskMetaEntry = Deno.KvEntryMaybe<TaskMetaRecord>;
@@ -127,9 +108,15 @@ function getMetaEntry(kv: Deno.Kv, taskId: string): Promise<TaskMetaEntry> {
 
 export class KvTaskStore implements TaskStore {
   readonly #maxTtlMs: number | undefined;
+  readonly #kv: KvRuntime;
 
   constructor(options?: KvTaskStoreOptions) {
     this.#maxTtlMs = options?.maxTtlMs;
+    this.#kv = options?.kv ?? getProcessKvRuntime();
+  }
+
+  async #getKv(): Promise<Deno.Kv> {
+    return await this.#kv.get();
   }
 
   async createTask(
@@ -138,7 +125,7 @@ export class KvTaskStore implements TaskStore {
     request: Request,
     sessionId?: string,
   ): Promise<Task> {
-    const kv = await getKvStore();
+    const kv = await this.#getKv();
     const createdAt = nextTimestamp();
     const actualTtl = clampRequestedTtl(taskParams.ttl ?? null, this.#maxTtlMs);
     const ttlForExpiry = toExpiry(actualTtl);
@@ -175,7 +162,7 @@ export class KvTaskStore implements TaskStore {
   }
 
   async getTask(taskId: string, sessionId?: string): Promise<Task | null> {
-    const kv = await getKvStore();
+    const kv = await this.#getKv();
     const entry = await getMetaEntry(kv, taskId);
     if (!entry.value) return null;
     if (!canReadTaskForSession(entry.value, sessionId)) return null;
@@ -188,7 +175,7 @@ export class KvTaskStore implements TaskStore {
     result: Result,
     _sessionId?: string,
   ): Promise<void> {
-    const kv = await getKvStore();
+    const kv = await this.#getKv();
     const taskMetaKey = createTaskMetaKey(taskId);
     const taskResultKey = createTaskResultKey(taskId);
     for (let attempt = 0; attempt < MAX_CONCURRENCY_RETRIES; attempt++) {
@@ -248,7 +235,7 @@ export class KvTaskStore implements TaskStore {
   }
 
   async getTaskResult(taskId: string, sessionId?: string): Promise<Result> {
-    const kv = await getKvStore();
+    const kv = await this.#getKv();
     const metaKey = createTaskMetaKey(taskId);
     const resultKey = createTaskResultKey(taskId);
     const entries = await kv.getMany([metaKey, resultKey]);
@@ -274,7 +261,7 @@ export class KvTaskStore implements TaskStore {
     statusMessage?: string,
     _sessionId?: string,
   ): Promise<void> {
-    const kv = await getKvStore();
+    const kv = await this.#getKv();
     const taskMetaKey = createTaskMetaKey(taskId);
     for (let attempt = 0; attempt < MAX_CONCURRENCY_RETRIES; attempt++) {
       const entry = await getMetaEntry(kv, taskId);
@@ -344,7 +331,7 @@ export class KvTaskStore implements TaskStore {
     cursor?: string,
     _sessionId?: string,
   ): Promise<{ tasks: Task[]; nextCursor?: string }> {
-    const kv = await getKvStore();
+    const kv = await this.#getKv();
     const tasks: Task[] = [];
     const iterator = kv.list<TaskMetaRecord>(
       { prefix: TASK_META_PREFIX },

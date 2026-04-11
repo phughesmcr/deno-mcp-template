@@ -1,7 +1,7 @@
-import { cleanupStaleTasks } from "$/app/cron.ts";
 import { KvEventStore } from "$/app/http/kvEventStore.ts";
 import { closeKvStore, configureKvPath, getKvStore, openKvStore } from "$/kv/mod.ts";
 import { createWorkingIndexKey, KvTaskStore, TASK_META_PREFIX } from "$/mcp/tasks/kvTaskStore.ts";
+import { runTaskPeriodicMaintenance } from "$/mcp/tasks/maintenance.ts";
 import type { Request } from "@modelcontextprotocol/sdk/types.js";
 
 const request = { method: "tools/call", params: {} } as unknown as Request;
@@ -43,7 +43,7 @@ Deno.bench({
 });
 
 Deno.bench({
-  name: "cleanupStaleTasks uses working index after migration",
+  name: "runTaskPeriodicMaintenance uses working index after migration",
   group: "kv",
   fn: async () => {
     const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
@@ -84,7 +84,7 @@ Deno.bench({
         },
       });
 
-      const cleaned = await cleanupStaleTasks(now);
+      const cleaned = await runTaskPeriodicMaintenance({ now });
       if (cleaned !== 1) {
         throw new Error(`expected 1 stale cleanup, got ${cleaned}`);
       }

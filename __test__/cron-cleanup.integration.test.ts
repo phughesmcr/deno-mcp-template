@@ -1,8 +1,8 @@
 import type { Request } from "@modelcontextprotocol/sdk/types.js";
 
-import { cleanupStaleTasks } from "$/app/cron.ts";
 import { closeKvStore, configureKvPath, getKvStore, openKvStore } from "$/kv/mod.ts";
-import { KvTaskStore, migrateWorkingTaskIndexIfNeeded } from "$/mcp/tasks/kvTaskStore.ts";
+import { KvTaskStore } from "$/mcp/tasks/kvTaskStore.ts";
+import { runTaskPeriodicMaintenance, runTaskStartupMaintenance } from "$/mcp/tasks/maintenance.ts";
 import { assert, assertEquals } from "./helpers.ts";
 
 type TaskMetaRecord = {
@@ -14,7 +14,7 @@ type TaskMetaRecord = {
 };
 
 Deno.test({
-  name: "cleanupStaleTasks marks stale working tasks as failed",
+  name: "runTaskPeriodicMaintenance marks stale working tasks as failed",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
@@ -54,9 +54,9 @@ Deno.test({
       await kv.set(staleTaskMetaKey, updatedStaleRecord);
 
       // Working-task index keys include lastUpdatedAt; meta-only edits need a rebuild (app does this at startup).
-      await migrateWorkingTaskIndexIfNeeded();
+      await runTaskStartupMaintenance();
 
-      const cleanedCount = await cleanupStaleTasks(now);
+      const cleanedCount = await runTaskPeriodicMaintenance({ now });
       assertEquals(cleanedCount, 1);
 
       const staleTaskAfterCleanup = await taskStore.getTask(staleTask.taskId);

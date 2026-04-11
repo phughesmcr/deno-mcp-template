@@ -1,6 +1,7 @@
 import type { Result } from "@modelcontextprotocol/sdk/types.js";
 
-import { getKvStore } from "$/kv/mod.ts";
+import { getProcessKvRuntime } from "$/kv/mod.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
 import { KvTaskStore } from "./kvTaskStore.ts";
 
 type DelayedEchoQueueMessage = {
@@ -10,10 +11,17 @@ type DelayedEchoQueueMessage = {
   delayMs: number;
 };
 
-const taskStore = new KvTaskStore();
+let taskStore: KvTaskStore | null = null;
 
 let isWorkerRunning = false;
 let workerPromise: Promise<void> | null = null;
+
+function getQueueTaskStore(kv?: KvRuntime): KvTaskStore {
+  if (!taskStore) {
+    taskStore = new KvTaskStore({ kv: kv ?? getProcessKvRuntime() });
+  }
+  return taskStore;
+}
 
 function isDelayedEchoQueueMessage(payload: unknown): payload is DelayedEchoQueueMessage {
   if (typeof payload !== "object" || payload === null) return false;
@@ -36,13 +44,14 @@ function createDelayedEchoResult(text: string, delayMs: number): Result {
 }
 
 async function processDelayedEchoMessage(message: DelayedEchoQueueMessage): Promise<void> {
+  const store = taskStore ?? getQueueTaskStore();
   try {
     const result = createDelayedEchoResult(message.text, message.delayMs);
-    await taskStore.storeTaskResult(message.taskId, "completed", result);
+    await store.storeTaskResult(message.taskId, "completed", result);
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Failed to process delayed echo";
     try {
-      await taskStore.updateTaskStatus(message.taskId, "failed", reason);
+      await store.updateTaskStatus(message.taskId, "failed", reason);
     } catch {
       // ignore follow-up failures during task finalization
     }
@@ -50,12 +59,15 @@ async function processDelayedEchoMessage(message: DelayedEchoQueueMessage): Prom
 }
 
 /** Starts the singleton KV queue worker for task execution. */
-export async function startTaskQueueWorker(): Promise<void> {
+export async function startTaskQueueWorker(kv?: KvRuntime): Promise<void> {
   if (workerPromise) return;
 
+  const runtime = kv ?? getProcessKvRuntime();
+  getQueueTaskStore(runtime);
+  const kvdb = await runtime.get();
+
   isWorkerRunning = true;
-  const kv = await getKvStore();
-  workerPromise = kv.listenQueue(async (payload) => {
+  workerPromise = kvdb.listenQueue(async (payload) => {
     if (!isWorkerRunning) return;
     if (!isDelayedEchoQueueMessage(payload)) return;
     await processDelayedEchoMessage(payload);
@@ -75,16 +87,21 @@ export async function startTaskQueueWorker(): Promise<void> {
 export function stopTaskQueueWorker(): void {
   isWorkerRunning = false;
   workerPromise = null;
+  taskStore = null;
 }
 
 /** Enqueues a delayed-echo task for background execution. */
-export async function enqueueDelayedEchoTask(spec: {
-  taskId: string;
-  text: string;
-  delayMs: number;
-}): Promise<void> {
-  const kv = await getKvStore();
-  await kv.enqueue(
+export async function enqueueDelayedEchoTask(
+  spec: {
+    taskId: string;
+    text: string;
+    delayMs: number;
+  },
+  kv?: KvRuntime,
+): Promise<void> {
+  const runtime = kv ?? getProcessKvRuntime();
+  const kvdb = await runtime.get();
+  await kvdb.enqueue(
     {
       type: "delayed-echo",
       taskId: spec.taskId,

@@ -3,7 +3,8 @@ import type {
   TaskMessageQueue,
 } from "@modelcontextprotocol/sdk/experimental/tasks/interfaces.js";
 
-import { getKvStore } from "$/kv/mod.ts";
+import { getProcessKvRuntime } from "$/kv/mod.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
 
 import { createTaskMetaKey } from "./kvTaskStore.ts";
 
@@ -40,13 +41,23 @@ function withOptionalExpireIn<T>(
 
 /** Deno KV `TaskMessageQueue`: one key per task, FIFO `QueuedMessage[]`, TTL aligned with task meta. */
 export class KvTaskMessageQueue implements TaskMessageQueue {
+  readonly #kv: KvRuntime;
+
+  constructor(kv?: KvRuntime) {
+    this.#kv = kv ?? getProcessKvRuntime();
+  }
+
+  async #getKv(): Promise<Deno.Kv> {
+    return await this.#kv.get();
+  }
+
   async enqueue(
     taskId: string,
     message: QueuedMessage,
     _sessionId?: string,
     maxSize?: number,
   ): Promise<void> {
-    const kv = await getKvStore();
+    const kv = await this.#getKv();
     const qk = createQueueKey(taskId);
 
     for (let attempt = 0; attempt < MAX_CONCURRENCY_RETRIES; attempt++) {
@@ -73,7 +84,7 @@ export class KvTaskMessageQueue implements TaskMessageQueue {
   }
 
   async dequeue(taskId: string, _sessionId?: string): Promise<QueuedMessage | undefined> {
-    const kv = await getKvStore();
+    const kv = await this.#getKv();
     const qk = createQueueKey(taskId);
 
     for (let attempt = 0; attempt < MAX_CONCURRENCY_RETRIES; attempt++) {
@@ -106,7 +117,7 @@ export class KvTaskMessageQueue implements TaskMessageQueue {
   }
 
   async dequeueAll(taskId: string, _sessionId?: string): Promise<QueuedMessage[]> {
-    const kv = await getKvStore();
+    const kv = await this.#getKv();
     const qk = createQueueKey(taskId);
 
     for (let attempt = 0; attempt < MAX_CONCURRENCY_RETRIES; attempt++) {
@@ -138,15 +149,16 @@ export class KvTaskMessageQueue implements TaskMessageQueue {
 /**
  * Deletes queue rows whose task meta is gone (TTL races / crashes). Returns number of keys removed.
  */
-export async function cleanupOrphanTaskQueues(): Promise<number> {
-  const kv = await getKvStore();
+export async function cleanupOrphanTaskQueues(kvRuntime?: KvRuntime): Promise<number> {
+  const runtime = kvRuntime ?? getProcessKvRuntime();
+  const kvdb = await runtime.get();
   let removed = 0;
-  for await (const entry of kv.list({ prefix: [...TASK_QUEUE_PREFIX] })) {
+  for await (const entry of kvdb.list({ prefix: [...TASK_QUEUE_PREFIX] })) {
     const taskId = String(entry.key.at(-1) ?? "");
     if (!taskId) continue;
-    const meta = await kv.get(createTaskMetaKey(taskId));
+    const meta = await kvdb.get(createTaskMetaKey(taskId));
     if (!meta.value) {
-      await kv.delete(entry.key);
+      await kvdb.delete(entry.key);
       removed += 1;
     }
   }
