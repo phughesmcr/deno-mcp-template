@@ -369,7 +369,8 @@ src/
 mcp-ui/                     # Vite + ext-apps front-end for MCP App HTML bundles
 static/                     # Static files, OpenAPI spec, DXT manifest, mcp-apps/*.html
 scripts/                    # Setup, build, and packaging helpers
-test/                       # Integration tests and benchmarks
+__test__                    # Tests
+__bench__                   # Benchmarks
 .github/workflows/          # CI, release, deploy, publish
 ```
 
