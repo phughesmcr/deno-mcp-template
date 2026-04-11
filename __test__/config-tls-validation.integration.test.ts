@@ -1,13 +1,8 @@
 import { validateHttpConfig } from "$/shared/validation/config.ts";
-import {
-  assert,
-  assertEquals,
-  baseCliOptions as createBaseCliOptions,
-  defaultValidateConfigDeps,
-} from "./helpers.ts";
+import { assert, assertEquals, baseMcpConfigInput, defaultValidateConfigDeps } from "./helpers.ts";
 
 Deno.test("validateHttpConfig requires both TLS cert and key", () => {
-  const options = createBaseCliOptions();
+  const options = baseMcpConfigInput();
   const result = validateHttpConfig(
     { ...options, tlsCert: "/tmp/cert.pem" },
     defaultValidateConfigDeps,
@@ -21,7 +16,7 @@ Deno.test("validateHttpConfig requires both TLS cert and key", () => {
 });
 
 Deno.test("validateHttpConfig rejects missing TLS files", () => {
-  const options = createBaseCliOptions();
+  const options = baseMcpConfigInput();
   const result = validateHttpConfig({
     ...options,
     tlsCert: "/tmp/definitely-missing-cert.pem",
@@ -42,7 +37,7 @@ Deno.test("validateHttpConfig accepts valid TLS cert and key paths", async () =>
       keyPath,
       "-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----",
     );
-    const options = createBaseCliOptions();
+    const options = baseMcpConfigInput();
     const result = validateHttpConfig({
       ...options,
       tlsCert: certPath,

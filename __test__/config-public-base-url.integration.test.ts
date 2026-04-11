@@ -1,5 +1,5 @@
 import { validateHttpConfig } from "$/shared/validation/config.ts";
-import { baseCliOptions as baseCli, defaultValidateConfigDeps } from "./helpers.ts";
+import { baseMcpConfigInput as baseCli, defaultValidateConfigDeps } from "./helpers.ts";
 
 Deno.test("validateHttpConfig rejects publicBaseUrl when HTTP disabled", () => {
   const result = validateHttpConfig(

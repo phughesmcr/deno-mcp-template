@@ -169,9 +169,6 @@ export type CliBuiltCommand = ReturnType<typeof buildCommand>;
 export type CliParseResult = Awaited<ReturnType<CliBuiltCommand["parse"]>>;
 export type CliRawOptions = CliParseResult["options"];
 
-/** @deprecated Use {@link McpConfigInput} — alias kept for existing test imports. */
-export type CliOptions = McpConfigInput;
-
 /** Merges two arrays of strings, removing duplicates */
 function mergeArrays(a?: string[], b?: string[]): string[] {
   return [...new Set([...a ?? [], ...b ?? []])];

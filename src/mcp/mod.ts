@@ -132,7 +132,6 @@ export {
   deriveMcpRuntimeRequirements,
   MCP_APPS_EXTENSION_ID,
   type McpRuntimeRequirements,
-  mcpRuntimeRequiresNet,
   type McpServerDefinition,
   mcpServerDefinition,
 } from "./serverDefinition.ts";

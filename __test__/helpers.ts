@@ -84,9 +84,6 @@ export function baseMcpConfigInput(overrides: Partial<McpConfigInput> = {}): Mcp
   };
 }
 
-/** @deprecated Use {@link baseMcpConfigInput}. */
-export const baseCliOptions = baseMcpConfigInput;
-
 /** Production file stat — use with {@link validateConfig} / {@link validateHttpConfig} in integration tests. */
 export const defaultValidateConfigDeps: ValidateConfigDeps = { files: denoFileStatPort };
 

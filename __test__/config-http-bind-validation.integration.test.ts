@@ -1,5 +1,9 @@
 import { validateHttpConfig } from "$/shared/validation/config.ts";
-import { assertEquals, baseCliOptions as baseCli, defaultValidateConfigDeps } from "./helpers.ts";
+import {
+  assertEquals,
+  baseMcpConfigInput as baseCli,
+  defaultValidateConfigDeps,
+} from "./helpers.ts";
 
 Deno.test({
   name: "validateHttpConfig rejects 0.0.0.0 without DNS rebinding and allowed hosts",

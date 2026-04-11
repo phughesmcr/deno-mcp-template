@@ -29,13 +29,6 @@ export function deriveMcpRuntimeRequirements(def: McpServerDefinition): McpRunti
 }
 
 /**
- * @deprecated Prefer {@link deriveMcpRuntimeRequirements}; kept for a stable import path.
- */
-export function mcpRuntimeRequiresNet(def: McpServerDefinition): boolean {
-  return deriveMcpRuntimeRequirements(def).net;
-}
-
-/**
  * MCP Apps extension id
  * ({@link https://modelcontextprotocol.io/extensions/overview#negotiation}).
  */
