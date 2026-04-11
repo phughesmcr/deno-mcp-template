@@ -118,6 +118,7 @@ export {
   buildServerCapabilities,
   type DeclaredServerCapabilities,
   MCP_APPS_EXTENSION_ID,
+  mcpRuntimeRequiresNet,
   type McpServerDefinition,
   mcpServerDefinition,
 } from "./serverDefinition.ts";

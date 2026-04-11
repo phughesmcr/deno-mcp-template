@@ -86,8 +86,8 @@ export function createHttpServer(
     try {
       await transports.releaseAll();
       await transports.close();
-    } catch {
-      /* ignore */
+    } catch (error) {
+      console.error(`${APP_NAME}: HTTP transport cleanup failed`, error);
     } finally {
       server?.unref();
       await server?.shutdown();

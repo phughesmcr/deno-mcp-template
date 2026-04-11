@@ -12,6 +12,17 @@ import { prompts } from "./prompts/mod.ts";
 import { resources } from "./resources/mod.ts";
 import { tools } from "./tools/mod.ts";
 
+const EXECUTE_CODE_TOOL_NAME = "execute-code";
+
+/**
+ * Returns true when registered MCP features need Deno `net` at runtime even if HTTP is off
+ * (outbound `fetch`, sandbox API, etc.). Extend here when adding tools that use the network.
+ */
+export function mcpRuntimeRequiresNet(def: McpServerDefinition): boolean {
+  if (def.fetchWebsiteInfoApp) return true;
+  return def.tools.some((tool) => tool[0] === EXECUTE_CODE_TOOL_NAME);
+}
+
 /**
  * MCP Apps extension id
  * ({@link https://modelcontextprotocol.io/extensions/overview#negotiation}).

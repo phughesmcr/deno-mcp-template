@@ -61,7 +61,8 @@ Deno.test({
 });
 
 Deno.test({
-  name: "permission preflight does not require network permission when HTTP is disabled",
+  name:
+    "permission preflight requires network when HTTP is disabled but default MCP tools need outbound access",
   permissions: {
     env: true,
     read: true,
@@ -78,6 +79,18 @@ Deno.test({
       },
     };
 
-    await verifyRuntimePermissions(stdioOnlyConfig);
+    let error: unknown;
+    try {
+      await verifyRuntimePermissions(stdioOnlyConfig);
+    } catch (err) {
+      error = err;
+    }
+
+    assert(error instanceof Error, "expected permission preflight to throw");
+    const errorMessage = error instanceof Error ? error.message : "";
+    assert(
+      errorMessage.includes("--allow-net"),
+      "expected missing permission message to include --allow-net guidance",
+    );
   },
 });

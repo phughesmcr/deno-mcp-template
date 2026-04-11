@@ -57,7 +57,7 @@ export async function executeFetchWebsiteInfo(args: unknown): Promise<CallToolRe
     const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
     try {
-      const response = await headUrlWithSafeRedirects(url, controller.signal);
+      const { response, redirected } = await headUrlWithSafeRedirects(url, controller.signal);
       clearTimeout(timeoutId);
 
       const headers: Record<string, string> = {};
@@ -70,7 +70,7 @@ export async function executeFetchWebsiteInfo(args: unknown): Promise<CallToolRe
         url: response.url,
         status: response.status,
         statusText: response.statusText,
-        redirected: response.redirected,
+        redirected,
         headers,
         timestamp: new Date().toISOString(),
       };

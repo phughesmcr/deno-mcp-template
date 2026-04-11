@@ -24,7 +24,11 @@ export interface UrlElicitationRegistry {
   }): void;
   /** Returns the record when `elicitationId` exists and `sessionId` matches and status is pending. */
   getPendingForSession(elicitationId: string, sessionId: string): UrlElicitationRecord | undefined;
-  /** Idempotent: runs the notifier at most once. */
+  /**
+   * Idempotent: runs the notifier at most once.
+   * The MCP SDK notifier signals that the elicitation flow finished; this demo does not distinguish
+   * confirm vs cancel at the protocol level (see `registerUrlElicitationRoutes`).
+   */
   complete(elicitationId: string): Promise<void>;
   /** Removes entries older than {@link URL_ELICITATION_TTL_MS}. Returns count removed. */
   cleanupExpired(now?: number): number;

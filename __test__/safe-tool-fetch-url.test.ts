@@ -1,9 +1,10 @@
 import {
   assertUrlAllowedForServerSideFetch,
   DisallowedFetchUrlError,
+  headUrlWithSafeRedirects,
   isUrlAllowedForServerSideFetch,
 } from "$/shared/validation/safeToolFetchUrl.ts";
-import { assert } from "./helpers.ts";
+import { assert, assertEquals } from "./helpers.ts";
 
 const httpsOnly = { allowHttp: false };
 const httpAllowed = { allowHttp: true };
@@ -53,4 +54,31 @@ Deno.test("assertUrlAllowed throws DisallowedFetchUrlError for blocked URL", () 
     threw = e instanceof DisallowedFetchUrlError;
   }
   assert(threw, "expected DisallowedFetchUrlError");
+});
+
+Deno.test("headUrlWithSafeRedirects sets redirected when following a validated hop", async () => {
+  const mockFetch: typeof fetch = (input) => {
+    const u = String(input);
+    if (u === "https://example.com/start") {
+      return Promise.resolve(
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://example.com/end" },
+        }),
+      );
+    }
+    if (u === "https://example.com/end") {
+      return Promise.resolve(new Response(null, { status: 200, statusText: "OK" }));
+    }
+    return Promise.reject(new Error(`unexpected fetch ${u}`));
+  };
+
+  const { response, redirected } = await headUrlWithSafeRedirects(
+    "https://example.com/start",
+    AbortSignal.timeout(5000),
+    { fetch: mockFetch },
+  );
+
+  assertEquals(redirected, true);
+  assertEquals(response.status, 200);
 });

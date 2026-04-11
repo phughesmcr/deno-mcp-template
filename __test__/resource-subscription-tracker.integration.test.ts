@@ -86,7 +86,7 @@ Deno.test("subscription tracker only notifies subscribers of matching URIs", asy
   assertEquals(helloUpdates, 0);
 });
 
-Deno.test("subscription tracker drops failing notifiers without affecting others", async () => {
+Deno.test("subscription tracker keeps subscriptions when a notifier throws (cleanup on transport close)", async () => {
   const watcher = new FakeWatcher();
   const tracker = createResourceSubscriptionTracker(watcher);
 
@@ -104,12 +104,19 @@ Deno.test("subscription tracker drops failing notifiers without affecting others
 
   await watcher.trigger(COUNTER_URI);
   assertEquals(healthyUpdates, 1);
+  await watcher.trigger(COUNTER_URI);
+  assertEquals(healthyUpdates, 2);
   assert(
     tracker.isSubscribed(COUNTER_URI),
     "Expected healthy subscription to remain after notifier failure",
   );
 
   await tracker.unsubscribe(healthyNotifier, COUNTER_URI);
+  assert(
+    watcher.unwatchCalls.length === 0,
+    "failing notifier still holds the URI",
+  );
+  await tracker.unsubscribe(failingNotifier, COUNTER_URI);
   assertEquals(watcher.unwatchCalls.length, 1);
   assertEquals(watcher.unwatchCalls[0], COUNTER_URI);
 });

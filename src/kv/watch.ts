@@ -25,42 +25,60 @@ export interface KvWatcher {
 export function createKvWatcher(): KvWatcher {
   /** Map<uri, WatchState> */
   const states = new Map<string, WatchState>();
+  /** Serialize concurrent `watch(uri)` so only one KV watch stream is created per `uri`. */
+  const inflightSetup = new Map<string, Promise<void>>();
 
   const watch = async (uri: string, key: Deno.KvKey, onChange: WatchCallback): Promise<void> => {
     if (states.has(uri)) return;
 
-    const kv = await getKvStore();
-    const stream = kv.watch([key]);
-    const reader = stream.getReader();
+    let setup = inflightSetup.get(uri);
+    if (!setup) {
+      setup = (async () => {
+        const kv = await getKvStore();
+        if (states.has(uri)) return;
 
-    const runWatchLoop = async (): Promise<void> => {
-      let isFirstEvent = true;
-      while (true) {
-        const { done } = await reader.read();
-        if (done) break;
-        if (isFirstEvent) {
-          // Ignore the initial snapshot event; only notify on subsequent updates.
-          isFirstEvent = false;
-          continue;
-        }
-        await onChange();
-      }
-    };
+        const stream = kv.watch([key]);
+        const reader = stream.getReader();
 
-    const task = runWatchLoop().catch((error) => {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!message.toLowerCase().includes("closed")) {
-        console.error(`KV watcher for ${uri} failed`, error);
-      }
-    }).finally(() => {
-      states.delete(uri);
-      reader.releaseLock();
-    });
+        const runWatchLoop = async (): Promise<void> => {
+          let isFirstEvent = true;
+          while (true) {
+            const { done } = await reader.read();
+            if (done) break;
+            if (isFirstEvent) {
+              // Ignore the initial snapshot event; only notify on subsequent updates.
+              isFirstEvent = false;
+              continue;
+            }
+            await onChange();
+          }
+        };
 
-    states.set(uri, { reader, task });
+        const task = runWatchLoop().catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!message.toLowerCase().includes("closed")) {
+            console.error(`KV watcher for ${uri} failed`, error);
+          }
+        }).finally(() => {
+          states.delete(uri);
+          reader.releaseLock();
+        });
+
+        states.set(uri, { reader, task });
+      })().finally(() => {
+        inflightSetup.delete(uri);
+      });
+      inflightSetup.set(uri, setup);
+    }
+
+    await setup;
   };
 
   const unwatch = async (uri: string): Promise<void> => {
+    const pending = inflightSetup.get(uri);
+    if (pending) {
+      await pending.catch(() => {});
+    }
     const state = states.get(uri);
     if (!state) return;
     states.delete(uri);

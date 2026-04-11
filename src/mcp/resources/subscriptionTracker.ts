@@ -48,7 +48,9 @@ export function createResourceSubscriptionTracker(
     for (const [notifier, subscriptions] of subscriptionsByNotifier) {
       if (!subscriptions.has(uri)) continue;
       promises.push(
-        notifier(uri).catch(() => unregister(notifier)),
+        notifier(uri).catch((error) => {
+          console.error(`Resource subscription notifier failed for ${uri}`, error);
+        }),
       );
     }
     await Promise.allSettled(promises);

@@ -101,6 +101,11 @@ export function registerUrlElicitationRoutes<E extends Env>(
     );
   });
 
+  /**
+   * Confirm and cancel both complete the elicitation and invoke the SDK completion notifier once.
+   * The HTML response differs; clients that need distinct outcomes should extend the flow (if the
+   * SDK adds structured completion payloads) or use a different elicitation mode.
+   */
   app.post("/mcp-elicitation/confirm", async function (c) {
     let body: Record<string, string>;
     try {

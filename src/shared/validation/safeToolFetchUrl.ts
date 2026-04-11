@@ -1,3 +1,15 @@
+/**
+ * Server-side fetch helpers for MCP tools (SSRF mitigation).
+ *
+ * **DNS / resolution caveat:** {@link isUrlAllowedForServerSideFetch} inspects the request URL
+ * string (host literals, blocked IP ranges, suffix rules). It does **not** validate addresses after
+ * DNS resolution. Hostnames that resolve to private or changing targets can still be a risk in
+ * hostile environments. For stricter deployments, use an egress proxy, resolver/egress policy,
+ * disable outbound tools, or add resolved-address checks when your runtime supports them.
+ *
+ * @module
+ */
+
 /** Error thrown when a URL is rejected by server-side fetch policy (SSRF mitigation). */
 export class DisallowedFetchUrlError extends Error {
   override readonly name = "DisallowedFetchUrlError";
@@ -66,6 +78,9 @@ function isBlockedIpv6Hostname(hostname: string): boolean {
 /**
  * Returns true when the URL's origin is allowed for the `fetch-website-info` tool
  * (blocks private/link-local/metadata targets; optional HTTP).
+ *
+ * This is **not** a guarantee against DNS rebinding or post-resolution private targets; see module
+ * doc.
  */
 export function isUrlAllowedForServerSideFetch(
   url: URL,
@@ -114,13 +129,28 @@ function readAllowHttpFromEnv(): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
+export type SafeHeadWithRedirectsResult = {
+  response: Response;
+  /** True when at least one 3xx hop was followed to a validated next URL. */
+  redirected: boolean;
+};
+
+export type HeadUrlWithSafeRedirectsDeps = {
+  /** Injected for tests; defaults to global `fetch`. */
+  fetch?: typeof fetch;
+};
+
 /**
  * Performs HEAD with `redirect: manual`, validating each hop.
+ *
+ * `Response.redirected` is unreliable with `redirect: "manual"`; use {@link SafeHeadWithRedirectsResult.redirected}.
  */
 export async function headUrlWithSafeRedirects(
   initialUrl: string,
   signal: AbortSignal,
-): Promise<Response> {
+  deps?: HeadUrlWithSafeRedirectsDeps,
+): Promise<SafeHeadWithRedirectsResult> {
+  const doFetch = deps?.fetch ?? fetch;
   const options: SafeToolFetchUrlOptions = { allowHttp: readAllowHttpFromEnv() };
   let current: URL;
   try {
@@ -129,9 +159,10 @@ export async function headUrlWithSafeRedirects(
     throw new DisallowedFetchUrlError();
   }
   assertUrlAllowedForServerSideFetch(current, options);
+  let redirected = false;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const response = await fetch(current.toString(), {
+    const response = await doFetch(current.toString(), {
       method: "HEAD",
       redirect: "manual",
       signal,
@@ -140,7 +171,7 @@ export async function headUrlWithSafeRedirects(
     if (response.status >= 300 && response.status < 400) {
       const loc = response.headers.get("location");
       if (!loc) {
-        return response;
+        return { response, redirected };
       }
       let next: URL;
       try {
@@ -150,10 +181,11 @@ export async function headUrlWithSafeRedirects(
       }
       assertUrlAllowedForServerSideFetch(next, options);
       current = next;
+      redirected = true;
       continue;
     }
 
-    return response;
+    return { response, redirected };
   }
 
   throw new DisallowedFetchUrlError("Too many redirects");
