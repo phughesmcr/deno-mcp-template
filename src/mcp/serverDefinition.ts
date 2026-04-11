@@ -12,15 +12,27 @@ import { prompts } from "./prompts/mod.ts";
 import { resources } from "./resources/mod.ts";
 import { tools } from "./tools/mod.ts";
 
-const EXECUTE_CODE_TOOL_NAME = "execute-code";
+/** Subset of Deno permissions MCP features may require when HTTP is disabled. */
+export type McpRuntimeRequirements = Readonly<{
+  net: boolean;
+}>;
 
 /**
- * Returns true when registered MCP features need Deno `net` at runtime even if HTTP is off
- * (outbound `fetch`, sandbox API, etc.). Extend here when adding tools that use the network.
+ * Pure fold over the server definition and tool {@link ToolConfig.runtime} metadata.
+ * Declare `runtime.requiresNet` on tools that perform outbound I/O; keep `fetchWebsiteInfoApp`
+ * in sync with the fetch-website-info MCP App registration.
+ */
+export function deriveMcpRuntimeRequirements(def: McpServerDefinition): McpRuntimeRequirements {
+  if (def.fetchWebsiteInfoApp) return { net: true };
+  const needsNetFromTool = def.tools.some((tool) => tool[1].runtime?.requiresNet === true);
+  return { net: needsNetFromTool };
+}
+
+/**
+ * @deprecated Prefer {@link deriveMcpRuntimeRequirements}; kept for a stable import path.
  */
 export function mcpRuntimeRequiresNet(def: McpServerDefinition): boolean {
-  if (def.fetchWebsiteInfoApp) return true;
-  return def.tools.some((tool) => tool[0] === EXECUTE_CODE_TOOL_NAME);
+  return deriveMcpRuntimeRequirements(def).net;
 }
 
 /**

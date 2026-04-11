@@ -62,6 +62,7 @@ const name = "execute-code";
 
 // deno-lint-ignore no-explicit-any
 const config: ToolConfig<typeof schema.shape, any> = {
+  runtime: { requiresNet: true },
   title: "Execute Code in Sandbox",
   description:
     "Safely execute TypeScript or JavaScript code in an isolated Deno Sandbox (Firecracker microVM). " +

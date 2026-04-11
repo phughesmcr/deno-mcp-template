@@ -46,6 +46,12 @@ export type ToolPlugin = [
   cb: ToolCallback<any>,
 ];
 
+/** Deno / host runtime needs for a tool (used by permission preflight). */
+export type ToolRuntimeMetadata = {
+  /** Tool performs outbound network I/O (fetch, sandbox API, etc.) when invoked. */
+  requiresNet?: boolean;
+};
+
 /** Tool configuration */
 export type ToolConfig<
   InputArgs extends ZodRawShape | undefined = undefined,
@@ -56,6 +62,8 @@ export type ToolConfig<
   inputSchema?: InputArgs;
   outputSchema?: OutputArgs;
   annotations?: ToolAnnotations;
+  /** Declared host/runtime needs; keep in sync with actual tool behavior. */
+  runtime?: ToolRuntimeMetadata;
 };
 
 /** Internal tool definition */

@@ -1,4 +1,4 @@
-import { mcpRuntimeRequiresNet, mcpServerDefinition } from "$/mcp/serverDefinition.ts";
+import { deriveMcpRuntimeRequirements, mcpServerDefinition } from "$/mcp/serverDefinition.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 
 type RequiredPermission = {
@@ -50,7 +50,7 @@ export async function verifyRuntimePermissions(config: AppConfig): Promise<void>
       descriptor: { name: "net" },
       reason:
         "Serve the HTTP transport (when enabled) and run outbound networked MCP tools (e.g. fetch-website-info, execute-code).",
-      required: config.http.enabled || mcpRuntimeRequiresNet(mcpServerDefinition),
+      required: config.http.enabled || deriveMcpRuntimeRequirements(mcpServerDefinition).net,
       grantFlag: "--allow-net",
     },
     {
