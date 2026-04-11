@@ -8,23 +8,28 @@ import {
 
 import { registerFetchWebsiteInfoApp } from "./apps/fetchWebsiteInfoApp.ts";
 import type { McpServerFactoryContext } from "./context.ts";
-import { mcpServerDefinition, SERVER_CAPABILITIES, SERVER_INFO } from "./serverDefinition.ts";
-import { KvTaskMessageQueue, KvTaskStore } from "./tasks/mod.ts";
+import { type McpAssemblyOptions, mergeMcpAssemblyPorts } from "./mcpAssembly.ts";
+import { buildServerCapabilities, mcpServerDefinition, SERVER_INFO } from "./serverDefinition.ts";
 import { registerTaskTools, ToolManager } from "./tools/mod.ts";
 import { registerUrlElicitationDemoTool } from "./tools/urlElicitationDemo.ts";
 
 /**
  * Creates a new MCP server and initializes the request handlers.
  * @param ctx - App-scoped context; reuse the same `subscriptions` for every instance in one process.
+ * @param options - Optional definition override and task store/queue factories (for tests or profiles).
  */
-export function createMcpServer(ctx: McpServerFactoryContext): McpServer {
+export function createMcpServer(
+  ctx: McpServerFactoryContext,
+  options?: McpAssemblyOptions,
+): McpServer {
   const { subscriptions } = ctx;
-  const def = mcpServerDefinition;
+  const def = options?.definition ?? mcpServerDefinition;
+  const ports = mergeMcpAssemblyPorts(options?.ports);
 
   const server = new McpServer(SERVER_INFO, {
-    capabilities: SERVER_CAPABILITIES,
-    taskStore: new KvTaskStore({ maxTtlMs: ctx.tasks.maxTtlMs }),
-    taskMessageQueue: new KvTaskMessageQueue(),
+    capabilities: buildServerCapabilities(def),
+    taskStore: ports.createTaskStore({ maxTtlMs: ctx.tasks.maxTtlMs, kv: ctx.kv }),
+    taskMessageQueue: ports.createTaskMessageQueue({ kv: ctx.kv }),
   });
   function notifyForServer(uri: string): Promise<void> {
     return server.server.sendResourceUpdated({ uri });
@@ -115,9 +120,18 @@ export {
 } from "./context.ts";
 
 export {
+  defaultMcpAssemblyPorts,
+  type McpAssemblyOptions,
+  type McpAssemblyPorts,
+  mergeMcpAssemblyPorts,
+} from "./mcpAssembly.ts";
+
+export {
   buildServerCapabilities,
   type DeclaredServerCapabilities,
+  deriveMcpRuntimeRequirements,
   MCP_APPS_EXTENSION_ID,
+  type McpRuntimeRequirements,
   mcpRuntimeRequiresNet,
   type McpServerDefinition,
   mcpServerDefinition,
