@@ -1,13 +1,8 @@
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Note: Dependabot has no Deno/JSR ecosystem; use deno outdated / lock refresh for deps.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-
-  - package-ecosystem: "deno"
     directory: "/"
     schedule:
       interval: "weekly"
