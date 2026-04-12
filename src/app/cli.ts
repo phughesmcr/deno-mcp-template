@@ -162,7 +162,44 @@ function buildCommand() {
     })
     .env("MCP_ALLOWED_HOSTS=<value:string[]>", "Allowed hosts for DNS rebinding.", {
       prefix: "MCP_",
-    });
+    })
+    // HTTP rate limiting
+    .option(
+      "--http-rate-limit / --no-http-rate-limit",
+      "Enable HTTP rate limiting (per IP / session).",
+      { default: true, conflicts: ["no-http"] },
+    )
+    .env(
+      "MCP_HTTP_RATE_LIMIT_ENABLED=<value:boolean>",
+      "Enable HTTP rate limiting.",
+      { prefix: "MCP_" },
+    )
+    .option(
+      "--http-rate-limit-window-ms <ms:integer>",
+      "HTTP rate limit window in ms (when rate limiting is enabled).",
+      { conflicts: ["no-http"] },
+    )
+    .env("MCP_HTTP_RATE_LIMIT_WINDOW_MS=<value:integer>", "HTTP rate limit window (ms).", {
+      prefix: "MCP_",
+    })
+    .option(
+      "--http-rate-limit-max <n:integer>",
+      "Max HTTP requests per window for identified clients (when rate limiting is enabled).",
+      { conflicts: ["no-http"] },
+    )
+    .env("MCP_HTTP_RATE_LIMIT_MAX=<value:integer>", "HTTP rate limit max (identified clients).", {
+      prefix: "MCP_",
+    })
+    .option(
+      "--http-rate-limit-unknown-max <n:integer>",
+      "Max HTTP requests per window for unknown client identity (when rate limiting is enabled).",
+      { conflicts: ["no-http"] },
+    )
+    .env(
+      "MCP_HTTP_RATE_LIMIT_UNKNOWN_MAX=<value:integer>",
+      "HTTP rate limit max (unknown client).",
+      { prefix: "MCP_" },
+    );
 }
 
 export type CliBuiltCommand = ReturnType<typeof buildCommand>;
@@ -172,6 +209,24 @@ export type CliRawOptions = CliParseResult["options"];
 /** Merges two arrays of strings, removing duplicates */
 function mergeArrays(a?: string[], b?: string[]): string[] {
   return [...new Set([...a ?? [], ...b ?? []])];
+}
+
+/**
+ * Normalizes `--http-rate-limit` / env `MCP_HTTP_RATE_LIMIT_ENABLED` for {@link McpConfigInput}.
+ * Cliffy may emit a boolean, a tuple, or a string; missing → default on.
+ */
+function normalizeHttpRateLimitFromCli(value: unknown): boolean {
+  if (value === false) return false;
+  if (value === true) return true;
+  if (Array.isArray(value) && value.length > 0) {
+    return normalizeHttpRateLimitFromCli(value[0]);
+  }
+  if (typeof value === "string") {
+    const s = value.trim().toLowerCase();
+    if (s === "false" || s === "0" || s === "no" || s === "off") return false;
+    if (s === "true" || s === "1" || s === "yes" || s === "on") return true;
+  }
+  return true;
 }
 
 /**
@@ -191,6 +246,10 @@ export function mapCommandOptionsToConfigInput(rawOptions: CliRawOptions): McpCo
     requireHttpAuth: rawRequireHttpAuth,
     httpBearerToken: rawHttpBearerToken,
     publicBaseUrl: rawPublicBaseUrl,
+    httpRateLimit: rawHttpRateLimit,
+    httpRateLimitWindowMs: rawHttpRateLimitWindowMs,
+    httpRateLimitMax: rawHttpRateLimitMax,
+    httpRateLimitUnknownMax: rawHttpRateLimitUnknownMax,
     ...cleanOptions
   } = rawOptions;
 
@@ -200,6 +259,10 @@ export function mapCommandOptionsToConfigInput(rawOptions: CliRawOptions): McpCo
     requireHttpAuth: rawRequireHttpAuth ?? false,
     httpBearerToken: rawHttpBearerToken,
     publicBaseUrl: rawPublicBaseUrl,
+    httpRateLimitEnabled: normalizeHttpRateLimitFromCli(rawHttpRateLimit),
+    httpRateLimitWindowMs: rawHttpRateLimitWindowMs,
+    httpRateLimitMax: rawHttpRateLimitMax,
+    httpRateLimitUnknownMax: rawHttpRateLimitUnknownMax,
     headers: mergeArrays(header, rawHeaders),
     allowedOrigins: mergeArrays(origin, rawAllowedOrigins),
     allowedHosts: mergeArrays(host, rawAllowedHosts),

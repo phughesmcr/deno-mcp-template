@@ -14,6 +14,18 @@ export type Transport = {
   isRunning: () => boolean;
 };
 
+/** HTTP rate limiting (applied in Hono before MCP routes). */
+export type HttpRateLimitConfig = {
+  /** When false, the rate limiter middleware is not registered. */
+  enabled: boolean;
+  /** Sliding window duration in milliseconds. */
+  windowMs: number;
+  /** Max requests per window when client identity is a resolved IP or session. */
+  limit: number;
+  /** Max requests per window for unknown client identity (no IP / session). */
+  unknownClientLimit: number;
+};
+
 /** The configuration for the HTTP server */
 export type HttpServerConfig = {
   enabled: boolean;
@@ -63,6 +75,8 @@ export type HttpServerConfig = {
    * Set `MCP_PUBLIC_BASE_URL` behind a reverse proxy.
    */
   publicBaseUrl?: string;
+
+  rateLimit: HttpRateLimitConfig;
 };
 
 /** The configuration for the STDIO transport */

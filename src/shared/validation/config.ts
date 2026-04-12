@@ -11,7 +11,12 @@ import {
   DEFAULT_MAX_TASK_TTL_MS,
   MIN_MAX_TASK_TTL_MS,
 } from "$/shared/constants.ts";
-import { isAllInterfacesBindHostname } from "$/shared/constants/http.ts";
+import {
+  isAllInterfacesBindHostname,
+  RATE_LIMIT,
+  RATE_LIMIT_UNKNOWN_CLIENT,
+  RATE_LIMIT_WINDOW,
+} from "$/shared/constants/http.ts";
 import { normalizePublicBaseUrl } from "$/shared/publicBaseUrl.ts";
 import {
   validateHeaders,
@@ -24,6 +29,19 @@ import {
 const UUID_V4_REGEX = new RegExp(
   /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/i,
 );
+
+/** Normalizes CLI/env booleans (`false` string, etc.). Missing → default. */
+function coerceHttpRateLimitEnabled(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  if (value === false) return false;
+  if (value === true) return true;
+  if (typeof value === "string") {
+    const s = value.trim().toLowerCase();
+    if (s === "false" || s === "0" || s === "no" || s === "off") return false;
+    if (s === "true" || s === "1" || s === "yes" || s === "on") return true;
+  }
+  return true;
+}
 
 function normalizePath(path?: string): string | undefined {
   const normalized = path?.trim();
@@ -89,6 +107,10 @@ export function validateHttpConfig(
     httpBearerToken: rawHttpBearerToken,
     requireHttpAuth,
     publicBaseUrl: rawPublicBaseUrl,
+    httpRateLimitEnabled: rawHttpRateLimitEnabled,
+    httpRateLimitWindowMs: rawHttpRateLimitWindowMs,
+    httpRateLimitMax: rawHttpRateLimitMax,
+    httpRateLimitUnknownMax: rawHttpRateLimitUnknownMax,
   } = config;
   try {
     const validatedHostname = validateHostname(hostname);
@@ -143,6 +165,24 @@ export function validateHttpConfig(
       validatedPublicBaseUrl = normalizePublicBaseUrl(String(rawPublicBaseUrl));
     }
 
+    const rateLimitEnabled = coerceHttpRateLimitEnabled(rawHttpRateLimitEnabled);
+    const windowMs = typeof rawHttpRateLimitWindowMs === "number" ?
+      rawHttpRateLimitWindowMs :
+      RATE_LIMIT_WINDOW;
+    const limit = typeof rawHttpRateLimitMax === "number" ? rawHttpRateLimitMax : RATE_LIMIT;
+    const unknownClientLimit = typeof rawHttpRateLimitUnknownMax === "number" ?
+      rawHttpRateLimitUnknownMax :
+      RATE_LIMIT_UNKNOWN_CLIENT;
+    if (!Number.isFinite(windowMs) || windowMs < 1_000) {
+      throw new Error("httpRateLimitWindowMs must be a finite number >= 1000.");
+    }
+    if (!Number.isFinite(limit) || limit < 1) {
+      throw new Error("httpRateLimitMax must be a finite number >= 1.");
+    }
+    if (!Number.isFinite(unknownClientLimit) || unknownClientLimit < 1) {
+      throw new Error("httpRateLimitUnknownMax must be a finite number >= 1.");
+    }
+
     return {
       success: true,
       value: {
@@ -159,6 +199,12 @@ export function validateHttpConfig(
         trustProxy: !!trustProxy,
         ...(bearerTrimmed ? { httpBearerToken: bearerTrimmed } : {}),
         ...(validatedPublicBaseUrl ? { publicBaseUrl: validatedPublicBaseUrl } : {}),
+        rateLimit: {
+          enabled: rateLimitEnabled,
+          windowMs,
+          limit,
+          unknownClientLimit,
+        },
       },
     };
   } catch (error) {

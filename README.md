@@ -140,7 +140,7 @@ Delete the example files you don't need from `src/mcp/tools/`, `src/mcp/resource
 - **Exposure:** Binding to a non-loopback hostname without a token logs a warning: anyone who can reach the port can use MCP. Use a token or terminate TLS and auth at a reverse proxy.
 - **All interfaces:** Listening on `0.0.0.0` or `::` requires `--dnsRebinding` plus `--host` / `MCP_ALLOWED_HOSTS` (validated at startup).
 - **CORS:** Wildcard `*` origins are not allowed; list explicit origins (e.g. `MCP_ALLOWED_ORIGINS`).
-- **Rate limits:** With `MCP_TRUST_PROXY=true`, limits follow proxy client IP headers (only safe behind a real proxy). Requests with no socket IP and no session use a lower cap (`RATE_LIMIT_UNKNOWN_CLIENT` in `src/shared/constants/http.ts`).
+- **Rate limits:** With `MCP_TRUST_PROXY=true`, limits follow proxy client IP headers (only safe behind a real proxy). Requests with no socket IP and no session use a lower cap (`RATE_LIMIT_UNKNOWN_CLIENT` in `src/shared/constants/http.ts`). Toggle the limiter with `MCP_HTTP_RATE_LIMIT_ENABLED` or `--http-rate-limit` / `--no-http-rate-limit` (default on). The MCP conformance script turns it off so long active-suite runs are not throttled with HTTP 429.
 - **`fetch-website-info`:** Only public HTTPS URLs are allowed by default (blocks private IPs, localhost, link-local, `.internal`, etc.). Redirects are followed manually with the same checks. Set `MCP_DOMAIN_TOOL_ALLOW_HTTP=1` to allow `http://` for demos. MCP Apps-capable hosts may load `ui://deno-mcp-template/fetch-website-info.html` for an inline UI; others still get JSON text in the tool result. **DNS / SSRF depth:** URL checks use the request URL string (and redirect targets), not post-resolution addresses; hostnames that resolve to private or unstable targets can still be risky in hostile networks—tighten with egress controls or disable the tool if that matters for your deployment (see `src/shared/validation/safeToolFetchUrl.ts`).
 
 See [`.env.example`](.env.example) for copy-paste variables.
@@ -289,6 +289,7 @@ Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Acti
 | `MCP_ALLOWED_HOSTS` | `--host` | | Allowed hostnames (collection) |
 | `MCP_KV_PATH` | `--kv-path` | | Custom Deno KV database path |
 | `MCP_MAX_TASK_TTL_MS` | `--max-task-ttl-ms` | `86400000` (24h) | Max client-requested TTL (ms) for experimental MCP tasks; clamped in `KvTaskStore` (min 60s, max 1y — see `src/shared/validation/config.ts`) |
+| `MCP_HTTP_RATE_LIMIT_ENABLED` | `--http-rate-limit` / `--no-http-rate-limit` | `true` | Enable per-IP/session HTTP rate limiting (`MCP_HTTP_RATE_LIMIT_*` for window and caps — see `.env.example`) |
 | `DENO_DEPLOY_TOKEN` | | | Deploy token (required by `execute-code` sandbox tool) |
 
 CLI flags override env vars. Collection values (`-H`, `--origin`, `--host`) are merged from both sources.
@@ -328,8 +329,14 @@ Use `--origin` for full origins (e.g. `https://example.com`) and `--host` for ho
 | `deno task test:integration` | Run integration tests |
 | `deno task test:coverage` | Tests with coverage report |
 | `deno task bench` | Run benchmarks |
+| `deno task conformance:server` | Run pinned `@modelcontextprotocol/conformance` against HTTP `/mcp` (requires Node.js for `npx`; see `scripts/run-mcp-conformance.sh`) |
+| `deno task conformance:list` | List scenarios for the same pinned conformance CLI |
 
 `deno task ci` runs `build:mcp-ui` first, which uses Deno-only install + Vite under `mcp-ui/` (see `mcp-ui/README.md`). CI only needs **Deno** for that step.
+
+### MCP conformance
+
+This template ships **built-in showcase** features named like the upstream reference server (`test_*` tools, `test://…` resources, `test_*` prompts) alongside the demo tools—see the individual modules in `src/mcp/tools/test*.ts`, `src/mcp/resources/test*Resource.ts`, and `src/mcp/prompts/test*Prompt*.ts`. `deno task conformance:server` runs the pinned [`@modelcontextprotocol/conformance`](https://www.npmjs.com/package/@modelcontextprotocol/conformance) CLI against the default HTTP server (rate limiting is disabled in the helper script to avoid HTTP 429 during long runs). A scenario such as `tools-call-simple-text` can still “pass” on non-reference tools if the response is plain text—even when `isError` is true—so use the conformance task or Inspector when validating behavior. Optional expected failures live in `conformance-baseline.yml` (empty `server: []` means CI fails on any failure).
 
 ### Runtime permissions
 

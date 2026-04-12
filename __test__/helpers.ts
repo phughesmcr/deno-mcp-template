@@ -6,6 +6,11 @@ import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import type { McpConfigInput, ValidateConfigDeps } from "$/shared/config-input.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 import { DEFAULT_MAX_TASK_TTL_MS } from "$/shared/constants.ts";
+import {
+  RATE_LIMIT,
+  RATE_LIMIT_UNKNOWN_CLIENT,
+  RATE_LIMIT_WINDOW,
+} from "$/shared/constants/http.ts";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { delay } from "@std/async/delay";
 
@@ -40,6 +45,12 @@ export function baseHttpConfig(overrides: Partial<AppConfig["http"]> = {}): AppC
     allowedOrigins: [],
     enableDnsRebinding: false,
     jsonResponseMode: false,
+    rateLimit: {
+      enabled: true,
+      windowMs: RATE_LIMIT_WINDOW,
+      limit: RATE_LIMIT,
+      unknownClientLimit: RATE_LIMIT_UNKNOWN_CLIENT,
+    },
     ...overrides,
   };
 }

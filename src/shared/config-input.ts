@@ -22,6 +22,14 @@ export type McpConfigInput = {
   kvPath?: string;
   httpBearerToken?: string;
   publicBaseUrl?: string;
+  /** When true (default), apply per-IP/session HTTP rate limiting. */
+  httpRateLimitEnabled?: boolean;
+  /** Override {@link HttpRateLimitConfig.windowMs} when rate limiting is enabled. */
+  httpRateLimitWindowMs?: number;
+  /** Override {@link HttpRateLimitConfig.limit} when rate limiting is enabled. */
+  httpRateLimitMax?: number;
+  /** Override {@link HttpRateLimitConfig.unknownClientLimit} when rate limiting is enabled. */
+  httpRateLimitUnknownMax?: number;
 };
 
 export type FileStatError = "not_found" | "permission_denied" | "not_file" | "unknown";

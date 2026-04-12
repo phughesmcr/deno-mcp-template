@@ -17,6 +17,18 @@ import logMessage from "./logMessage.ts";
 import notifyListChanged from "./notifyListChanged.ts";
 import poem from "./poem.ts";
 import sandbox from "./sandbox.ts";
+import testAudioContent from "./testAudioContent.ts";
+import testElicitation from "./testElicitation.ts";
+import testElicitationSep1034Defaults from "./testElicitationSep1034Defaults.ts";
+import testElicitationSep1330Enums from "./testElicitationSep1330Enums.ts";
+import testEmbeddedResource from "./testEmbeddedResource.ts";
+import testErrorHandling from "./testErrorHandling.ts";
+import testImageContent from "./testImageContent.ts";
+import testMultipleContentTypes from "./testMultipleContentTypes.ts";
+import testSampling from "./testSampling.ts";
+import testSimpleText from "./testSimpleText.ts";
+import testToolWithLogging from "./testToolWithLogging.ts";
+import testToolWithProgress from "./testToolWithProgress.ts";
 
 // deno-lint-ignore no-explicit-any
 export const tools: ToolModule<any>[] = [
@@ -27,7 +39,18 @@ export const tools: ToolModule<any>[] = [
   notifyListChanged, // List-changed notification example
   poem, // Sampling tool
   sandbox, // Sandboxed code execution
-  // ... more tools
+  testSimpleText,
+  testImageContent,
+  testAudioContent,
+  testEmbeddedResource,
+  testMultipleContentTypes,
+  testToolWithLogging,
+  testErrorHandling,
+  testToolWithProgress,
+  testSampling,
+  testElicitation,
+  testElicitationSep1034Defaults,
+  testElicitationSep1330Enums,
 ];
 
 // Allows for tools to access the MCP server for sampling

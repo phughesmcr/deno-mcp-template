@@ -2,17 +2,9 @@ import { createHTTPTransportManager } from "$/app/http/transport.ts";
 import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
+import { baseHttpConfig } from "../__test__/helpers.ts";
 
-const httpConfig: AppConfig["http"] = {
-  enabled: true,
-  hostname: "127.0.0.1",
-  port: 3001,
-  headers: [],
-  allowedHosts: [],
-  allowedOrigins: [],
-  enableDnsRebinding: false,
-  jsonResponseMode: false,
-};
+const httpConfig: AppConfig["http"] = baseHttpConfig();
 
 const initializeRequestBody = JSON.stringify({
   jsonrpc: "2.0",

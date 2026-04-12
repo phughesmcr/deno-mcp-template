@@ -3,19 +3,12 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createHonoApp } from "$/app/http/hono.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 import { validateOrigin } from "$/shared/validation/origin.ts";
-import { assertEquals, noopTransports } from "./helpers.ts";
+import { assertEquals, baseHttpConfig, noopTransports } from "./helpers.ts";
 
 function createAppWithAllowedOrigin(origin: string) {
-  const httpConfig: AppConfig["http"] = {
-    enabled: true,
-    hostname: "127.0.0.1",
-    port: 3001,
-    headers: [],
-    allowedHosts: [],
+  const httpConfig: AppConfig["http"] = baseHttpConfig({
     allowedOrigins: [origin],
-    enableDnsRebinding: false,
-    jsonResponseMode: false,
-  };
+  });
 
   return createHonoApp({
     createMcpServer: () => ({}) as McpServer,

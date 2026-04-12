@@ -141,3 +141,6 @@ scratch/
 
 .cursor/skills/
 !.cursor/skills/implementing-*
+
+# MCP conformance CLI output (@modelcontextprotocol/conformance)
+results/

@@ -2,19 +2,12 @@ import { createApp } from "$/app/app.ts";
 import { createProcessKvRuntime } from "$/kv/mod.ts";
 import { createMcpServer } from "$/mcp/mod.ts";
 import type { AppConfig, Transport } from "$/shared/config-types.ts";
-import { baseTasksConfig } from "./helpers.ts";
+import { baseHttpConfig, baseTasksConfig } from "./helpers.ts";
 
 function idleAppConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     http: {
-      enabled: false,
-      hostname: "127.0.0.1",
-      port: 3001,
-      headers: [],
-      allowedHosts: [],
-      allowedOrigins: [],
-      enableDnsRebinding: false,
-      jsonResponseMode: false,
+      ...baseHttpConfig({ enabled: false }),
     },
     stdio: {
       enabled: true,

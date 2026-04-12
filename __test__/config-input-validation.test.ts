@@ -86,6 +86,7 @@ Deno.test("mapCommandOptionsToConfigInput merges -H with headers array", () => {
     http: true,
     stdio: true,
     maxTaskTtlMs: 86_400_000,
+    httpRateLimit: true,
   } as Parameters<typeof mapCommandOptionsToConfigInput>[0];
   const input = mapCommandOptionsToConfigInput(raw);
   assert(input.headers.includes("X-A: 1"));

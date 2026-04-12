@@ -9,10 +9,23 @@ import type { AnyResourcePlugin } from "$/mcp/plugin-types.ts";
 import counter from "./counter.ts";
 import greetings from "./greetings.ts";
 import helloWorld from "./helloWorld.ts";
+import testEmbeddedResourceResource from "./testEmbeddedResourceResource.ts";
+import testExampleResource from "./testExampleResource.ts";
+import testMixedContentResource from "./testMixedContentResource.ts";
+import testStaticBinaryResource from "./testStaticBinaryResource.ts";
+import testStaticTextResource from "./testStaticTextResource.ts";
+import testTemplateResource from "./testTemplateResource.ts";
+import testWatchedResource from "./testWatchedResource.ts";
 
 export const resources: AnyResourcePlugin[] = [
   counter,
   greetings,
   helloWorld,
-  // ... more resources
+  testStaticTextResource,
+  testStaticBinaryResource,
+  testWatchedResource,
+  testExampleResource,
+  testEmbeddedResourceResource,
+  testMixedContentResource,
+  testTemplateResource,
 ];

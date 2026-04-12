@@ -12,16 +12,7 @@ import { timeout } from "hono/timeout";
 import { createEnsureTransportConnected } from "$/app/http/transportMcpBinding.ts";
 import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
-import {
-  APP_NAME,
-  BODY_LIMIT,
-  HTTP_STATUS,
-  RATE_LIMIT,
-  RATE_LIMIT_UNKNOWN_CLIENT,
-  RATE_LIMIT_WINDOW,
-  RPC_ERROR_CODES,
-  TIMEOUT,
-} from "$/shared/constants.ts";
+import { APP_NAME, BODY_LIMIT, HTTP_STATUS, RPC_ERROR_CODES, TIMEOUT } from "$/shared/constants.ts";
 import { httpSecurityPolicyFromHttpConfig } from "$/shared/httpSecurityPolicy.ts";
 import { createGetAndDeleteHandler, createPostHandler } from "./handlers.ts";
 import type { HonoBindings, HonoEnv } from "./honoEnv.ts";
@@ -102,19 +93,22 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
     }),
   );
 
-  app.use(
-    // @ts-expect-error - rateLimiter does not preserve generic Hono env typing
-    rateLimiter({
-      windowMs: RATE_LIMIT_WINDOW,
-      limit: (c) => {
-        const identity = (c as unknown as Context<HonoEnv>).var.rateLimitIdentity;
-        return identity.type === "unknown" ? RATE_LIMIT_UNKNOWN_CLIENT : RATE_LIMIT;
-      },
-      standardHeaders: "draft-7",
-      keyGenerator: (c) =>
-        rateLimitKeyFromIdentity((c as unknown as Context<HonoEnv>).var.rateLimitIdentity),
-    }),
-  );
+  if (config.rateLimit.enabled) {
+    const rl = config.rateLimit;
+    app.use(
+      // @ts-expect-error - rateLimiter does not preserve generic Hono env typing
+      rateLimiter({
+        windowMs: rl.windowMs,
+        limit: (c) => {
+          const identity = (c as unknown as Context<HonoEnv>).var.rateLimitIdentity;
+          return identity.type === "unknown" ? rl.unknownClientLimit : rl.limit;
+        },
+        standardHeaders: "draft-7",
+        keyGenerator: (c) =>
+          rateLimitKeyFromIdentity((c as unknown as Context<HonoEnv>).var.rateLimitIdentity),
+      }),
+    );
+  }
 
   applyHttpCorsMiddleware(app, config, httpSecurityPolicy);
 
