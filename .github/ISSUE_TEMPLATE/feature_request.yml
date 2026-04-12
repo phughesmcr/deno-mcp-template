@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest an idea or improvement
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Maintainers:** Set priority (`P0`–`P3`) and workflow labels within **2 business days** (see `CONTRIBUTING.md`). Most ideas start as **P3** unless they unblock critical work.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem does this solve? Who benefits?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: maintainer
+    attributes:
+      label: Maintainer checklist
+      options:
+        - label: I have set priority (P0–P3) and workflow labels on this issue
+          required: false

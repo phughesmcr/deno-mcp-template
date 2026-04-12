@@ -46,11 +46,14 @@
   },
   "tasks": {
     "setup": "deno run -A scripts/setup-template.ts",
+    "labels:github": "bash scripts/setup-sep1730-labels.sh",
     "start": "deno run --env-file=.env -A main.ts",
     "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts",
     "test:integration": "deno test --frozen -P --ignore=__test__/cli-env-prefix.integration.test.ts && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts",
     "test:coverage": "deno test --frozen -P --ignore=__test__/cli-env-prefix.integration.test.ts --coverage=coverage && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
     "bench": "deno bench --frozen -P",
+    "conformance:list": "npx --yes @modelcontextprotocol/conformance@0.1.16 list --server",
+    "conformance:server": "bash scripts/run-mcp-conformance.sh",
     "build:mcp-ui": "deno task --cwd mcp-ui install-deps && deno task --cwd mcp-ui build",
     "ci": {
       "dependencies": ["build:mcp-ui"],
@@ -117,9 +120,7 @@
     "dxt:all": {
       "description": "Create a DXT package for all platforms",
       "dependencies": ["compile:all", "dxt:pack"]
-    },
-    "conformance:list": "npx --yes @modelcontextprotocol/conformance@0.1.16 list --server",
-    "conformance:server": "bash scripts/run-mcp-conformance.sh"
+    }
   },
   "compilerOptions": {
     "strict": true,
@@ -161,7 +162,8 @@
   },
   "fmt": {
     "exclude": [
-      "mcp-ui/"
+      "mcp-ui/",
+      "*.md"
     ],
     "include": [
       "main.ts",

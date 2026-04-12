@@ -1,0 +1,75 @@
+name: Bug report
+description: Report a problem
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Maintainers:** Set priority (`P0`–`P3`) and workflow labels (`needs repro`, `needs confirmation`, `ready for work`) within **2 business days** (see `CONTRIBUTING.md`).
+
+        **P0** is reserved for critical issues (security, data loss, or severe breakage for template users). The suggested priority below is a hint only.
+
+  - type: dropdown
+    id: suggested_priority
+    attributes:
+      label: Suggested priority (optional)
+      options:
+        - "P3 — low"
+        - "P2 — medium"
+        - "P1 — high"
+        - "P0 — critical"
+    validations:
+      required: false
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+
+  - type: textarea
+    id: version
+    attributes:
+      label: Version
+      description: Paste `version` from `deno.json` or a git tag / commit SHA.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Optional logs, OS, Deno version (`deno --version`).
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: maintainer
+    attributes:
+      label: Maintainer checklist
+      options:
+        - label: I have set priority (P0–P3) and workflow labels on this issue
+          required: false
