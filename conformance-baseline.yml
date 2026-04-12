@@ -1,0 +1,4 @@
+# Known failing MCP conformance scenarios (ids). Empty lists = fail CI on any failure.
+# See https://github.com/modelcontextprotocol/conformance/blob/main/SDK_INTEGRATION.md
+server: []
+client: []
