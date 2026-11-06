@@ -1,0 +1,36 @@
+# Keeps `deno task strip` working as the template changes. The script deletes this file.
+name: Strip
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: strip-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  strip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.8
+          cache: true
+
+      - run: deno ci
+
+      - run: deno task strip
+
+      - name: Format, lint, type-check, tests
+        run: deno task ci
+
+      - name: Check the package can be published
+        run: deno publish --dry-run --allow-dirty

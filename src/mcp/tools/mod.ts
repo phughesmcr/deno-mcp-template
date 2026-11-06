@@ -5,6 +5,7 @@
  */
 
 import type { ToolPlugin } from "$/mcp/plugin-types.ts";
+import echo from "./echo.ts";
 import elicitFormWizard from "./elicitFormWizard.ts";
 import elicitInput from "./elicitInput.ts";
 import incrementCounter from "./incrementCounter.ts";
@@ -25,6 +26,7 @@ import testToolWithProgress from "./testToolWithProgress.ts";
 import urlElicitationDemo from "./urlElicitationDemo.ts";
 
 export const tools: readonly ToolPlugin[] = [
+  echo, // The smallest useful tool
   elicitInput, // Form elicitation
   elicitFormWizard, // Multi-round form elicitation with signed state
   urlElicitationDemo, // URL-mode elicitation

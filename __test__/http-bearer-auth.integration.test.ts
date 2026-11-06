@@ -107,6 +107,7 @@ Deno.test({
         handler: noopMcpHandler,
         config: httpConfigWithAuth,
         kv,
+        urlElicitation: true,
       });
 
       const url =

@@ -6,8 +6,9 @@
 
 import type { ServerCapabilities } from "@modelcontextprotocol/server";
 
-import type { AnyResourcePlugin, PromptPlugin, ToolPlugin } from "$/mcp/plugin-types.ts";
+import type { AnyResourcePlugin, AppPlugin, PromptPlugin, ToolPlugin } from "$/mcp/plugin-types.ts";
 import { APP_NAME, APP_TITLE, APP_VERSION } from "$/shared/constants/app.ts";
+import { apps } from "./apps/mod.ts";
 import { prompts } from "./prompts/mod.ts";
 import { resources } from "./resources/mod.ts";
 import { tools } from "./tools/mod.ts";
@@ -18,13 +19,11 @@ export type McpRuntimeRequirements = Readonly<{
 }>;
 
 /**
- * Pure fold over the server definition and tool `runtime` metadata.
- * Declare `runtime.requiresNet` on tools that perform outbound I/O; keep `fetchWebsiteInfoApp`
- * in sync with the fetch-website-info MCP App registration.
+ * Pure fold over the server definition and tool and app `runtime` metadata.
+ * Declare `runtime.requiresNet` on tools and apps that perform outbound I/O.
  */
 export function deriveMcpRuntimeRequirements(def: McpServerDefinition): McpRuntimeRequirements {
-  const net = def.fetchWebsiteInfoApp ||
-    def.tools.some((tool) => tool.runtime?.requiresNet === true);
+  const net = [...def.tools, ...def.apps].some((plugin) => plugin.runtime?.requiresNet === true);
   return { net };
 }
 
@@ -40,19 +39,20 @@ export interface McpServerDefinition {
   readonly tools: readonly ToolPlugin[];
   /** Advertise `resources.subscribe`, which gates `notifications/resources/updated`. */
   readonly resourceSubscribe: boolean;
-  readonly mcpAppsExtension: boolean;
-  /** Registers the fetch-website-info MCP App (requires the extension). */
-  readonly fetchWebsiteInfoApp: boolean;
+  /** Any app also advertises the MCP Apps extension. */
+  readonly apps: readonly AppPlugin[];
+  /** Mounts the `/mcp-elicitation/*` browser pages. Tools using URL-mode elicitation need it. */
+  readonly urlElicitation: boolean;
 }
 
-/** Default template features. Adjust the flags when you change subscribe or MCP Apps behavior. */
+/** Default template features. */
 export const mcpServerDefinition: McpServerDefinition = {
   prompts,
   resources,
   tools,
   resourceSubscribe: true,
-  mcpAppsExtension: true,
-  fetchWebsiteInfoApp: true,
+  apps,
+  urlElicitation: true,
 };
 
 /**
@@ -63,7 +63,7 @@ export function buildServerCapabilities(def: McpServerDefinition): ServerCapabil
   return {
     logging: {},
     ...(def.resourceSubscribe ? { resources: { subscribe: true } } : {}),
-    ...(def.mcpAppsExtension ? { extensions: { [MCP_APPS_EXTENSION_ID]: {} } } : {}),
+    ...(def.apps.length > 0 ? { extensions: { [MCP_APPS_EXTENSION_ID]: {} } } : {}),
   };
 }
 

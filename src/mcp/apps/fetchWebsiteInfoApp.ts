@@ -11,6 +11,7 @@ import {
 import type { McpServer } from "@modelcontextprotocol/server";
 import { fromFileUrl } from "@std/path";
 
+import type { AppPlugin } from "$/mcp/plugin-types.ts";
 import {
   executeFetchWebsiteInfo,
   FETCH_WEBSITE_INFO_TOOL_NAME,
@@ -48,7 +49,7 @@ function getAppHtml(): string {
  * metadata and still consume `content`, and a stateless server has no per-client tool list to
  * vary anyway.
  */
-export function registerFetchWebsiteInfoApp(server: McpServer): void {
+function registerFetchWebsiteInfoApp(server: McpServer): void {
   const html = getAppHtml();
 
   async function readFetchWebsiteInfoResource(): Promise<{
@@ -89,3 +90,11 @@ export function registerFetchWebsiteInfoApp(server: McpServer): void {
     executeFetchWebsiteInfo,
   );
 }
+
+const module: AppPlugin = {
+  name: FETCH_WEBSITE_INFO_TOOL_NAME,
+  runtime: { requiresNet: true },
+  register: registerFetchWebsiteInfoApp,
+};
+
+export default module;

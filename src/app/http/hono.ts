@@ -33,6 +33,8 @@ export interface HonoAppSpec {
   config: AppConfig["http"];
   /** Backs the `/mcp-elicitation/*` browser routes for URL-mode elicitation. */
   kv: KvRuntime;
+  /** Mounts the `/mcp-elicitation/*` routes. */
+  urlElicitation?: boolean;
 }
 
 const STATIC_ROOT = fromFileUrl(new URL("../../../static/", import.meta.url));
@@ -114,11 +116,12 @@ function createRoutes(
   app: Hono<HonoEnv>,
   handler: McpFetchHandler,
   kv: KvRuntime,
+  urlElicitation: boolean,
   notFoundHtml: string,
 ) {
   app.all("/mcp", (c) => handler.fetch(c.req.raw));
 
-  registerUrlElicitationRoutes(app, kv);
+  if (urlElicitation) registerUrlElicitationRoutes(app, kv);
 
   // Static Routes
   app.use("/static/*", serveStatic({ root: STATIC_ROOT }));
@@ -138,11 +141,13 @@ function createRoutes(
  * @param spec - The Hono application specification
  * @returns The configured Hono application
  */
-export function createHonoApp({ handler, config, kv }: HonoAppSpec): Hono<HonoEnv> {
+export function createHonoApp(
+  { handler, config, kv, urlElicitation = false }: HonoAppSpec,
+): Hono<HonoEnv> {
   const app = new Hono<HonoEnv>();
   const notFoundHtml = loadNotFoundPageHtml();
   configureMiddleware(app, config);
-  createRoutes(app, handler, kv, notFoundHtml);
+  createRoutes(app, handler, kv, urlElicitation, notFoundHtml);
   app.onError((err, c) => {
     console.error("Unhandled HTTP route error", err);
     const path = c.req.path;

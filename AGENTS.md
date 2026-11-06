@@ -10,7 +10,8 @@ Check formatting, lint, types and tests: `deno task ci` (it only checks, so run 
 Rebuild MCP App HTML (after editing `mcp-ui/`): `deno task build:mcp-ui` (Deno installs npm deps from `mcp-ui/deno.json` `imports` into `mcp-ui/node_modules` using `mcp-ui/deno.lock`; no Node.js)
 Tests with coverage: `deno task test:coverage`
 Benchmarks: `deno task bench`
-MCPB bundle (compile + pack to `dist/server.mcpb`): `deno task mcpb:<platform>` (e.g. `mcpb:mac:arm64`, `mcpb:linux:x64`, `mcpb:all`); manifest in `static/mcpb-manifest.json`
+MCPB bundle (compile all platforms + pack to `dist/server.mcpb`): `deno task mcpb:all`; `deno task mcpb:pack` repacks existing binaries; manifest in `static/mcpb-manifest.json`
+Strip the example features: `deno task strip` (`--dry-run` to preview), checked by `.github/workflows/strip.yml`. A new demo file outside `src/mcp/{tools,resources,prompts}/`, or a test that uses a demo, must be added to `DELETE` in `scripts/strip-demo.ts`
 
 ## Architecture
 
@@ -81,7 +82,8 @@ scripts/
 ├── setup-sep1730-labels.sh         # GitHub label setup
 ├── setup-template.ts               # `deno task setup` renames the template
 ├── smoke-binary.ts                 # Smoke test for compiled binaries
-└── smoke-deploy.ts                 # Checks a deployed server answers MCP
+├── smoke-deploy.ts                 # Checks a deployed server answers MCP
+└── strip-demo.ts                   # `deno task strip` removes the example features
 src/
 ├── app/
 │   ├── http/
@@ -124,10 +126,12 @@ src/
 │   │   ├── test*.ts                # Conformance showcase resources
 │   │   └── mod.ts                  # Provides a single point of export for all MCP resources
 │   ├── apps/
-│   │   └── fetchWebsiteInfoApp.ts  # MCP App UI registration (ext-apps) for fetch-website-info
+│   │   ├── fetchWebsiteInfoApp.ts  # MCP App UI registration (ext-apps) for fetch-website-info
+│   │   └── mod.ts                  # Provides a single point of export for all MCP Apps
 │   ├── showcase/
 │   │   └── sharedConstants.ts      # Shared fixtures for the test* conformance features
 │   ├── tools/
+│   │   ├── echo.ts                 # The smallest useful tool; start from this one
 │   │   ├── elicitFormWizard.ts     # Two-step form elicitation with signed requestState
 │   │   ├── elicitInput.ts          # A form elicitation tool example (input_required)
 │   │   ├── fetchWebsiteInfoShared.ts # Shared logic for fetch-website-info (HEAD + structured output)

@@ -14,6 +14,7 @@ function createApp(runtime: KvRuntime) {
     handler: noopMcpHandler,
     config: baseHttpConfig({ httpBearerToken: "secret" }),
     kv: runtime,
+    urlElicitation: true,
   });
 }
 
@@ -24,6 +25,24 @@ function confirmRequest(elicitation: string, action: string): Request {
     body: new URLSearchParams({ elicitation, action }).toString(),
   });
 }
+
+Deno.test({
+  name: "/mcp-elicitation/* is not served unless URL elicitation is on",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: () =>
+    withMemoryKv(async (_kv, runtime) => {
+      const app = createHonoApp({
+        handler: noopMcpHandler,
+        config: baseHttpConfig({}),
+        kv: runtime,
+      });
+
+      const res = await app.fetch(confirmRequest("id", "confirm"), { clientIp: "127.0.0.1" });
+      assertEquals(res.status, 404);
+      await res.body?.cancel();
+    }),
+});
 
 for (
   const { action, status, heading } of [

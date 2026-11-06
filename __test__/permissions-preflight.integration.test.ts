@@ -1,4 +1,5 @@
 import { verifyRuntimePermissions } from "$/app/permissions.ts";
+import type { McpServerDefinition } from "$/mcp/serverDefinition.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 import { assert, baseHttpConfig } from "./helpers.ts";
 
@@ -51,9 +52,24 @@ Deno.test({
   },
 });
 
+const stdioOnlyConfig: AppConfig = {
+  ...baseConfig,
+  http: { ...baseConfig.http, enabled: false },
+};
+
+function definitionWithTool(requiresNet: boolean): McpServerDefinition {
+  return {
+    prompts: [],
+    resources: [],
+    tools: [{ name: "stub", runtime: { requiresNet }, register: () => {} }],
+    resourceSubscribe: false,
+    apps: [],
+    urlElicitation: false,
+  };
+}
+
 Deno.test({
-  name:
-    "permission preflight requires network when HTTP is disabled but default MCP tools need outbound access",
+  name: "permission preflight requires network when HTTP is disabled but a tool needs it",
   permissions: {
     env: true,
     read: true,
@@ -62,17 +78,9 @@ Deno.test({
     sys: true,
   },
   fn: async () => {
-    const stdioOnlyConfig: AppConfig = {
-      ...baseConfig,
-      http: {
-        ...baseConfig.http,
-        enabled: false,
-      },
-    };
-
     let error: unknown;
     try {
-      await verifyRuntimePermissions(stdioOnlyConfig);
+      await verifyRuntimePermissions(stdioOnlyConfig, definitionWithTool(true));
     } catch (err) {
       error = err;
     }
@@ -83,5 +91,19 @@ Deno.test({
       errorMessage.includes("--allow-net"),
       "expected missing permission message to include --allow-net guidance",
     );
+  },
+});
+
+Deno.test({
+  name: "permission preflight does not require network when nothing needs it",
+  permissions: {
+    env: true,
+    read: true,
+    write: true,
+    net: false,
+    sys: true,
+  },
+  fn: async () => {
+    await verifyRuntimePermissions(stdioOnlyConfig, definitionWithTool(false));
   },
 });

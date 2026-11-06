@@ -1,4 +1,8 @@
-import { deriveMcpRuntimeRequirements, mcpServerDefinition } from "$/mcp/serverDefinition.ts";
+import {
+  deriveMcpRuntimeRequirements,
+  type McpServerDefinition,
+  mcpServerDefinition,
+} from "$/mcp/serverDefinition.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 
 type RequiredPermission = {
@@ -25,8 +29,13 @@ async function getMissingPermissions(
 /**
  * Verifies runtime permissions required by the configured app features.
  * Throws a descriptive error when one or more permissions are missing.
+ * @param config - The app configuration
+ * @param def - Feature registry override (for tests or profiles).
  */
-export async function verifyRuntimePermissions(config: AppConfig): Promise<void> {
+export async function verifyRuntimePermissions(
+  config: AppConfig,
+  def: McpServerDefinition = mcpServerDefinition,
+): Promise<void> {
   const requirements: RequiredPermission[] = [
     {
       descriptor: { name: "env" },
@@ -48,9 +57,8 @@ export async function verifyRuntimePermissions(config: AppConfig): Promise<void>
     },
     {
       descriptor: { name: "net" },
-      reason:
-        "Serve the HTTP transport (when enabled) and run outbound networked MCP tools (e.g. fetch-website-info, execute-code).",
-      required: config.http.enabled || deriveMcpRuntimeRequirements(mcpServerDefinition).net,
+      reason: "Serve the HTTP transport (when enabled) and run MCP tools that use the network.",
+      required: config.http.enabled || deriveMcpRuntimeRequirements(def).net,
       grantFlag: "--allow-net",
     },
     {

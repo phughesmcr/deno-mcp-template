@@ -368,8 +368,9 @@ async function main(): Promise<boolean> {
     if (info.denoDeployApp) {
       console.log(`   Set DENO_DEPLOY_APP to "${info.denoDeployApp}" if not already.`);
     }
-    console.log("4. Run `deno task ci` to check the code");
-    console.log("5. Start coding your MCP server!");
+    console.log("4. Run `deno task strip` if you don't want the example features");
+    console.log("5. Run `deno task ci` to check the code");
+    console.log("6. Start coding your MCP server!");
     return true;
   } catch (error) {
     console.error("❌ Setup failed:", error);

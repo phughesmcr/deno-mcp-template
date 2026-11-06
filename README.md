@@ -106,7 +106,7 @@ See [`AGENTS.md`](AGENTS.md) (Architecture) for the per-request `McpServer` inst
 
 **Resources:** `hello://world`, `greetings://{name}`, `counter://value` (KV-backed, updates via `subscriptions/listen`)
 
-**Tools:** `elicit-input`, `elicit-form-wizard` (two-step form elicitation), `url-elicitation-demo` (URL-mode elicitation; HTTP only), `fetch-website-info` (text + optional MCP Apps UI in supporting clients), `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
+**Tools:** `echo`, `elicit-input`, `elicit-form-wizard` (two-step form elicitation), `url-elicitation-demo` (URL-mode elicitation; HTTP only), `fetch-website-info` (text + optional MCP Apps UI in supporting clients), `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
 
 **Conformance fixtures:** the `test_*` tools, prompts and `test://` resources exist for the MCP conformance suite. Delete them with the examples if you drop the suite from CI.
 
@@ -124,13 +124,15 @@ Run `deno task setup` first -- it rewrites package names, scopes, and metadata a
 4. **`mcp-ui/`** -- Vite bundle for MCP App HTML (run `deno task build:mcp-ui`; Deno installs npm deps and runs Vite — see `mcp-ui/README.md`)
 5. **`src/mcp/resources/`** -- add your resources
 6. **`src/mcp/prompts/`** -- add your prompts
-7. **`src/mcp/serverDefinition.ts`** -- feature lists and capability flags
+7. **`src/mcp/serverDefinition.ts`** -- feature lists and flags
 8. **`src/mcp/mod.ts`** -- server construction (registration follows the definition)
 9. **`src/app/http/hono.ts`** -- adjust CORS, middleware, routes
 
 ### What to remove
 
-Delete the example files you don't need from `src/mcp/tools/`, `src/mcp/resources/`, `src/mcp/prompts/`, and (if you drop MCP Apps) `src/mcp/apps/` plus `mcp-ui/`. Update the corresponding `mod.ts` barrel exports and any registration in `src/mcp/mod.ts`. Done.
+Run `deno task strip` on a committed tree, before adding your own features. It leaves one tool (`echo`), one resource (`hello://world`) and one prompt (`review-code`), and removes everything else in those folders, the MCP App and `mcp-ui/`, the conformance suite, their tests and their dependencies. `deno task ci` still passes afterwards. Add `--dry-run` to see the list first. It tells you what is left to do by hand, such as updating this README.
+
+To keep some examples, delete what you don't need yourself: remove the files from `src/mcp/tools/`, `src/mcp/resources/`, `src/mcp/prompts/` and `src/mcp/apps/`, then remove them from the `mod.ts` in the same folder.
 
 ## HTTP security
 
@@ -337,6 +339,7 @@ Use `--origin` for full origins (e.g. `https://example.com`) and `--host` for ho
 | --- | --- |
 | `deno task start` | Start server |
 | `deno task dev` | Start with MCP Inspector + watch mode |
+| `deno task strip` | Remove the example features (`--dry-run` to preview) |
 | `deno task build:mcp-ui` | Build MCP App HTML into `static/mcp-apps/` (Deno + `mcp-ui/deno.lock`; no Node.js) |
 | `deno task ci` | Runs `build:mcp-ui`, then format, lint, type-check, and test |
 | `deno task test:integration` | Run integration tests |

@@ -20,22 +20,23 @@ function minimalDefinition(overrides: Partial<McpServerDefinition> = {}): McpSer
     resources: [helloWorld],
     tools: [echoTool],
     resourceSubscribe: true,
-    mcpAppsExtension: false,
-    fetchWebsiteInfoApp: false,
+    apps: [],
+    urlElicitation: false,
     ...overrides,
   };
 }
 
 Deno.test("buildServerCapabilities advertises subscribe and MCP Apps only when enabled", () => {
   const on = buildServerCapabilities(
-    minimalDefinition({ resourceSubscribe: true, mcpAppsExtension: true }),
+    minimalDefinition({
+      resourceSubscribe: true,
+      apps: [{ name: "stub-app", register: () => {} }],
+    }),
   );
   assertEquals(on.resources?.subscribe, true);
   assert(on.extensions?.[MCP_APPS_EXTENSION_ID] !== undefined, "expected MCP Apps extension");
 
-  const off = buildServerCapabilities(
-    minimalDefinition({ resourceSubscribe: false, mcpAppsExtension: false }),
-  );
+  const off = buildServerCapabilities(minimalDefinition({ resourceSubscribe: false }));
   assertEquals(off.resources?.subscribe, undefined);
   assertEquals(off.extensions?.[MCP_APPS_EXTENSION_ID], undefined);
 });

@@ -55,6 +55,9 @@ export type ToolPlugin = {
   register: (server: McpServer, deps: McpServerFactoryContext) => void;
 };
 
+/** An MCP App: registers its own tool and `ui://` resource, so it has the shape of a tool. */
+export type AppPlugin = ToolPlugin;
+
 /** Wraps a tool so {@link ToolDefinition.handler} also receives the shared app context. */
 export function defineTool<Input extends StandardSchemaWithJSON>(
   definition: ToolDefinition<Input>,

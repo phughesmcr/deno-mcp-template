@@ -1,6 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/server";
 
-import { registerFetchWebsiteInfoApp } from "./apps/fetchWebsiteInfoApp.ts";
 import type { McpServerFactoryContext } from "./context.ts";
 import { registerResource } from "./plugin-types.ts";
 import {
@@ -27,7 +26,7 @@ export function createMcpServer(
   for (const prompt of def.prompts) prompt.register(server, ctx);
   for (const resource of def.resources) registerResource(server, resource, ctx);
   for (const tool of def.tools) tool.register(server, ctx);
-  if (def.fetchWebsiteInfoApp) registerFetchWebsiteInfoApp(server);
+  for (const app of def.apps) app.register(server, ctx);
 
   return server;
 }

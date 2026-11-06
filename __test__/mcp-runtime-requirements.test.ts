@@ -11,8 +11,8 @@ function stubDef(overrides: Partial<McpServerDefinition>): McpServerDefinition {
     resources: [],
     tools: [],
     resourceSubscribe: false,
-    mcpAppsExtension: false,
-    fetchWebsiteInfoApp: false,
+    apps: [],
+    urlElicitation: false,
     ...overrides,
   };
 }
@@ -22,8 +22,8 @@ Deno.test("deriveMcpRuntimeRequirements: no flags and no tool metadata → net f
   if (r.net !== false) throw new Error(`expected net false, got ${r.net}`);
 });
 
-Deno.test("deriveMcpRuntimeRequirements: fetchWebsiteInfoApp → net true", () => {
-  const r = deriveMcpRuntimeRequirements(stubDef({ fetchWebsiteInfoApp: true }));
+Deno.test("deriveMcpRuntimeRequirements: app with runtime.requiresNet → net true", () => {
+  const r = deriveMcpRuntimeRequirements(stubDef({ apps: [stubTool("my-app", true)] }));
   if (r.net !== true) throw new Error(`expected net true, got ${r.net}`);
 });
 
@@ -40,16 +40,6 @@ Deno.test("deriveMcpRuntimeRequirements: tool id rename does not matter if metad
   const r = deriveMcpRuntimeRequirements(
     stubDef({
       tools: [stubTool("renamed-execute", true)],
-    }),
-  );
-  if (r.net !== true) throw new Error(`expected net true, got ${r.net}`);
-});
-
-Deno.test("deriveMcpRuntimeRequirements: fetchWebsiteInfoApp short-circuits before scanning tools", () => {
-  const r = deriveMcpRuntimeRequirements(
-    stubDef({
-      fetchWebsiteInfoApp: true,
-      tools: [],
     }),
   );
   if (r.net !== true) throw new Error(`expected net true, got ${r.net}`);

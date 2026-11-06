@@ -8,6 +8,7 @@ import {
 import type { Hono } from "hono";
 
 import type { KvRuntime } from "$/kv/runtime.ts";
+import { mcpServerDefinition } from "$/mcp/serverDefinition.ts";
 import type { HttpServerConfig, Transport } from "$/shared/config-types.ts";
 import { APP_NAME, BODY_LIMIT } from "$/shared/constants.ts";
 import {
@@ -65,7 +66,12 @@ export function createHttpServer(
       maxRequestBodySize: BODY_LIMIT,
       onerror: (error) => console.error(`${APP_NAME}: MCP request error`, describeMcpError(error)),
     });
-    hono ??= createHonoApp({ handler, config, kv: deps.kv });
+    hono ??= createHonoApp({
+      handler,
+      config,
+      kv: deps.kv,
+      urlElicitation: mcpServerDefinition.urlElicitation,
+    });
   };
 
   const connect = () => {

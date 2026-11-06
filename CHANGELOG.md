@@ -62,6 +62,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `deno task strip` reduces the template to a minimal server (`echo`, `hello://world`, `review-code`)
+  that still passes `deno task ci`, and `strip.yml` checks it on every push.
+- MCP Apps are listed in `src/mcp/apps/mod.ts`, and a `urlElicitation` flag in the server definition
+  controls the `/mcp-elicitation/*` routes.
 - SEP-1730-oriented issue labels (`deno task labels:github` / `scripts/setup-sep1730-labels.sh`), issue templates, and
   maintainer triage expectations in `.github/CONTRIBUTING.md`.
 - `.github/dependabot.yml` for automated dependency update PRs where supported.
