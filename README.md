@@ -188,6 +188,8 @@ Compile tasks bundle the `static/` directory, so binaries serve static routes wi
 
 **HTTP with mcp-remote:**
 
+This fails while the server rejects legacy clients: `mcp-remote` 0.16.1 sends 2025-11-25 and gets an unsupported-version error. Use it only if you change `legacy: "reject"` (see above).
+
 ```json
 {
   "mcpServers": {
@@ -200,6 +202,8 @@ Compile tasks bundle the `static/` directory, so binaries serve static routes wi
 ```
 
 **HTTP direct (clients with URL support):**
+
+Claude Code 2.1.318 connects with `claude mcp add --transport http my-mcp-server http://localhost:3001/mcp`. Other clients must speak 2026-07-28.
 
 ```json
 {
