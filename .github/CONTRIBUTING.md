@@ -59,7 +59,7 @@ environment variables, changed transport or security defaults, and changes to wh
 
 ```bash
 deno outdated
-deno install --entrypoint main.ts --frozen=false
+deno install --frozen=false
 ```
 
 The MCP conformance CLI version is pinned in `scripts/run-mcp-conformance.sh`, so bump it on

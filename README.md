@@ -44,7 +44,7 @@ Clone, run setup, start building. Ships with STDIO + HTTP transports, security m
 curl -fsSL https://deno.land/install.sh | sh
 
 # Create your project from template
-gh repo create my-mcp-server --template phughesmcr/deno-mcp-template
+gh repo create my-mcp-server --template phughesmcr/deno-mcp-template --private --clone
 cd my-mcp-server
 
 # One-time setup on a committed tree -- renames placeholders, then self-destructs
@@ -371,8 +371,8 @@ Set `MCP_KV_PATH` inside that folder, and add any TLS files to `--allow-read`. K
 
 This template tracks `deno.lock` for deterministic dependency resolution.
 
-- Refresh lock data: `deno install --entrypoint main.ts --frozen=false`
-- Verify locked resolution (CI): `deno install --frozen --entrypoint main.ts`
+- Refresh lock data: `deno install --frozen=false`
+- Verify locked resolution (CI): `deno install --frozen`
 - Commit `deno.lock` with dependency changes.
 
 ## Project Structure

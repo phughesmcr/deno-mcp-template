@@ -161,7 +161,7 @@ async function deno(...args: string[]): Promise<void> {
   if (!success) {
     throw new Error(
       `\`deno ${args.join(" ")}\` failed. The demos are gone, and this script with them. ` +
-        `Fix the error above, then run \`deno install --frozen=false --entrypoint main.ts\` and ` +
+        `Fix the error above, then run \`deno install --frozen=false\` and ` +
         "`deno fmt` yourself.",
     );
   }
