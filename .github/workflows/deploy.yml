@@ -47,14 +47,6 @@ jobs:
             exit 1
           fi
 
-      - name: Switch Host allowlist (temporary, one-off)
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
-          DENO_DEPLOY_APP: ${{ vars.DENO_DEPLOY_APP }}
-        run: |
-          deno deploy env update-value MCP_ALLOWED_HOSTS "*.$DENO_DEPLOY_ORG.deno.net" --non-interactive --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP"
-
       - name: Deploy to Deno Deploy
         id: deploy
         env:
