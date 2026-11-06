@@ -15,7 +15,6 @@ export class DisallowedFetchUrlError extends Error {
   override readonly name = "DisallowedFetchUrlError";
   constructor(message = "URL not allowed") {
     super(message);
-    Object.setPrototypeOf(this, DisallowedFetchUrlError.prototype);
   }
 }
 

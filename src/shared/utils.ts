@@ -54,12 +54,13 @@ export function createCallToolErrorResponse(
   };
 }
 
+/** Returns the one rejection as an `Error`, an `AggregateError` of several, or null if none. */
 export function getRejected(results: PromiseSettledResult<unknown>[]): Error | null {
-  const firstRejected = results.find((r) => r.status === "rejected") as
-    | PromiseRejectedResult
-    | undefined;
-  if (!firstRejected) return null;
-  const { reason } = firstRejected;
-  if (reason instanceof Error) return reason;
-  return new Error(String(reason));
+  const errors = results
+    .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+    .map(({ reason }) => reason instanceof Error ? reason : new Error(String(reason)));
+  if (errors.length > 1) {
+    return new AggregateError(errors, errors.map(({ message }) => message).join("; "));
+  }
+  return errors[0] ?? null;
 }
