@@ -59,7 +59,9 @@ export function validateHostHeaderAgainstAllowlist(
       normalizeAllowedList(allowedHostnames as readonly string[]),
     );
   }
-  if (!allowed.has(canonical)) {
+  const firstDot = canonical.indexOf(".");
+  const wildcard = firstDot > 0 ? `*${canonical.slice(firstDot)}` : undefined;
+  if (!allowed.has(canonical) && !(wildcard && allowed.has(wildcard))) {
     return { ok: false, message: `Invalid Host: ${hostname}` };
   }
   return { ok: true };

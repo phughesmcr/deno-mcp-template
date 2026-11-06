@@ -118,3 +118,18 @@ Deno.test({
     assertEquals(res.status, 200);
   },
 });
+
+Deno.test({
+  name: "validateHostHeaderAgainstAllowlist matches a wildcard for one subdomain label only",
+  fn: () => {
+    const allowed = ["*.example.com"];
+    const check = (host: string) => validateHostHeaderAgainstAllowlist(host, allowed).ok;
+    assertEquals(check("app-abc123.example.com"), true);
+    assertEquals(check("APP.example.com:443"), true);
+    assertEquals(check("example.com"), false);
+    assertEquals(check("a.b.example.com"), false);
+    assertEquals(check("app.example.com.evil.test"), false);
+    assertEquals(check("evilexample.com"), false);
+    assertEquals(check("localhost"), false);
+  },
+});

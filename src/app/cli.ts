@@ -154,9 +154,13 @@ function buildCommand() {
       conflicts: ["no-http"],
       depends: ["dnsRebinding"],
     })
-    .env("MCP_ALLOWED_HOSTS=<value:string[]>", "Allowed hosts for DNS rebinding.", {
-      prefix: "MCP_",
-    })
+    .env(
+      "MCP_ALLOWED_HOSTS=<value:string[]>",
+      "Allowed hosts for DNS rebinding. `*.example.com` matches one subdomain label.",
+      {
+        prefix: "MCP_",
+      },
+    )
     // HTTP rate limiting
     .option(
       "--http-rate-limit / --no-http-rate-limit",
