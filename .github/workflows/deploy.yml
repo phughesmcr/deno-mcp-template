@@ -27,6 +27,16 @@ jobs:
         with:
           deno-version: v2.9.8
 
+      - name: Create Deno Deploy app (temporary, one-off)
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
+          DENO_DEPLOY_APP: ${{ vars.DENO_DEPLOY_APP }}
+        run: |
+          deno deploy create --non-interactive --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" \
+            --source local --runtime-mode dynamic --entrypoint main.ts \
+            --build-timeout 5 --build-memory-limit 1024 --region us
+
       - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
