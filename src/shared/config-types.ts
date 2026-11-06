@@ -42,7 +42,7 @@ export type HttpServerConfig = {
   /** Whether to enable DNS rebinding protection */
   enableDnsRebinding?: boolean;
 
-  /** The allowed origins */
+  /** The allowed origins; `/mcp` answers 403 to a request with any other `Origin` */
   allowedOrigins?: string[];
 
   /** The allowed hosts */
@@ -64,7 +64,7 @@ export type HttpServerConfig = {
   trustProxy?: boolean;
 
   /**
-   * When set, HTTP `/mcp` requires `Authorization: Bearer <token>` or `x-api-key: <token>`.
+   * When set, HTTP `/mcp` requires `Authorization: Bearer <token>`.
    * Prefer `MCP_HTTP_BEARER_TOKEN` over CLI flags (process list visibility).
    */
   httpBearerToken?: string;

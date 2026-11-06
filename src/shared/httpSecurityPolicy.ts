@@ -85,6 +85,15 @@ export function describeHttpSecuritySurface(policy: HttpSecurityPolicy): HttpSec
       ],
     },
     {
+      id: "origin",
+      title: "Origin validation",
+      status: "active",
+      rationale: "`/mcp` answers 403 when an Origin header is present and not allowed.",
+      implements: [
+        { file: "src/app/http/httpSecurityMiddleware.ts", symbol: "applyHttpOriginMiddleware" },
+      ],
+    },
+    {
       id: "cors",
       title: "CORS allowlist",
       status: policy.corsAllowedOrigins.length > 0 ? "active" : "inactive",

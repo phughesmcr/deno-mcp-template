@@ -33,8 +33,8 @@ async function skipBearerAuth(_c: Context, next: Next): Promise<void> {
 }
 
 /**
- * When a bearer token is configured, requires `Authorization: Bearer <token>` or matching `x-api-key`
- * for `/mcp` requests. Skips `OPTIONS` so CORS preflight succeeds.
+ * When a bearer token is configured, requires `Authorization: Bearer <token>` for `/mcp` requests.
+ * Skips `OPTIONS` so CORS preflight succeeds.
  */
 export function createHttpBearerAuthMiddleware(
   bearerToken: string | undefined,
@@ -45,22 +45,18 @@ export function createHttpBearerAuthMiddleware(
   }
 
   return async (c: Context, next: Next) => {
-    if (c.req.path.startsWith("/mcp-elicitation")) return await next();
     if (c.req.path !== "/mcp") return await next();
     if (c.req.method === "OPTIONS") return await next();
 
     const bearer = extractBearer(c.req.header("authorization"));
-    const apiKey = c.req.header("x-api-key")?.trim();
-    const bearerOk = bearer !== undefined && await timingSafeTokenEqual(token, bearer);
-    const apiKeyOk = apiKey !== undefined && await timingSafeTokenEqual(token, apiKey);
-
-    if (!bearerOk && !apiKeyOk) {
+    if (bearer === undefined || !await timingSafeTokenEqual(token, bearer)) {
       return c.json(
         {
           error: "unauthorized",
           message: "Invalid or missing credentials",
         },
         HTTP_STATUS.UNAUTHORIZED,
+        { "WWW-Authenticate": "Bearer" },
       );
     }
     return await next();

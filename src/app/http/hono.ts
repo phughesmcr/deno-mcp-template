@@ -18,6 +18,7 @@ import { createHttpBearerAuthMiddleware } from "./httpBearerAuthMiddleware.ts";
 import {
   applyHttpCorsMiddleware,
   applyHttpHostProtectionMiddleware,
+  applyHttpOriginMiddleware,
 } from "./httpSecurityMiddleware.ts";
 import { rateLimitKeyFromIdentity, resolveRateLimitIdentity } from "./rateLimitIdentity.ts";
 import { registerUrlElicitationRoutes } from "./urlElicitationRoutes.ts";
@@ -87,6 +88,7 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
     }),
   );
 
+  applyHttpOriginMiddleware(app, httpSecurityPolicy);
   applyHttpCorsMiddleware(app, config, httpSecurityPolicy);
 
   app.use(createHttpBearerAuthMiddleware(config.httpBearerToken));
