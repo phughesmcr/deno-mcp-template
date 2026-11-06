@@ -2,12 +2,21 @@
  * @description Prompts: Pre-written templates that help users accomplish specific tasks
  * @module
  */
-import type { PromptPlugin } from "$/shared/types.ts";
+import type { PromptPlugin } from "$/mcp/plugin-types.ts";
 import codeReview from "./codeReview.ts";
 import languagePrompt from "./languagePrompt.ts";
+import testInputRequiredPrompt from "./testInputRequiredPrompt.ts";
+import testPromptWithArguments from "./testPromptWithArguments.ts";
+import testPromptWithEmbeddedResource from "./testPromptWithEmbeddedResource.ts";
+import testPromptWithImage from "./testPromptWithImage.ts";
+import testSimplePrompt from "./testSimplePrompt.ts";
 
-export const prompts: PromptPlugin[] = [
+export const prompts: readonly PromptPlugin[] = [
   codeReview,
   languagePrompt,
-  // ... more prompts
-] as const;
+  testSimplePrompt,
+  testPromptWithArguments,
+  testPromptWithEmbeddedResource,
+  testPromptWithImage,
+  testInputRequiredPrompt,
+];

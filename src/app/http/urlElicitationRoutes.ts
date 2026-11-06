@@ -5,13 +5,13 @@
 
 import type { Env, Hono } from "hono";
 
-import type {
-  UrlElicitationRecord,
-  UrlElicitationRegistry,
-} from "$/mcp/urlElicitation/registry.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
+import {
+  getUrlElicitation,
+  resolveUrlElicitation,
+  type UrlElicitationRecord,
+} from "$/mcp/urlElicitation/store.ts";
 import { isUUID } from "$/shared/validation.ts";
-
-import type { HTTPTransportManager } from "./transport.ts";
 
 function escapeHtml(s: string): string {
   return s
@@ -30,44 +30,36 @@ function errorPage(message: string): string {
 }
 
 type ElicitationGateResult =
-  | { ok: true; session: string; elicitation: string; record: UrlElicitationRecord }
+  | { ok: true; elicitation: string; record: UrlElicitationRecord }
   | { ok: false; page: string };
 
-function gatePendingElicitation(
-  registry: UrlElicitationRegistry,
-  transports: HTTPTransportManager,
-  session: string,
+async function gatePendingElicitation(
+  kv: Deno.Kv,
   elicitation: string,
-): ElicitationGateResult {
-  if (!isUUID(session) || !isUUID(elicitation)) {
+): Promise<ElicitationGateResult> {
+  if (!isUUID(elicitation)) {
     return { ok: false, page: errorPage("Invalid parameters.") };
   }
-  if (!transports.get(session)) {
-    return { ok: false, page: errorPage("Unknown or expired MCP session.") };
-  }
-  const record = registry.getPendingForSession(elicitation, session);
-  if (!record) {
+  const record = await getUrlElicitation(kv, elicitation);
+  if (record?.status !== "pending") {
     return { ok: false, page: errorPage("Unknown or expired elicitation.") };
   }
-  return { ok: true, session, elicitation, record };
+  return { ok: true, elicitation, record };
 }
 
 export function registerUrlElicitationRoutes<E extends Env>(
   app: Hono<E>,
-  deps: { registry: UrlElicitationRegistry; transports: HTTPTransportManager },
+  kvRuntime: KvRuntime,
 ): void {
-  const { registry, transports } = deps;
-
-  app.get("/mcp-elicitation/confirm", function (c) {
-    const session = c.req.query("session")?.trim() ?? "";
+  app.get("/mcp-elicitation/confirm", async function (c) {
+    const kv = await kvRuntime.get();
     const elicitation = c.req.query("elicitation")?.trim() ?? "";
-    const gate = gatePendingElicitation(registry, transports, session, elicitation);
+    const gate = await gatePendingElicitation(kv, elicitation);
     if (!gate.ok) {
       return c.html(gate.page, 400);
     }
 
     const labelHtml = escapeHtml(gate.record.label);
-    const sessionAttr = escapeAttr(gate.session);
     const elicitationAttr = escapeAttr(gate.elicitation);
 
     return c.html(
@@ -90,7 +82,6 @@ export function registerUrlElicitationRoutes<E extends Env>(
   <h1>Confirm demo action</h1>
   <p class="label">${labelHtml}</p>
   <form method="post" action="/mcp-elicitation/confirm">
-    <input type="hidden" name="session" value="${sessionAttr}"/>
     <input type="hidden" name="elicitation" value="${elicitationAttr}"/>
     <button type="submit" name="action" value="confirm" class="confirm">Confirm</button>
     <button type="submit" name="action" value="cancel" class="cancel">Cancel</button>
@@ -101,15 +92,11 @@ export function registerUrlElicitationRoutes<E extends Env>(
     );
   });
 
+  /** Records the outcome; the client reads it from KV when it retries the tool call. */
   app.post("/mcp-elicitation/confirm", async function (c) {
-    let body: Record<string, string>;
-    try {
-      body = await c.req.parseBody() as Record<string, string>;
-    } catch {
-      return c.html(errorPage("Invalid form body."), 400);
-    }
+    const body = await c.req.parseBody().catch(() => null);
+    if (!body) return c.html(errorPage("Invalid form body."), 400);
 
-    const session = typeof body.session === "string" ? body.session.trim() : "";
     const elicitation = typeof body.elicitation === "string" ? body.elicitation.trim() : "";
     const action = typeof body.action === "string" ? body.action.trim() : "";
 
@@ -117,12 +104,11 @@ export function registerUrlElicitationRoutes<E extends Env>(
       return c.html(errorPage("Invalid action."), 400);
     }
 
-    const gate = gatePendingElicitation(registry, transports, session, elicitation);
-    if (!gate.ok) {
-      return c.html(gate.page, 400);
+    const kv = await kvRuntime.get();
+    const status = action === "confirm" ? "confirmed" : "cancelled";
+    if (!isUUID(elicitation) || !await resolveUrlElicitation(kv, elicitation, status)) {
+      return c.html(errorPage("Unknown or expired elicitation."), 400);
     }
-
-    await registry.complete(gate.elicitation);
 
     let outcome: { title: string; message: string; bannerClass: string };
     if (action === "confirm") {

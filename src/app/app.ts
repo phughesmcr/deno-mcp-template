@@ -1,21 +1,17 @@
-import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
-import {
-  createResourceSubscriptionTracker,
-  type CreateTransportScopedMcpServer,
-} from "$/mcp/context.ts";
-import {
-  migrateWorkingTaskIndexIfNeeded,
-  startTaskQueueWorker,
-  stopTaskQueueWorker,
-} from "$/mcp/tasks/mod.ts";
-import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
+import { InMemoryServerEventBus } from "@modelcontextprotocol/server";
+
+import { getProcessKvRuntime } from "$/kv/mod.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
+import { createKvWatcher } from "$/kv/watch.ts";
+import type { CreateMcpServer, McpServerFactoryContext } from "$/mcp/context.ts";
+import { createRequestState } from "$/mcp/requestState.ts";
+import { RESOURCE_KV_KEYS } from "$/mcp/resources/kvKeys.ts";
+import type { AppConfig, Transport } from "$/shared/config-types.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 import { resolvePublicBaseUrl } from "$/shared/publicBaseUrl.ts";
-import type { AppConfig } from "$/shared/types.ts";
 import { getRejected } from "$/shared/utils.ts";
-import { startMaintenanceCrons } from "./cron.ts";
 import { createHttpServer } from "./http/mod.ts";
-import { verifyRuntimePermissions } from "./permissions.ts";
+import { verifyRuntimePermissions as defaultVerifyRuntimePermissions } from "./permissions.ts";
 import { setupSignalHandlers } from "./signals.ts";
 import { createStdioManager } from "./stdio.ts";
 
@@ -25,40 +21,69 @@ export interface App {
   isRunning: () => boolean;
 }
 
+/** Optional seams for tests (isolated KV, fake transports, permission stub). */
+export type CreateAppOptions = Readonly<{
+  kv?: KvRuntime;
+  stdio?: Transport;
+  http?: Transport;
+  verifyRuntimePermissions?: (config: AppConfig) => Promise<void>;
+}>;
+
 /**
  * Creates the main application instance with STDIO and HTTP transports.
  *
- * `createMcpServer` is a **transport-scoped factory**: it is invoked once for STDIO (one long-lived
- * MCP server) and once per streamable HTTP MCP session. Pass the same
- * `McpServerFactoryContext` (`subscriptions`, `urlElicitation`, `tasks`) on every invocation so
- * process-wide state stays consistent.
+ * `createMcpServer` is a factory: STDIO calls it once per connection and HTTP once per request, so
+ * instances hold no state of their own. Everything that outlives a request is in the shared
+ * {@link McpServerFactoryContext} or in KV.
  *
- * @param createMcpServer - Factory invoked per transport / HTTP session (see module docs above)
+ * @param createMcpServer - Factory invoked per connection / request (see above)
  * @param config - The application configuration
+ * @param options - Optional test / alternate wiring (see {@link CreateAppOptions}).
  */
-export function createApp(createMcpServer: CreateTransportScopedMcpServer, config: AppConfig): App {
-  configureKvPath(config.kv.path);
-  const subscriptions = createResourceSubscriptionTracker();
-  const urlElicitationRegistry = createUrlElicitationRegistry();
-  const ctx = {
-    subscriptions,
-    urlElicitation: {
-      baseUrl: resolvePublicBaseUrl(config.http),
-      registry: urlElicitationRegistry,
-    },
-    tasks: config.tasks,
-  };
-  // MCP SDK v1.27+ allows one active transport per protocol instance.
-  // Create one MCP server per transport so HTTP and STDIO can run together.
-  const stdio = createStdioManager(createMcpServer(ctx), config.stdio);
-  const http = createHttpServer(() => createMcpServer(ctx), config.http, {
-    urlElicitationRegistry,
+export function createApp(
+  createMcpServer: CreateMcpServer,
+  config: AppConfig,
+  options?: CreateAppOptions,
+): App {
+  const kvRuntime = options?.kv ?? getProcessKvRuntime();
+  kvRuntime.configurePath(config.kv.path);
+  const events = new InMemoryServerEventBus((error) => {
+    console.error(`${APP_NAME}: event listener failed`, error);
   });
+  const ctx: McpServerFactoryContext = {
+    kv: kvRuntime,
+    events,
+    requestState: createRequestState(config.mcp.requestStateKey),
+    publicBaseUrl: resolvePublicBaseUrl(config.http),
+  };
+  const createServer = () => createMcpServer(ctx);
+
+  /** With HTTP off nothing is left to serve, so stop and let the process exit. */
+  const onStdioClientClosed = (): void => {
+    const closing = config.http.enabled ? stdio.disconnect() : stop();
+    closing.catch((error) => console.error(`${APP_NAME}: STDIO shutdown failed`, error));
+  };
+
+  const stdio = options?.stdio ??
+    createStdioManager(createServer, events, config.stdio, onStdioClientClosed);
+  const http = options?.http ??
+    createHttpServer(createServer, config.http, { kv: kvRuntime, events });
+  const watcher = createKvWatcher(kvRuntime);
+
+  /** KV watches also see writes from other processes, unlike the in-process event bus. */
+  const watchResources = async (): Promise<void> => {
+    for (const [uri, key] of RESOURCE_KV_KEYS) {
+      await watcher.watch(uri, key, () => events.publish({ kind: "resource_updated", uri }));
+    }
+  };
+
+  const verifyPermissions = options?.verifyRuntimePermissions ?? defaultVerifyRuntimePermissions;
 
   let isRunning = false;
   let lastError: Error | null = null;
   let startInProgress: Promise<void> | null = null;
   let stopInProgress: Promise<void> | null = null;
+  let disposeSignalHandlers: (() => void) | null = null;
 
   const start = async (): Promise<void> => {
     if (isRunning) return;
@@ -67,13 +92,20 @@ export function createApp(createMcpServer: CreateTransportScopedMcpServer, confi
 
     startInProgress = (async () => {
       lastError = null;
+      if (!disposeSignalHandlers) {
+        disposeSignalHandlers = setupSignalHandlers(stop);
+      }
       try {
         console.error(`${APP_NAME} starting...`);
-        await verifyRuntimePermissions(config);
-        await openKvStore(config.kv.path);
-        await migrateWorkingTaskIndexIfNeeded();
-        startMaintenanceCrons({ urlElicitationRegistry });
-        await startTaskQueueWorker();
+        await verifyPermissions(config);
+        await kvRuntime.open(config.kv.path);
+        if (config.http.enabled && !config.mcp.requestStateKey) {
+          console.error(
+            `${APP_NAME}: MCP_REQUEST_STATE_KEY is not set, so this process signs requestState ` +
+              "with a random key. Multi-round calls will fail across restarts and instances.",
+          );
+        }
+        await watchResources();
         const results = await Promise.allSettled([
           stdio.connect(),
           http.connect(),
@@ -86,12 +118,10 @@ export function createApp(createMcpServer: CreateTransportScopedMcpServer, confi
         const error = err instanceof Error ? err : new Error(String(err));
         lastError = error;
         isRunning = false;
-        stopTaskQueueWorker();
-        await Promise.allSettled([
-          stdio.disconnect(),
-          http.disconnect(),
-          closeKvStore(),
-        ]);
+        await Promise.allSettled([stdio.disconnect(), http.disconnect(), watcher.stop()]);
+        await kvRuntime.close();
+        disposeSignalHandlers?.();
+        disposeSignalHandlers = null;
         throw lastError;
       } finally {
         startInProgress = null;
@@ -103,33 +133,36 @@ export function createApp(createMcpServer: CreateTransportScopedMcpServer, confi
 
   const stop = async (): Promise<void> => {
     if (startInProgress) await startInProgress.catch(() => {});
-    if (!isRunning) return;
-    if (stopInProgress) return await stopInProgress;
-
-    stopInProgress = (async () => {
-      stopTaskQueueWorker();
-      const results = await Promise.allSettled([
-        stdio.disconnect(),
-        http.disconnect(),
-        closeKvStore(),
-      ]);
-      isRunning = false;
-      lastError = getRejected(results);
-      if (lastError) {
-        console.error(`${APP_NAME} stop encountered errors`);
-        throw lastError;
-      }
-    })();
-
     try {
-      console.error(`${APP_NAME} stopping...`);
-      await stopInProgress;
+      if (!isRunning) return;
+      if (stopInProgress) return await stopInProgress;
+
+      stopInProgress = (async () => {
+        const results = await Promise.allSettled([
+          stdio.disconnect(),
+          http.disconnect(),
+          watcher.stop(),
+        ]);
+        results.push(...await Promise.allSettled([kvRuntime.close()]));
+        isRunning = false;
+        lastError = getRejected(results);
+        if (lastError) {
+          console.error(`${APP_NAME} stop encountered errors`);
+          throw lastError;
+        }
+      })();
+
+      try {
+        console.error(`${APP_NAME} stopping...`);
+        await stopInProgress;
+      } finally {
+        stopInProgress = null;
+      }
     } finally {
-      stopInProgress = null;
+      disposeSignalHandlers?.();
+      disposeSignalHandlers = null;
     }
   };
-
-  setupSignalHandlers(stop);
 
   return {
     start,

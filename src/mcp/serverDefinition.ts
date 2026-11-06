@@ -1,16 +1,32 @@
 /**
- * Single registry for MCP feature modules, capability flags, and derived `SERVER_CAPABILITIES`.
+ * Single registry for MCP feature modules and the capabilities they need declared.
  * Add or remove features here so registration and advertised capabilities stay aligned.
  * @module
  */
 
-import type { ServerCapabilities } from "@modelcontextprotocol/sdk/types";
+import type { ServerCapabilities } from "@modelcontextprotocol/server";
 
-import { APP_NAME, APP_TITLE, APP_VERSION } from "$/shared/constants/app.ts";
-import type { AnyResourcePlugin, PromptPlugin, ToolModule } from "$/shared/types.ts";
+import DenoJson from "../../deno.json" with { type: "json" };
+import type { AnyResourcePlugin, AppPlugin, PromptPlugin, ToolPlugin } from "$/mcp/plugin-types.ts";
+import { APP_DESCRIPTION, APP_NAME, APP_TITLE, APP_VERSION } from "$/shared/constants/app.ts";
+import { apps } from "./apps/mod.ts";
 import { prompts } from "./prompts/mod.ts";
 import { resources } from "./resources/mod.ts";
 import { tools } from "./tools/mod.ts";
+
+/** Subset of Deno permissions MCP features may require when HTTP is disabled. */
+export type McpRuntimeRequirements = Readonly<{
+  net: boolean;
+}>;
+
+/**
+ * Pure fold over the server definition and tool and app `runtime` metadata.
+ * Declare `runtime.requiresNet` on tools and apps that perform outbound I/O.
+ */
+export function deriveMcpRuntimeRequirements(def: McpServerDefinition): McpRuntimeRequirements {
+  const net = [...def.tools, ...def.apps].some((plugin) => plugin.runtime?.requiresNet === true);
+  return { net };
+}
 
 /**
  * MCP Apps extension id
@@ -18,100 +34,48 @@ import { tools } from "./tools/mod.ts";
  */
 export const MCP_APPS_EXTENSION_ID = "io.modelcontextprotocol/ui";
 
-/** Capabilities shape advertised by this template (includes `extensions` for MCP Apps). */
-export type DeclaredServerCapabilities = ServerCapabilities & {
-  extensions: Record<string, Record<string, unknown>>;
-};
-
 export interface McpServerDefinition {
   readonly prompts: readonly PromptPlugin[];
   readonly resources: readonly AnyResourcePlugin[];
-  // deno-lint-ignore no-explicit-any
-  readonly tools: readonly ToolModule<any>[];
-  readonly promptsListChanged: boolean;
-  readonly resourceListChanged: boolean;
+  readonly tools: readonly ToolPlugin[];
+  /** Advertise `resources.subscribe`, which gates `notifications/resources/updated`. */
   readonly resourceSubscribe: boolean;
-  readonly toolsListChanged: boolean;
-  readonly tasksEnabled: boolean;
-  readonly experimentalElicitation: boolean;
-  readonly mcpAppsExtension: boolean;
-  /** Registers the fetch-website-info MCP App (requires tools + extension). */
-  readonly fetchWebsiteInfoApp: boolean;
-  /** Registers `url-elicitation-demo` (URL-mode elicitation; requires HTTP). */
-  readonly urlElicitationDemo: boolean;
+  /** Any app also advertises the MCP Apps extension. */
+  readonly apps: readonly AppPlugin[];
+  /** Mounts the `/mcp-elicitation/*` browser pages. Tools using URL-mode elicitation need it. */
+  readonly urlElicitation: boolean;
 }
 
-/**
- * Default template features and flags. Adjust booleans when you change listChanged / subscribe /
- * tasks / elicitation / MCP Apps behavior.
- */
+/** Default template features. */
 export const mcpServerDefinition: McpServerDefinition = {
   prompts,
   resources,
   tools,
-  promptsListChanged: true,
-  resourceListChanged: true,
   resourceSubscribe: true,
-  toolsListChanged: true,
-  tasksEnabled: true,
-  experimentalElicitation: true,
-  mcpAppsExtension: true,
-  fetchWebsiteInfoApp: true,
-  urlElicitationDemo: true,
+  apps,
+  urlElicitation: true,
 };
 
-/** Builds SDK `ServerCapabilities` from the registry (keeps registration and negotiation in sync). */
-export function buildServerCapabilities(def: McpServerDefinition): DeclaredServerCapabilities {
-  const capabilities: DeclaredServerCapabilities = {
-    completions: {},
+/**
+ * Capabilities the SDK cannot infer. `McpServer` adds `tools`, `prompts`, `resources` (with
+ * `listChanged`) and `completions` itself as features register.
+ */
+export function buildServerCapabilities(def: McpServerDefinition): ServerCapabilities {
+  return {
+    // Logging is deprecated by SEP-2577, still in the spec for at least twelve months.
     logging: {},
-    extensions: {},
+    ...(def.resourceSubscribe ? { resources: { subscribe: true } } : {}),
+    ...(def.apps.length > 0 ? { extensions: { [MCP_APPS_EXTENSION_ID]: {} } } : {}),
   };
-
-  if (def.prompts.length > 0) {
-    capabilities.prompts = { listChanged: def.promptsListChanged };
-  }
-
-  if (def.resources.length > 0) {
-    capabilities.resources = {
-      listChanged: def.resourceListChanged,
-      ...(def.resourceSubscribe ? { subscribe: true as const } : {}),
-    };
-  }
-
-  if (def.tools.length > 0) {
-    capabilities.tools = { listChanged: def.toolsListChanged };
-  }
-
-  if (def.tasksEnabled) {
-    capabilities.tasks = {
-      list: {},
-      cancel: {},
-      requests: {
-        tools: {
-          call: {},
-        },
-      },
-    };
-  }
-
-  if (def.experimentalElicitation) {
-    capabilities.experimental = { elicitation: {} };
-  }
-
-  if (def.mcpAppsExtension) {
-    capabilities.extensions = {
-      [MCP_APPS_EXTENSION_ID]: {},
-    };
-  }
-
-  return capabilities;
 }
-
-export const SERVER_CAPABILITIES = buildServerCapabilities(mcpServerDefinition);
 
 export const SERVER_INFO = {
   name: APP_NAME,
   title: APP_TITLE,
   version: APP_VERSION,
+  websiteUrl: DenoJson.homepage,
 } as const;
+
+/** Shown to the client's model. Replace with guidance on when to use your own tools. */
+export const SERVER_INSTRUCTIONS = `${APP_DESCRIPTION} ` +
+  "The server keeps no session, so give each call everything it needs in its arguments.";

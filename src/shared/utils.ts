@@ -3,92 +3,7 @@
  * @module
  */
 
-import { RPC_ERROR_CODES } from "$/shared/constants/http.ts";
-import {
-  type CallToolResult,
-  JSONRPC_VERSION,
-  type JSONRPCErrorResponse,
-  type RequestId,
-} from "@modelcontextprotocol/sdk/types.js";
-
-export interface RPCErrorSpec {
-  code: number;
-  message: string;
-  requestId: RequestId;
-  data?: unknown;
-  options?: ErrorOptions;
-}
-
-/** Custom RPC Error class with structured data and JSON-RPC 2.0 compliance */
-export class RPCError extends Error {
-  readonly code: number;
-  readonly requestId: RequestId;
-  readonly data?: unknown;
-  readonly timestamp: string;
-
-  constructor(spec: RPCErrorSpec) {
-    super(spec.message, spec.options);
-    this.name = "RPCError";
-    this.code = spec.code;
-    this.requestId = spec.requestId;
-    this.data = spec.data;
-    this.timestamp = new Date().toISOString();
-
-    // Ensure proper prototype chain for instanceof checks
-    Object.setPrototypeOf(this, RPCError.prototype);
-  }
-
-  /** Convert to JSON-RPC 2.0 error response format */
-  toJSONRPC(): JSONRPCErrorResponse {
-    const errorData = this.data ?
-      { ...this.data, timestamp: this.timestamp } :
-      { timestamp: this.timestamp };
-
-    return {
-      jsonrpc: JSONRPC_VERSION,
-      id: this.requestId,
-      error: {
-        code: this.code,
-        message: this.message,
-        data: errorData,
-      },
-    };
-  }
-
-  /** Convert to JSON string representation */
-  override toString(): string {
-    return JSON.stringify(this.toJSONRPC());
-  }
-
-  /** Static factory methods for common RPC errors */
-  static internalError(requestId: RequestId, data?: unknown): RPCError {
-    return new RPCError({
-      code: RPC_ERROR_CODES.INTERNAL_ERROR,
-      message: "Internal error",
-      requestId,
-      data,
-    });
-  }
-
-  /** Create from standard Error with additional context */
-  static fromError(
-    error: Error,
-    code: number,
-    requestId: RequestId,
-    additionalData?: unknown,
-  ): RPCError {
-    const additionalContext = additionalData as Record<string, unknown> | undefined;
-    const message = code === RPC_ERROR_CODES.INTERNAL_ERROR ? "Internal error" : error.message;
-
-    return new RPCError({
-      code,
-      message,
-      requestId,
-      data: additionalContext,
-      options: { cause: error },
-    });
-  }
-}
+import type { CallToolResult } from "@modelcontextprotocol/server";
 
 /**
  * Generic validation helper that throws with a descriptive error message
@@ -96,7 +11,7 @@ export class RPCError extends Error {
 export function createValidator<T>(
   predicate: (value: T) => boolean,
   errorMessage: (value: T) => string,
-) {
+): (value: T) => T {
   return (value: T): T => {
     if (!predicate(value)) {
       throw new Error(errorMessage(value));
@@ -110,7 +25,7 @@ export function createValidator<T>(
  */
 export function createArrayValidator<T>(
   itemValidator: (item: T) => T,
-) {
+): (items: T[]) => T[] {
   return (items: T[]): T[] => items.map(itemValidator);
 }
 
@@ -139,14 +54,13 @@ export function createCallToolErrorResponse(
   };
 }
 
+/** Returns the one rejection as an `Error`, an `AggregateError` of several, or null if none. */
 export function getRejected(results: PromiseSettledResult<unknown>[]): Error | null {
-  const firstRejected = results.find((r) => r.status === "rejected") as
-    | PromiseRejectedResult
-    | undefined;
-  if (firstRejected) {
-    return firstRejected.reason instanceof Error ?
-      firstRejected.reason :
-      new Error(String(firstRejected.reason));
+  const errors = results
+    .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+    .map(({ reason }) => reason instanceof Error ? reason : new Error(String(reason)));
+  if (errors.length > 1) {
+    return new AggregateError(errors, errors.map(({ message }) => message).join("; "));
   }
-  return null;
+  return errors[0] ?? null;
 }

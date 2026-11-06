@@ -1,51 +1,34 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import { z } from "zod";
 
-import type { ToolConfig, ToolModule } from "$/shared/types.ts";
-import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
-import { COUNTER_URI, incrementCounterValue } from "../resources/counter.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
+import { createCallToolTextResponse } from "$/shared/utils.ts";
+import { COUNTER_URI } from "../resources/counter.ts";
+import { incrementPersistedCounterValue } from "../resources/counterStore.ts";
 
-const schema = z.object({
-  delta: z.number().int().min(1, "Delta must be at least 1").max(1000, "Delta too large")
-    .optional(),
+const outputSchema = z.object({
+  value: z.number().int().describe("The counter after this increment"),
+  delta: z.number().int().describe("The amount added"),
+  uri: z.string().describe("The resource holding the counter"),
 });
 
-const name = "increment-counter";
-
-// deno-lint-ignore no-explicit-any
-const config: ToolConfig<typeof schema.shape, any> = {
+export default defineTool({
+  name: "increment-counter",
   title: "Increment counter",
   description: "Increment a resource-backed counter and notify subscribers",
-  inputSchema: schema.shape,
-};
-
-// deno-lint-ignore no-explicit-any
-const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult> => {
-  const parsed = schema.safeParse(args ?? {});
-  if (!parsed.success) {
-    return createCallToolErrorResponse({
-      error: "Invalid arguments",
-      details: parsed.error.flatten(),
-      received: args,
-    });
-  }
-
-  const delta = parsed.data.delta ?? 1;
-  const value = await incrementCounterValue(delta);
-
-  return createCallToolTextResponse({
-    value,
-    delta,
-    uri: COUNTER_URI,
-  });
-};
-
-// deno-lint-ignore no-explicit-any
-const module: ToolModule<typeof schema.shape, any> = [
-  name,
-  config,
-  callback,
-];
-
-export default module;
+  inputSchema: z.object({
+    delta: z.number().int().min(1, "Delta must be at least 1").max(1000, "Delta too large")
+      .default(1),
+  }),
+  outputSchema,
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
+  handler: async ({ delta }, _ctx, { kv }) => {
+    const value = await incrementPersistedCounterValue(delta, kv);
+    const result: z.infer<typeof outputSchema> = { value, delta, uri: COUNTER_URI };
+    return createCallToolTextResponse(result, result);
+  },
+});

@@ -21,18 +21,8 @@ export function isAllInterfacesBindHostname(hostname: string): boolean {
   return ALL_INTERFACES_BIND_HOSTNAMES.has(hostname.trim().toLowerCase());
 }
 
-/** The default headers for the MCP server. */
-export const DEFAULT_HEADERS: string[] = [];
-
 /**
- * The expected hosts for the MCP server's DNS rebinding protection to accept.
- * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Host}
- * @note This is ignored if env.MCP_ALLOWED_HOSTS is set or CLI --host is provided.
- */
-export const DEFAULT_ALLOWED_HOSTS: string[] = [];
-
-/**
- * The expected origins for the MCP server's DNS rebinding protection to accept.
+ * The origins allowed by CORS and by the `/mcp` Origin check, which answers 403 to any other.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Origin}
  * @note Wildcard origins are not supported; list each origin explicitly.
  * @note This is ignored if env.MCP_ALLOWED_ORIGINS is set or CLI --origin is provided.
@@ -42,9 +32,9 @@ export const DEFAULT_ALLOWED_ORIGINS: string[] = [];
 /**
  * The allowed methods for the MCP server's CORS protection.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Methods}
- * @note GET/POST are required for the HTTP server to function correctly.
+ * @note Every MCP request, including `subscriptions/listen`, is a POST.
  */
-export const ALLOWED_METHODS = ["GET", "POST", "DELETE"];
+export const ALLOWED_METHODS = ["POST"];
 
 /**
  * The allowed headers for the MCP server's CORS protection.
@@ -56,7 +46,6 @@ export const ALLOWED_HEADERS = [
   "Content-Type",
   "Accept",
   "Authorization",
-  "x-api-key",
   "X-Requested-With",
   "x-forwarded-for",
   "x-real-ip",
@@ -70,18 +59,17 @@ export const ALLOWED_HEADERS = [
  */
 export const EXPOSED_HEADERS = [
   "Content-Type",
-  "Authorization",
-  "x-api-key",
+  "WWW-Authenticate",
 ];
 
 // ********************************************************
 // You should not need to change anything below this line.
 // ********************************************************
 
-/** @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/400b020c854d31112c8f29a2e280072731ed3d5f/src/server/streamableHttp.ts#L9C7-L9C27} */
+/** Maximum request body size. Enforced by Hono `bodyLimit` and passed to `createMcpHandler` as `maxRequestBodySize`. */
 export const BODY_LIMIT = 1024 * 1024 * 4; // 4MB
 
-/** @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/0d545176f9ba852c97a18a40037abff40cd086c2/src/shared/protocol.ts#L60} */
+/** Request timeout in ms for every HTTP route except `/mcp` (whose `subscriptions/listen` streams are long-lived). */
 export const TIMEOUT = 60000; // 60 seconds
 
 /** The rate limit window for the MCP server. */
@@ -91,24 +79,18 @@ export const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 export const RATE_LIMIT = 100; // Limit each IP to 100 requests per window
 
 /**
- * Stricter limit for clients with no socket IP, no trusted proxy headers (when enabled), and no session id.
+ * Stricter limit for clients with no socket IP and no trusted proxy headers (when enabled).
  */
 export const RATE_LIMIT_UNKNOWN_CLIENT = 20;
 
 /** The maximum age for the MCP server's CORS protection. */
 export const CORS_MAX_AGE = 86400; // 24 hours
 
-/** The expiry time for events */
-export const EVENT_EXPIRY = 60 * 60 * 24 * 1000; // 1 day in milliseconds
-
-/** Cap MCP stream replay per resume to bound CPU/KV read time (demo store). */
-export const MAX_REPLAY_EVENTS_PER_STREAM = 10_000;
-
 /** Required headers for the MCP server. */
 export const HEADER_KEYS = {
-  SESSION_ID: "mcp-session-id",
-  LAST_EVENT_ID: "last-event-id",
   MCP_PROTOCOL_VERSION: "mcp-protocol-version",
+  MCP_METHOD: "mcp-method",
+  MCP_NAME: "mcp-name",
 } as const;
 
 export const HTTP_STATUS = {
@@ -131,6 +113,4 @@ export const RPC_ERROR_CODES = {
   METHOD_NOT_FOUND: -32601,
   INVALID_PARAMS: -32602,
   INTERNAL_ERROR: -32603,
-  /** Session ID was valid but the session no longer exists (maps to HTTP 404). */
-  SESSION_NOT_FOUND: -32001,
 } as const;

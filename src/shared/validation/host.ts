@@ -35,6 +35,17 @@ const validateHost = (host: string): string => {
   // Handle wildcard
   if (trimmedHost === "*") return trimmedHost;
 
+  // `*.example.com` matches one subdomain label. A bare TLD or IP suffix would match far too much.
+  if (trimmedHost.startsWith("*.")) {
+    const suffix = trimmedHost.slice(2);
+    if (!suffix.includes(".") || /\.\d+$/.test(suffix) || !isValidHostname(suffix)) {
+      throw new Error(
+        `Invalid host: ${host}. A wildcard needs a domain with at least two labels, like *.example.com.`,
+      );
+    }
+    return trimmedHost;
+  }
+
   // Strip protocol if present (user might confuse --host with --origin)
   if (trimmedHost.startsWith("http://") || trimmedHost.startsWith("https://")) {
     try {

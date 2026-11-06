@@ -139,5 +139,11 @@ dist
 scratch/
 *.exe
 
-.cursor/skills/deno-*
-.cursor/skills/simplify
+.agents/skills/
+!.agents/skills/implementing-*
+
+# MCP conformance CLI output (@modelcontextprotocol/conformance)
+results/
+
+# Claude Code worktrees; `deno deploy` reads .gitignore but not .git/info/exclude
+.claude/worktrees/

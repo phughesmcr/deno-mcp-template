@@ -1,8 +1,5 @@
-import { HEADER_KEYS } from "$/shared/constants.ts";
-
 export type RateLimitIdentity =
   | { type: "ip"; value: string }
-  | { type: "session"; value: string }
   | { type: "unknown" };
 
 function isPlausibleIpv4(s: string): boolean {
@@ -20,8 +17,8 @@ function isPlausibleIpv4(s: string): boolean {
 function isPlausibleIpv6(s: string): boolean {
   let t = s.trim();
   if (t.startsWith("[") && t.endsWith("]")) t = t.slice(1, -1);
-  if (!t.includes(":") || t.length > 45) return false;
-  return /^[0-9a-fA-F:]+$/.test(t);
+  // The character check stops a value like `::1]/x` closing the bracket and still parsing as a URL.
+  return /^[0-9a-fA-F:.]+$/.test(t) && URL.canParse(`http://[${t}]`);
 }
 
 function normalizeClientIpCandidate(raw: string | undefined): string | undefined {
@@ -37,7 +34,7 @@ function normalizeClientIpCandidate(raw: string | undefined): string | undefined
  * Parses a client IP from reverse-proxy headers. Only call when {@linkcode trustProxy} is enabled.
  * Precedence: `cf-connecting-ip`, first hop of `x-forwarded-for`, `x-real-ip`.
  */
-export function parseClientIpFromProxyHeaders(
+function parseClientIpFromProxyHeaders(
   getHeader: (name: string) => string | undefined,
 ): string | undefined {
   const cf = normalizeClientIpCandidate(getHeader("cf-connecting-ip"));
@@ -64,9 +61,6 @@ export function resolveRateLimitIdentity(
   }
   if (ip) return { type: "ip", value: ip };
 
-  const sessionId = getHeader(HEADER_KEYS.SESSION_ID)?.trim();
-  if (sessionId) return { type: "session", value: sessionId };
-
   return { type: "unknown" };
 }
 
@@ -74,8 +68,6 @@ export function rateLimitKeyFromIdentity(id: RateLimitIdentity): string {
   switch (id.type) {
     case "ip":
       return `ip:${id.value}`;
-    case "session":
-      return `session:${id.value}`;
     default:
       return "unknown-client";
   }

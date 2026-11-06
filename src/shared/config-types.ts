@@ -1,0 +1,111 @@
+/**
+ * @description Host / CLI / runtime configuration types (HTTP, STDIO, KV, MCP). For MCP tool/prompt/resource registration shapes, use `$/mcp/plugin-types.ts`.
+ * @module
+ */
+
+export type Transport = {
+  /** Connects the transport to the MCP server */
+  connect: () => void;
+  /** Disconnects the transport from the MCP server */
+  disconnect: () => Promise<void>;
+  /** Checks if the transport is enabled */
+  isEnabled: () => boolean;
+  /** Checks if the transport is running */
+  isRunning: () => boolean;
+};
+
+/** HTTP rate limiting (applied in Hono before MCP routes). */
+export type HttpRateLimitConfig = {
+  /** When false, the rate limiter middleware is not registered. */
+  enabled: boolean;
+  /** Sliding window duration in milliseconds. */
+  windowMs: number;
+  /** Max requests per window when client identity is a resolved IP. */
+  limit: number;
+  /** Max requests per window for unknown client identity (no IP). */
+  unknownClientLimit: number;
+};
+
+/** The configuration for the HTTP server */
+export type HttpServerConfig = {
+  enabled: boolean;
+
+  /** The hostname to listen on */
+  hostname: string;
+
+  /** The port to listen on */
+  port: number;
+
+  /** The custom headers to set */
+  headers?: string[];
+
+  /** Whether to enable DNS rebinding protection */
+  enableDnsRebinding?: boolean;
+
+  /** The allowed origins; `/mcp` answers 403 to a request with any other `Origin` */
+  allowedOrigins?: string[];
+
+  /** The allowed hosts */
+  allowedHosts?: string[];
+
+  /** Whether to use JSON-only responses (disable SSE streaming) */
+  jsonResponseMode?: boolean;
+
+  /** Optional TLS certificate file path in PEM format */
+  tlsCert?: string;
+
+  /** Optional TLS private key file path in PEM format */
+  tlsKey?: string;
+
+  /**
+   * When true, derive client IP from `cf-connecting-ip`, `x-forwarded-for` (first hop), then `x-real-ip`
+   * for rate limiting. Unsafe without a trusted reverse proxy (clients can spoof these headers).
+   */
+  trustProxy?: boolean;
+
+  /**
+   * When set, HTTP `/mcp` requires `Authorization: Bearer <token>`.
+   * Prefer `MCP_HTTP_BEARER_TOKEN` over CLI flags (process list visibility).
+   */
+  httpBearerToken?: string;
+
+  /**
+   * Public origin for browser URLs (URL-mode elicitation, links in tool errors). No trailing slash.
+   * When unset and HTTP is enabled, derived from bind address (127.0.0.1 when hostname is all-interfaces).
+   * Set `MCP_PUBLIC_BASE_URL` behind a reverse proxy.
+   */
+  publicBaseUrl?: string;
+
+  rateLimit: HttpRateLimitConfig;
+};
+
+/** The configuration for the STDIO transport */
+export type StdioConfig = {
+  enabled: boolean;
+
+  /** Also serve 2025-era clients (`legacy: "serve"`); HTTP always refuses them */
+  legacy: boolean;
+};
+
+/** The configuration for Deno KV */
+export type KvConfig = {
+  /** Optional file path for Deno KV storage */
+  path?: string;
+};
+
+/** MCP protocol settings. */
+export type McpConfig = {
+  /**
+   * Secret that signs `requestState`, at least 32 bytes. Every instance must share it; when unset,
+   * each process uses a random key.
+   */
+  requestStateKey?: string;
+};
+
+/** Public app config */
+export interface AppConfig {
+  http: HttpServerConfig;
+  stdio: StdioConfig;
+  kv: KvConfig;
+  mcp: McpConfig;
+}

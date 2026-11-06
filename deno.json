@@ -1,206 +1,224 @@
 {
-    "name": "@phughesmcr/deno-mcp-template",
-    "version": "0.7.0",
-    "license": "MIT",
-    "exports": {
-        ".": "./main.ts",
-        "./mcp": "./src/mcp/mod.ts",
-        "./app": "./src/app/app.ts"
+  "name": "@phughesmcr/deno-mcp-template",
+  "version": "0.8.0",
+  "license": "MIT",
+  "exports": {
+    ".": "./main.ts",
+    "./mcp": "./src/mcp/mod.ts",
+    "./app": "./src/app/app.ts"
+  },
+  "description": "A template for building MCP servers with Deno.",
+  "keywords": [
+    "demo",
+    "deno",
+    "mcp",
+    "template",
+    "boilerplate",
+    "ai",
+    "agent",
+    "llm",
+    "mcpb"
+  ],
+  "homepage": "https://github.com/phughesmcr/deno-mcp-template",
+  "bugs": {
+    "url": "https://github.com/phughesmcr/deno-mcp-template/issues"
+  },
+  "author": "P. Hughes <github@phugh.es>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/phughesmcr/deno-mcp-template.git"
+  },
+  "minimumDependencyAge": "P2D",
+  "imports": {
+    "$/": "./src/",
+    "@cliffy/command": "jsr:@cliffy/command@^1.3.1",
+    "@modelcontextprotocol/client": "npm:@modelcontextprotocol/client@^2.4.0",
+    "@modelcontextprotocol/client/stdio": "npm:@modelcontextprotocol/client@^2.4.0/stdio",
+    "@modelcontextprotocol/ext-apps/server": "npm:@modelcontextprotocol/ext-apps@^2.0.4/server",
+    "@modelcontextprotocol/server": "npm:@modelcontextprotocol/server@^2.4.0",
+    "@modelcontextprotocol/server/stdio": "npm:@modelcontextprotocol/server@^2.4.0/stdio",
+    "@std/async": "jsr:@std/async@^1.5.1",
+    "@std/cli": "jsr:@std/cli@^1.0.32",
+    "@std/path": "jsr:@std/path@^1.1.6",
+    "@deno/sandbox": "npm:@deno/sandbox@^0.13.2",
+    "hono": "jsr:@hono/hono@^4.13.16",
+    "hono-rate-limiter": "npm:hono-rate-limiter@^0.5.4",
+    "zod": "npm:zod@^4.6.7"
+  },
+  "tasks": {
+    "setup": "deno run --allow-read=. --allow-write=. --allow-run=git,deno --allow-env=MCP_SETUP_NON_INTERACTIVE,SETUP_AUTHOR_NAME,SETUP_AUTHOR_EMAIL,SETUP_GITHUB_USERNAME,SETUP_PROJECT_NAME,SETUP_DISPLAY_NAME,SETUP_DESCRIPTION,SETUP_JSR_SCOPE,SETUP_URL scripts/setup-template.ts",
+    "strip": "deno run --allow-read=. --allow-write=. --allow-run=git,deno scripts/strip-demo.ts",
+    "labels:github": "bash scripts/setup-sep1730-labels.sh",
+    "deploy:setup": "deno run -A scripts/deploy-setup.ts",
+    "start": "deno run --env-file=.env --allow-env --allow-net --allow-read --allow-write main.ts",
+    "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env --allow-env --allow-net --allow-read --allow-write --watch main.ts",
+    "test:integration": "deno test --frozen -P --ignore='__test__/cli-env-prefix.integration.test.ts,__test__/mcp-protocol*.integration.test.ts,__test__/smoke-binary.integration.test.ts' && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts __test__/mcp-protocol*.integration.test.ts __test__/smoke-binary.integration.test.ts",
+    "test:coverage": "deno test --frozen -P --ignore='__test__/cli-env-prefix.integration.test.ts,__test__/mcp-protocol*.integration.test.ts,__test__/smoke-binary.integration.test.ts' --coverage=coverage && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts __test__/mcp-protocol*.integration.test.ts __test__/smoke-binary.integration.test.ts --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
+    "bench": "deno bench --frozen -P",
+    "conformance:list": "bash scripts/run-mcp-conformance.sh --list",
+    "conformance:server": "bash scripts/run-mcp-conformance.sh",
+    "build:mcp-ui": "deno task --cwd mcp-ui install-deps && deno task --cwd mcp-ui build",
+    "ci": {
+      "dependencies": ["build:mcp-ui"],
+      "command": "CI=1 deno fmt --check && deno lint && deno check --frozen main.ts src/**/*.ts scripts/**/*.ts __test__/**/*.ts __bench__/**/*.ts && deno task test:integration"
     },
-    "description": "A template for building MCP servers with Deno.",
-    "keywords": [
-        "demo",
-        "deno",
-        "mcp",
-        "template",
-        "boilerplate",
-        "ai",
-        "agent",
-        "llm",
-        "dxt"
+    "clean:dist": "deno run --allow-read=dist --allow-write=dist scripts/clean-dist.ts",
+    "compile:win": {
+      "description": "Create a binary for Windows",
+      "command": "deno compile --allow-env --allow-net --allow-read --allow-write --include ./static -o ./dist/server/server.exe --target x86_64-pc-windows-msvc --icon=./static/icon.ico main.ts"
+    },
+    "compile:mac:arm64": {
+      "description": "Create a binary for Apple silicon macs (M1, M2, etc.)",
+      "command": "deno compile --allow-env --allow-net --allow-read --allow-write --include ./static -o ./dist/server/server_mac_arm64 --target aarch64-apple-darwin main.ts"
+    },
+    "compile:mac:x64": {
+      "description": "Create a binary for Intel macs",
+      "command": "deno compile --allow-env --allow-net --allow-read --allow-write --include ./static -o ./dist/server/server_mac_x64 --target x86_64-apple-darwin main.ts"
+    },
+    "compile:linux:x64": {
+      "description": "Create a binary for Linux (x64)",
+      "command": "deno compile --allow-env --allow-net --allow-read --allow-write --include ./static -o ./dist/server/server_linux_x64 --target x86_64-unknown-linux-gnu main.ts"
+    },
+    "compile:linux:arm64": {
+      "description": "Create a binary for Linux (arm64)",
+      "command": "deno compile --allow-env --allow-net --allow-read --allow-write --include ./static -o ./dist/server/server_linux_arm64 --target aarch64-unknown-linux-gnu main.ts"
+    },
+    "compile:all": {
+      "description": "Create binaries for all platforms (cleans dist/ first)",
+      "dependencies": ["clean:dist"],
+      "command": "deno task compile:win && deno task compile:mac:arm64 && deno task compile:mac:x64 && deno task compile:linux:x64 && deno task compile:linux:arm64"
+    },
+    "mcpb:pack": "deno run --allow-read=. --allow-write=dist --allow-run=mcpb scripts/mcpb.ts",
+    "mcpb:all": {
+      "description": "Create one MCP Bundle containing every platform binary",
+      "command": "deno task compile:all && deno task mcpb:pack"
+    }
+  },
+  "compilerOptions": {
+    "strict": true,
+    "erasableSyntaxOnly": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true
+  },
+  "test": {
+    "include": [
+      "__test__/**/*.test.ts"
     ],
-    "homepage": "https://github.com/phughesmcr/deno-mcp-template",
-    "bugs": {
-        "url": "https://github.com/phughesmcr/deno-mcp-template/issues"
-    },
-    "author": "P. Hughes <github@phugh.es>",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/phughesmcr/deno-mcp-template.git"
-    },
-    "imports": {
-        "$/": "./src/",
-        "@cliffy/command": "jsr:@cliffy/command@^1.0.0",
-        "@cliffy/flags": "jsr:@cliffy/flags@^1.0.0",
-        "@modelcontextprotocol/ext-apps/server": "npm:@modelcontextprotocol/ext-apps@^1.3.2/server",
-        "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.28.0",
-        "@std/async": "jsr:@std/async@^1.2.0",
-        "@std/cli": "jsr:@std/cli@^1.0.28",
-        "@std/path": "jsr:@std/path@^1.1.4",
-        "@deno/sandbox": "jsr:@deno/sandbox@^0.13.2",
-        "@std/ulid": "jsr:@std/ulid@^1.0.0",
-        "hono": "jsr:@hono/hono@^4.12.9",
-        "hono-rate-limiter": "npm:hono-rate-limiter@^0.5.3",
-        "zod": "npm:zod@^4.3.6",
-        "zod-validation-error": "npm:zod-validation-error@^5.0.0"
-    },
-    "tasks": {
-        "setup": "deno run -A scripts/setup-template.ts",
-        "start": "deno run --env-file=.env -A main.ts",
-        "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts",
-        "test:integration": "deno test --frozen -P --ignore=test/cli-env-prefix.integration.test.ts && deno test --frozen -P --allow-run test/cli-env-prefix.integration.test.ts",
-        "test:coverage": "deno test --frozen -P --ignore=test/cli-env-prefix.integration.test.ts --coverage=coverage && deno test --frozen -P --allow-run test/cli-env-prefix.integration.test.ts --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
-        "bench": "deno bench --frozen -P",
-        "build:mcp-ui": "deno task --cwd mcp-ui install-deps && deno task --cwd mcp-ui build",
-        "ci": {
-            "dependencies": ["build:mcp-ui"],
-            "command": "CI=1 deno fmt --check && deno lint && deno check --frozen main.ts src/**/*.ts scripts/**/*.ts test/**/*.ts && deno task test:integration"
-        },
-        "clean:dist": "deno run -A scripts/clean-dist.ts",
-        "compile:win": {
-            "description": "Create a binary for Windows",
-            "dependencies": ["clean:dist"],
-            "command": "deno compile -A --include ./static -o ./dist/server/server.exe main.ts --target x86_64-pc-windows-msvc --icon=./static/icon.ico"
-        },
-        "compile:mac:arm64": {
-            "description": "Create a binary for Apple silicon macs (M1, M2, etc.)",
-            "dependencies": ["clean:dist"],
-            "command": "deno compile -A --include ./static -o ./dist/server/server_mac_arm64 main.ts --target aarch64-apple-darwin"
-        },
-        "compile:mac:x64": {
-            "description": "Create a binary for Intel macs",
-            "dependencies": ["clean:dist"],
-            "command": "deno compile -A --include ./static -o ./dist/server/server_mac_x64 main.ts --target x86_64-apple-darwin"
-        },
-        "compile:linux:x64": {
-            "description": "Create a binary for Linux (x64)",
-            "dependencies": ["clean:dist"],
-            "command": "deno compile -A --include ./static -o ./dist/server/server_linux_x64 main.ts --target x86_64-unknown-linux-gnu"
-        },
-        "compile:linux:arm64": {
-            "description": "Create a binary for Linux (arm64)",
-            "dependencies": ["clean:dist"],
-            "command": "deno compile -A --include ./static -o ./dist/server/server_linux_arm64 main.ts --target aarch64-unknown-linux-gnu"
-        },
-        "compile:all": {
-            "description": "Create binaries for all available platforms",
-            "dependencies": ["clean:dist", "compile:win", "compile:mac:arm64", "compile:mac:x64", "compile:linux:x64", "compile:linux:arm64"]
-        },
-        "dxt:pack":  "deno run -A scripts/dxt.ts",
-        "dxt:win": {
-            "description": "Create a DXT package for windows",
-            "dependencies": ["compile:win", "dxt:pack"]
-        },
-        "dxt:mac:arm64": {
-            "description": "Create a DXT package for mac (arm64)",
-            "dependencies": ["compile:mac:arm64", "dxt:pack"]
-        },
-        "dxt:mac:x64": {
-            "description": "Create a DXT package for mac (x64)",
-            "dependencies": ["compile:mac:x64", "dxt:pack"]
-        },
-        "dxt:linux:x64": {
-            "description": "Create a DXT package for linux (x64)",
-            "dependencies": ["compile:linux:x64", "dxt:pack"]
-        },
-        "dxt:linux:arm64": {
-            "description": "Create a DXT package for linux (arm64)",
-            "dependencies": ["compile:linux:arm64", "dxt:pack"]
-        },
-        "dxt:all": {
-            "description": "Create a DXT package for all platforms",
-            "dependencies": ["compile:all", "dxt:pack"]
-        }
-    },
-    "compilerOptions": {
-        "strict": true,
-        "erasableSyntaxOnly": true,
-        "allowUnreachableCode": false,
-        "allowUnusedLabels": false,
-        "noImplicitAny": true,
-        "noImplicitOverride": true,
-        "noImplicitReturns": true,
-        "noImplicitThis": true,
-        "noUncheckedIndexedAccess": false,
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
-        "verbatimModuleSyntax": true
-    },
-    "test": {
-        "include": [
-            "test/**/*.test.ts"
-        ],
-        "permissions": {
-            "env": true,
-            "read": true,
-            "write": true,
-            "net": true,
-            "sys": true
-        }
-    },
-    "bench": {
-        "include": [
-            "test/**/*.bench.ts"
-        ],
-        "permissions": {
-            "env": true,
-            "read": true,
-            "write": true,
-            "net": true,
-            "sys": true
-        }
-    },
-    "fmt": {
-        "exclude": [
-            "mcp-ui/"
-        ],
-        "include": [
-            "main.ts",
-            "src/**/*.ts",
-            "scripts/**/*.ts",
-            "test/**/*.ts"
-        ],
-        "proseWrap": "always",
-        "semiColons": true,
-        "singleQuote": false,
-        "useTabs": false,
-        "bracePosition": "sameLine",
-        "indentWidth": 2,
-        "lineWidth": 100,
-        "newLineKind": "lf",
-        "nextControlFlowPosition": "sameLine",
-        "operatorPosition": "sameLine",
-        "useBraces": "whenNotSingleLine"
-    },
-    "lint": {
-        "exclude": [
-            "mcp-ui/"
-        ],
-        "include": [
-            "main.ts",
-            "src/**/*.ts",
-            "scripts/**/*.ts",
-            "test/**/*.ts"
-        ],
-        "rules": {
-            "tags": [
-                "recommended",
-                "jsr"
-            ],
-            "exclude": [
-                "require-await"
-            ],
-            "include": [
-                "no-useless-rename"
-            ]
-        }
-    },
-    "lock": {
-        "path": "./deno.lock",
-        "frozen": true
-    },
-    "unstable": [
-        "kv",
-        "cron"
+    "permissions": {
+      "env": true,
+      "read": true,
+      "write": true,
+      "net": true,
+      "sys": true
+    }
+  },
+  "bench": {
+    "include": [
+      "__bench__/**/*.bench.ts"
+    ],
+    "permissions": {
+      "env": true,
+      "read": true,
+      "write": true,
+      "net": true,
+      "sys": true
+    }
+  },
+  "fmt": {
+    "exclude": [
+      "mcp-ui/",
+      "*.md"
+    ],
+    "include": [
+      "main.ts",
+      "src/**/*.ts",
+      "scripts/**/*.ts",
+      "__test__/**/*.ts",
+      "__bench__/**/*.ts"
+    ],
+    "proseWrap": "always",
+    "semiColons": true,
+    "singleQuote": false,
+    "useTabs": false,
+    "bracePosition": "sameLine",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "newLineKind": "lf",
+    "nextControlFlowPosition": "sameLine",
+    "operatorPosition": "sameLine",
+    "useBraces": "whenNotSingleLine"
+  },
+  "lint": {
+    "exclude": [
+      "mcp-ui/"
+    ],
+    "include": [
+      "main.ts",
+      "src/**/*.ts",
+      "scripts/**/*.ts",
+      "__test__/**/*.ts",
+      "__bench__/**/*.ts"
+    ],
+    "rules": {
+      "tags": [
+        "recommended",
+        "jsr"
+      ],
+      "exclude": [
+        "require-await"
+      ],
+      "include": [
+        "camelcase",
+        "default-param-last",
+        "eqeqeq",
+        "explicit-module-boundary-types",
+        "guard-for-in",
+        "no-eval",
+        "no-external-import",
+        "no-implicit-declare-namespace-export",
+        "no-inferrable-types",
+        "no-node-globals",
+        "no-non-null-assertion",
+        "no-process-global",
+        "no-self-compare",
+        "no-sparse-arrays",
+        "no-sync-fn-in-async-fn",
+        "no-throw-literal",
+        "no-useless-rename",
+        "single-var-declarator",
+        "triple-slash-reference"
+      ]
+    }
+  },
+  "publish": {
+    "exclude": [
+      ".agents/",
+      ".claude/",
+      ".gitattributes",
+      ".github/",
+      ".vscode/",
+      "AGENTS.md",
+      "__bench__/",
+      "__test__/",
+      "mcp-ui/",
+      "scripts/"
     ]
+  },
+  "lock": {
+    "path": "./deno.lock",
+    "frozen": true
+  },
+  "unstable": [
+    "kv",
+    "no-legacy-abort"
+  ]
 }

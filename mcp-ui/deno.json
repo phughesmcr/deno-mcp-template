@@ -1,21 +1,25 @@
 {
   "compilerOptions": {
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "strict": true,
-    "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler"
   },
   "imports": {
-    "@modelcontextprotocol/ext-apps": "npm:@modelcontextprotocol/ext-apps@^1.3.1",
-    "@modelcontextprotocol/sdk/types.js": "npm:@modelcontextprotocol/sdk@^1.27.1/types.js",
-    "typescript": "npm:typescript@^5.9.3",
-    "vite": "npm:vite@^6.3.5",
-    "vite-plugin-singlefile": "npm:vite-plugin-singlefile@^2.3.0"
+    "@modelcontextprotocol/client": "npm:@modelcontextprotocol/client@^2.4.0",
+    "@modelcontextprotocol/ext-apps": "npm:@modelcontextprotocol/ext-apps@^2.0.4",
+    "linkedom": "npm:linkedom@^0.18.15",
+    "vite": "npm:vite@^6.4.5",
+    "vite-plugin-singlefile": "npm:vite-plugin-singlefile@^2.3.0",
+    "zod": "npm:zod@^4.6.7"
   },
   "nodeModulesDir": "auto",
   "tasks": {
     "install-deps": "deno install --allow-scripts=npm:esbuild --frozen",
-    "build": "deno run -A npm:vite build"
+    "check": "deno fmt --check src vite.config.ts fetch-website-info.html && deno lint src vite.config.ts && deno check --frozen src vite.config.ts && deno test --frozen --allow-read src",
+    "build": {
+      "dependencies": ["check"],
+      "command": "deno run -A npm:vite build"
+    }
   }
 }

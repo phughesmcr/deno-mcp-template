@@ -1,0 +1,52 @@
+# Keeps `deno task setup` working as the template changes. Setup and strip both delete this file.
+name: Setup
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: setup-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.8
+          cache: true
+
+      - run: deno ci
+
+      - name: Run setup
+        run: >-
+          deno task setup --non-interactive
+          --author-name "Ann Other"
+          --author-email ann@example.com
+          --github-username AnnOther
+          --project-name my-server
+          --display-name "My Server"
+          --description "Costs \$& nothing, and isn't a template."
+          --url https://example.com/app
+
+      - name: Format, lint, type-check, tests
+        run: deno task ci
+
+      - name: Check the package can be published
+        run: deno publish --dry-run --allow-dirty
+
+      - name: Check no template identifier is left
+        run: |
+          if git grep -n -E 'phughesmcr|deno-mcp-template|Deno MCP (Server )?Template|P\. Hughes|phugh\.es'; then
+            echo "::error::Add these files to FILES_TO_UPDATE in scripts/setup-template.ts"
+            exit 1
+          fi

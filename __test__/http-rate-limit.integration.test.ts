@@ -1,0 +1,107 @@
+import { getProcessKvRuntime } from "$/kv/mod.ts";
+import { createHonoApp } from "$/app/http/hono.ts";
+import { resolveRateLimitIdentity } from "$/app/http/rateLimitIdentity.ts";
+import type { AppConfig } from "$/shared/config-types.ts";
+import { assertEquals, baseHttpConfig, noopMcpHandler } from "./helpers.ts";
+
+function createTestApp(config: AppConfig["http"] = baseHttpConfig()) {
+  return createHonoApp({
+    config,
+    handler: noopMcpHandler,
+    kv: getProcessKvRuntime(),
+  });
+}
+
+async function performRequest(
+  app: ReturnType<typeof createTestApp>,
+  clientIp: string | undefined,
+  headers?: HeadersInit,
+): Promise<Response> {
+  const req = new Request("http://localhost/", { method: "GET", headers });
+  const bindings = clientIp !== undefined ? { clientIp } : {};
+  return await app.fetch(req, bindings as never);
+}
+
+Deno.test({
+  name: "rate limiter uses stable client identity even with spoofed forwarding headers",
+  fn: async () => {
+    const app = createTestApp();
+    const clientIp = "10.10.10.10";
+
+    for (let i = 0; i < 100; i++) {
+      const response = await performRequest(app, clientIp, {
+        "x-forwarded-for": `203.0.113.${i}`,
+        "x-real-ip": `198.51.100.${i}`,
+      });
+      assertEquals(response.status, 200);
+    }
+
+    const blocked = await performRequest(app, clientIp, {
+      "x-forwarded-for": "192.0.2.250",
+      "x-real-ip": "192.0.2.251",
+    });
+
+    assertEquals(blocked.status, 429);
+  },
+});
+
+Deno.test({
+  name: "rate limiter does not share fallback bucket across distinct client IPs",
+  fn: async () => {
+    const app = createTestApp();
+
+    for (let i = 0; i < 100; i++) {
+      const response = await performRequest(app, "10.0.0.1");
+      assertEquals(response.status, 200);
+    }
+
+    const otherClient = await performRequest(app, "10.0.0.2");
+    assertEquals(otherClient.status, 200);
+  },
+});
+
+Deno.test({
+  name: "with trust-proxy, rate limiter uses X-Forwarded-For when socket IP is absent",
+  fn: async () => {
+    const app = createTestApp(baseHttpConfig({ trustProxy: true }));
+    const xff = "203.0.113.77";
+
+    for (let i = 0; i < 100; i++) {
+      const response = await performRequest(app, undefined, {
+        "x-forwarded-for": xff,
+      });
+      assertEquals(response.status, 200);
+    }
+
+    const blocked = await performRequest(app, undefined, {
+      "x-forwarded-for": xff,
+    });
+    assertEquals(blocked.status, 429);
+  },
+});
+
+Deno.test({
+  name: "requests with no client IP use strict unknown-client rate limit",
+  fn: async () => {
+    const app = createTestApp();
+
+    for (let i = 0; i < 20; i++) {
+      const response = await performRequest(app, undefined, {});
+      assertEquals(response.status, 200);
+    }
+
+    const blocked = await performRequest(app, undefined, {});
+    assertEquals(blocked.status, 429);
+  },
+});
+
+Deno.test("rate limit identity only trusts well-formed IPv6 addresses", () => {
+  const identify = (ip: string) => resolveRateLimitIdentity(false, ip, () => undefined).type;
+
+  for (const ip of ["::1", "[::1]", "2001:db8::1", "::ffff:192.0.2.1"]) {
+    assertEquals(identify(ip), "ip");
+  }
+  for (const ip of [":::::", "abc", "1:2", "::1]/x", "::1]@evil.example"]) {
+    assertEquals(identify(ip), "unknown");
+  }
+});

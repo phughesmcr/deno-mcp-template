@@ -1,0 +1,38 @@
+{
+  "manifest_version": "0.4",
+  "name": "deno-mcp-template",
+  "version": "0.8.0",
+  "description": "A template for building MCP servers with Deno.",
+  "author": {
+    "name": "deno-mcp-template"
+  },
+  "icon": "icon.png",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/launch.sh",
+    "mcp_config": {
+      "command": "sh",
+      "args": [
+        "${__dirname}/server/launch.sh",
+        "--no-http",
+        "--legacy-stdio"
+      ],
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/server.exe",
+          "args": [
+            "--no-http",
+            "--legacy-stdio"
+          ]
+        }
+      }
+    }
+  },
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ]
+  }
+}

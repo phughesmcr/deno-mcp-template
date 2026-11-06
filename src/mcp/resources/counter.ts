@@ -1,18 +1,9 @@
-import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import type { ReadResourceResult, ResourceMetadata } from "@modelcontextprotocol/server";
 
-import type { ResourcePlugin } from "$/shared/types.ts";
-import { getPersistedCounterValue, incrementPersistedCounterValue } from "./counterStore.ts";
+import type { ResourcePlugin } from "$/mcp/plugin-types.ts";
+import { getPersistedCounterValue } from "./counterStore.ts";
 
 export const COUNTER_URI = "counter://value";
-
-export async function incrementCounterValue(delta: number): Promise<number> {
-  return await incrementPersistedCounterValue(delta);
-}
-
-export async function getCounterValue(): Promise<number> {
-  return await getPersistedCounterValue();
-}
 
 const name = "counter";
 
@@ -21,8 +12,12 @@ const config: ResourceMetadata = {
   mimeType: "application/json",
 };
 
-async function readCallback(): Promise<ReadResourceResult> {
-  const value = await getCounterValue();
+const readCallback: ResourcePlugin["readCallback"] = async (
+  _uri,
+  _ctx,
+  { kv },
+): Promise<ReadResourceResult> => {
+  const value = await getPersistedCounterValue(kv);
   return {
     contents: [
       {
@@ -31,7 +26,7 @@ async function readCallback(): Promise<ReadResourceResult> {
       },
     ],
   };
-}
+};
 
 const module: ResourcePlugin = {
   type: "resource",

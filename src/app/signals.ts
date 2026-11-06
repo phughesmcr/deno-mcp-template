@@ -1,38 +1,56 @@
-/** Sets up signal handlers for graceful shutdown */
-export function setupSignalHandlers(onShutdown: () => Promise<void>): void {
+import { APP_NAME } from "$/shared/constants.ts";
+
+/** Sets up signal handlers for graceful shutdown; returns a disposer for tests and clean stop. */
+export function setupSignalHandlers(onShutdown: () => Promise<void>): () => void {
+  const shutdown = () =>
+    onShutdown().catch((error) => console.error(`${APP_NAME}: shutdown failed`, error));
+
   const handleExit = (code: number) => {
-    onShutdown().finally(() => Deno.exit(code));
+    shutdown().finally(() => Deno.exit(code));
   };
 
-  globalThis.addEventListener("beforeunload", () => {
-    onShutdown();
-  });
+  /** `preventDefault` keeps the event loop running, which the shutdown needs to finish. */
+  const onBeforeUnload = (event: Event) => {
+    event.preventDefault();
+    globalThis.removeEventListener("beforeunload", onBeforeUnload);
+    void shutdown();
+  };
 
-  globalThis.addEventListener("unhandledrejection", (_event) => {
+  /** `preventDefault` stops Deno exiting at once, which would cut the shutdown short. */
+  const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+    event.preventDefault();
+    console.error(`${APP_NAME}: unhandled rejection`, event.reason);
     handleExit(1);
-  });
+  };
 
-  // Handle SIGINT (Ctrl+C)
-  Deno.addSignalListener("SIGINT", () => handleExit(0));
+  const onSigInt = () => handleExit(0);
 
-  // Handle SIGTERM and SIGHUP (Unix only)
+  globalThis.addEventListener("beforeunload", onBeforeUnload);
+  globalThis.addEventListener("unhandledrejection", onUnhandledRejection);
+
+  Deno.addSignalListener("SIGINT", onSigInt);
+
+  const extraListeners: { signal: Deno.Signal; handler: () => void }[] = [];
   for (const signal of ["SIGTERM", "SIGHUP"] as const) {
+    const handler = () => handleExit(0);
     try {
-      Deno.addSignalListener(signal, () => handleExit(0));
+      Deno.addSignalListener(signal, handler);
+      extraListeners.push({ signal, handler });
     } catch {
       // ignore if unsupported on this platform
     }
   }
 
-  // Handle stream closure errors gracefully (e.g., when SSE client disconnects)
-  globalThis.addEventListener("error", (event) => {
-    if (
-      event.error instanceof TypeError &&
-      event.error.message.includes("stream controller cannot close or enqueue")
-    ) {
-      // Suppress stream closure errors - these occur when clients disconnect
-      event.preventDefault();
-      return;
+  return () => {
+    globalThis.removeEventListener("beforeunload", onBeforeUnload);
+    globalThis.removeEventListener("unhandledrejection", onUnhandledRejection);
+    Deno.removeSignalListener("SIGINT", onSigInt);
+    for (const { signal, handler } of extraListeners) {
+      try {
+        Deno.removeSignalListener(signal, handler);
+      } catch {
+        // ignore
+      }
     }
-  });
+  };
 }

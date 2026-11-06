@@ -1,28 +1,39 @@
 name: CI
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
+    branches: [main, master, dev]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ci:
+  check:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: denoland/setup-deno@v2
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
+          cache: true
 
-      - name: Install dependencies
-        run: deno install --frozen --entrypoint main.ts
+      - run: deno ci
 
-      - name: Run CI
+      - name: Format, lint, type-check, tests
+        env:
+          # Enables the real sandbox test; unset on fork PRs, where it is skipped.
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: deno task ci
+
+      - name: Check static/mcp-apps matches the fresh build from `deno task build:mcp-ui`
+        run: git diff --exit-code --stat -- static/mcp-apps
+
+      - name: Check the package can be published
+        run: deno publish --dry-run

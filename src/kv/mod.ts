@@ -1,2 +1,2 @@
-export * from "./store.ts";
+export * from "./runtime.ts";
 export * from "./watch.ts";

@@ -1,5 +1,5 @@
-#!/usr/bin/env -S deno run -A
-/** @warning ^ You should narrow the allowed permissions in production. */
+#!/usr/bin/env -S deno run --allow-env --allow-net --allow-read --allow-write
+/** @see src/app/permissions.ts for why each permission is needed. */
 
 /**
  * @description An example MCP server using Deno
@@ -9,7 +9,7 @@
  * {
  *   "mcpServers": {
  *     "my-published-mcp-server": {
- *       "command": "deno run -A jsr:@your-scope/your-package"
+ *       "command": "deno run --allow-env --allow-net --allow-read --allow-write jsr:@your-scope/your-package --no-http"
  *     },
  *   }
  * }
@@ -17,6 +17,7 @@
  *
  * @example claude-desktop-config.json manually using the HTTP endpoint
  * Start the server using `deno task start` first.
+ * `mcp-remote` 0.16.0 speaks 2025-11-25, so it needs `legacy: "reject"` changed first.
  * ```json
  * {
  *   "mcpServers": {
@@ -33,7 +34,7 @@
  * {
  *   "mcpServers": {
  *     "my-local-mcp-server": {
- *       "command": "deno run -A absolute/path/to/main.ts"
+ *       "command": "deno run --allow-env --allow-net --allow-read --allow-write absolute/path/to/main.ts --no-http"
  *     },
  *   }
  * }
@@ -42,7 +43,7 @@
  * @example Claude Code
  * ```bash
  * # Compiled binary:
- * claude mcp add my-mcp-server "absolute/path/to/binary"
+ * claude mcp add my-mcp-server -- "absolute/path/to/binary" --no-http
  *
  * # or with HTTP (use `deno task start` first)
  * claude mcp add --transport http my-mcp-server http://localhost:3001/mcp
@@ -51,12 +52,9 @@
  * @module
  */
 
-import { createApp } from "$/app/app.ts";
-import { handleCliArgs } from "$/app/cli.ts";
+import { runMcpApp } from "$/app/runMcpApp.ts";
 import { createMcpServer } from "$/mcp/mod.ts";
 
 if (import.meta.main) {
-  const config = await handleCliArgs();
-  const app = createApp(createMcpServer, config);
-  await app.start();
+  await runMcpApp(createMcpServer);
 }

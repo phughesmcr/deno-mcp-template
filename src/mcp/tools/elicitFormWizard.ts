@@ -1,120 +1,90 @@
 /**
- * @description Two-step form elicitation demo (calendar-style flow).
+ * @description Two-step form elicitation demo. Each step is its own `input_required` round, so the
+ * first step's answers travel to the next round in signed `requestState`.
  * @module
  */
 
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import { acceptedContent, inputRequired } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
-import type { ToolConfig, ToolModule } from "$/shared/types.ts";
-import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
-
-const schema = z.object({});
+import { wasDeclined } from "$/mcp/inputResponses.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
+import { createCallToolTextResponse } from "$/shared/utils.ts";
 
 const name = "elicit-form-wizard";
 
-function cancelledWizardResponse(
-  step: 1 | 2,
-  action: string,
-  partial?: unknown,
-): CallToolResult {
-  return createCallToolTextResponse(
-    partial === undefined ?
-      { cancelled: true, step, action } :
-      { cancelled: true, step, action, partial },
-  );
-}
+const BASIC_KEY = "basic";
+const SCHEDULE_KEY = "schedule";
 
-// deno-lint-ignore no-explicit-any
-const config: ToolConfig<typeof schema.shape, any> = {
+const basicInfo = z.object({
+  title: z.string().min(1).meta({ title: "Event title", description: "Name of the event" }),
+  description: z.string().optional().meta({
+    title: "Description",
+    description: "Optional details",
+  }),
+});
+
+const schedule = z.object({
+  date: z.string().min(1).meta({ title: "Date", description: "Event date (ISO or YYYY-MM-DD)" }),
+  startTime: z.string().min(1).meta({
+    title: "Start time",
+    description: "Start time (e.g. HH:MM)",
+  }),
+});
+
+/** `tool` stops state minted by another multi-round tool from being replayed here. */
+const wizardState = z.object({ tool: z.literal(name), basic: basicInfo });
+
+export default defineTool({
+  name,
   title: "Form elicitation wizard",
   description:
     "Collect event details in two sequential form elicitation steps (title/description, then date/time).",
-  inputSchema: schema.shape,
-};
+  inputSchema: z.object({}),
+  annotations: { readOnlyHint: true, openWorldHint: false },
+  handler: async (_args, ctx, { requestState }) => {
+    const responses = ctx.mcpReq.inputResponses;
+    const state = wizardState.safeParse(ctx.mcpReq.requestState());
 
-const callback = (mcp: McpServer) => async (args: unknown): Promise<CallToolResult> => {
-  const parsed = schema.safeParse(args ?? {});
-  if (!parsed.success) {
-    return createCallToolErrorResponse({
-      error: "Invalid arguments",
-      details: parsed.error.flatten(),
-      received: args,
-    });
-  }
-
-  try {
-    const basicInfo = await mcp.server.elicitInput({
-      mode: "form",
-      message: "Step 1: Enter basic event information",
-      requestedSchema: {
-        type: "object",
-        properties: {
-          title: {
-            type: "string",
-            title: "Event title",
-            description: "Name of the event",
-            minLength: 1,
-          },
-          description: {
-            type: "string",
-            title: "Description",
-            description: "Optional details",
-          },
-        },
-        required: ["title"],
-      },
-    });
-
-    if (basicInfo.action !== "accept" || !basicInfo.content) {
-      return cancelledWizardResponse(1, basicInfo.action);
+    if (state.success) {
+      const { basic } = state.data;
+      if (wasDeclined(ctx, SCHEDULE_KEY)) {
+        return createCallToolTextResponse({ cancelled: true, step: 2, partial: basic });
+      }
+      const answer = acceptedContent(responses, SCHEDULE_KEY, schedule);
+      if (answer) {
+        return createCallToolTextResponse({
+          event: { ...basic, ...answer },
+          message: "Event draft collected via two-step form elicitation.",
+        });
+      }
     }
 
-    const dateTime = await mcp.server.elicitInput({
-      mode: "form",
-      message: "Step 2: Enter date and time",
-      requestedSchema: {
-        type: "object",
-        properties: {
-          date: {
-            type: "string",
-            title: "Date",
-            description: "Event date (ISO or YYYY-MM-DD)",
-            minLength: 1,
-          },
-          startTime: {
-            type: "string",
-            title: "Start time",
-            description: "Start time (e.g. HH:MM)",
-            minLength: 1,
-          },
+    const basic = state.success ?
+      state.data.basic :
+      acceptedContent(responses, BASIC_KEY, basicInfo);
+    if (!basic) {
+      if (wasDeclined(ctx, BASIC_KEY)) {
+        return createCallToolTextResponse({ cancelled: true, step: 1 });
+      }
+      return inputRequired({
+        inputRequests: {
+          [BASIC_KEY]: inputRequired.elicit({
+            message: "Step 1: Enter basic event information",
+            requestedSchema: basicInfo,
+          }),
         },
-        required: ["date", "startTime"],
-      },
-    });
-
-    if (dateTime.action !== "accept" || !dateTime.content) {
-      return cancelledWizardResponse(2, dateTime.action, basicInfo.content);
+      });
     }
 
-    const event = { ...basicInfo.content, ...dateTime.content };
-    return createCallToolTextResponse({
-      event,
-      message: "Event draft collected via two-step form elicitation.",
+    return inputRequired({
+      inputRequests: {
+        [SCHEDULE_KEY]: inputRequired.elicit({
+          message: "Step 2: Enter date and time",
+          requestedSchema: schedule,
+        }),
+      },
+      requestState: await requestState.mint({ tool: name, basic }, ctx),
     });
-  } catch (error) {
-    return createCallToolErrorResponse({
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-};
-
-// deno-lint-ignore no-explicit-any
-const module: ToolModule<typeof schema.shape, any> = [
-  name,
-  config,
-  callback,
-];
-
-export default module;
+  },
+});

@@ -1,14 +1,19 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
-import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
-import { APP_NAME } from "$/shared/constants.ts";
-import type { HttpServerConfig, Transport } from "$/shared/types.ts";
-import { createHonoApp } from "./hono.ts";
 import {
-  shouldWarnAllInterfacesBindWithoutHostAllowlist,
-  shouldWarnUnauthenticatedHttp,
-} from "./hostHeaderMiddleware.ts";
-import { createHTTPTransportManager } from "./transport.ts";
+  createMcpHandler,
+  type McpHttpHandler,
+  type McpServer,
+  type ServerEventBus,
+  UnsupportedProtocolVersionError,
+} from "@modelcontextprotocol/server";
+import type { Hono } from "hono";
+
+import type { KvRuntime } from "$/kv/runtime.ts";
+import { mcpServerDefinition } from "$/mcp/serverDefinition.ts";
+import type { HttpServerConfig, Transport } from "$/shared/config-types.ts";
+import { APP_NAME, BODY_LIMIT } from "$/shared/constants.ts";
+import { shouldWarnUnauthenticatedHttp } from "$/shared/httpSecurityPolicy.ts";
+import { createHonoApp } from "./hono.ts";
+import type { HonoEnv } from "./honoEnv.ts";
 
 function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undefined {
   const remoteAddr = info.remoteAddr;
@@ -22,35 +27,55 @@ function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undef
 }
 
 /**
+ * What to log for an error from the MCP handler. The SDK refusing a bad request is the client's
+ * fault and routine on a public endpoint, so it gets one line. Anything else keeps its stack.
+ */
+export function describeMcpError(error: Error): Error | string {
+  const refused = error instanceof UnsupportedProtocolVersionError ||
+    error.message.startsWith("Rejected ");
+  return refused ? error.message : error;
+}
+
+/**
  * Creates a HTTP server using Hono and Deno.serve
- * @param createMcpServer - Factory that creates MCP server instances
+ * @param createMcpServer - Factory that creates an MCP server for each request
  * @param config - The HTTP server configuration
+ * @param deps - Shared KV runtime and the bus feeding `subscriptions/listen` streams
  * @returns The HTTP transport instance
  */
 export function createHttpServer(
   createMcpServer: () => McpServer,
   config: HttpServerConfig,
-  deps?: { urlElicitationRegistry?: UrlElicitationRegistry },
+  deps: { kv: KvRuntime; events: ServerEventBus },
 ): Transport {
   const { enabled, hostname, port, tlsCert, tlsKey } = config;
-  const transports = createHTTPTransportManager(config);
-  const hono = createHonoApp({
-    createMcpServer,
-    config,
-    transports,
-    urlElicitationRegistry: deps?.urlElicitationRegistry,
-  });
+  /** Lazily built when HTTP is enabled and {@linkcode connect} runs (avoids rate-limiter timers when HTTP is off). */
+  let handler: McpHttpHandler | null = null;
+  let hono: Hono<HonoEnv> | null = null;
   let server: Deno.HttpServer | null = null;
+
+  const ensureStack = (): void => {
+    if (!enabled) return;
+    handler ??= createMcpHandler(createMcpServer, {
+      legacy: "reject",
+      bus: deps.events,
+      responseMode: config.jsonResponseMode ? "json" : "auto",
+      maxRequestBodySize: BODY_LIMIT,
+      onerror: (error) => console.error(`${APP_NAME}: MCP request error`, describeMcpError(error)),
+    });
+    hono ??= createHonoApp({
+      handler,
+      config,
+      kv: deps.kv,
+      urlElicitation: mcpServerDefinition.urlElicitation,
+    });
+  };
 
   const connect = () => {
     if (!enabled || server !== null) return;
-    if (shouldWarnAllInterfacesBindWithoutHostAllowlist(config)) {
-      console.error(
-        `${APP_NAME}: HTTP is binding to ${hostname} without Host allowlist middleware. ` +
-          "DNS rebinding protection is disabled. Use --hostname localhost (or 127.0.0.1), " +
-          "or enable --dnsRebinding with --host / MCP_ALLOWED_HOSTS for explicit Host validation.",
-      );
-    }
+    ensureStack();
+    const app = hono;
+    if (!app) return;
     if (shouldWarnUnauthenticatedHttp(config)) {
       console.error(
         `${APP_NAME}: HTTP is listening on a non-loopback address (${hostname}) without MCP_HTTP_BEARER_TOKEN. ` +
@@ -58,41 +83,42 @@ export function createHttpServer(
       );
     }
     const isTlsEnabled = !!tlsCert && !!tlsKey;
+    function logListening(scheme: "http" | "https"): void {
+      console.error(`${APP_NAME} listening on ${scheme}://${hostname}:${port}`);
+    }
     const serveOptions = isTlsEnabled ?
       {
         hostname,
         port,
         cert: Deno.readTextFileSync(tlsCert),
         key: Deno.readTextFileSync(tlsKey),
-        onListen: () => {
-          console.error(`${APP_NAME} listening on https://${hostname}:${port}`);
-        },
+        onListen: () => logListening("https"),
       } :
       {
         hostname,
         port,
-        onListen: () => {
-          console.error(`${APP_NAME} listening on http://${hostname}:${port}`);
-        },
+        onListen: () => logListening("http"),
       };
     server = Deno.serve(serveOptions, (request, info) => {
       const clientIp = resolveClientIp(info);
-      return hono.fetch(request, { clientIp });
+      return app.fetch(request, { clientIp });
     });
   };
 
   const disconnect = async () => {
     if (!enabled || server === null) return;
+    // Stop accepting first. Not awaited yet: it waits for open responses, and `subscriptions/listen`
+    // streams only end when the handler closes.
+    const shutdown = server.shutdown();
     try {
-      await transports.releaseAll();
-      await transports.close();
-    } catch {
-      /* ignore */
-    } finally {
-      server?.unref();
-      await server?.shutdown();
-      server = null;
+      await handler?.close();
+    } catch (error) {
+      console.error(`${APP_NAME}: MCP handler cleanup failed`, error);
     }
+    await shutdown;
+    handler = null;
+    hono = null;
+    server = null;
   };
 
   const isRunning = () => !!server;

@@ -1,8 +1,12 @@
 name: Publish
+
 on:
   push:
     tags:
       - "v*"
+
+permissions:
+  contents: read
 
 jobs:
   publish:
@@ -13,12 +17,47 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Deno
-        uses: denoland/setup-deno@v2
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
+          cache: true
+
+      - name: Check the tag matches deno.json
+        run: |
+          version="v$(jq -r .version deno.json)"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match deno.json version $version"
+            exit 1
+          fi
+
+      - run: deno ci
+
+      - name: Format, lint, type-check, tests
+        run: deno task ci
 
       - name: Publish package
-        run: deno publish
+        run: |
+          deno publish --dry-run
+          deno publish
+
+  # Its own job, so only this step can write to the repository.
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "${GITHUB_REF_NAME#v}" \
+            --verify-tag \
+            --generate-notes

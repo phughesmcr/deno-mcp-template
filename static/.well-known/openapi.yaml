@@ -4,15 +4,18 @@ info:
   description: |
     A template for building MCP servers with Deno.
 
-    The `/mcp` endpoint implements the **MCP Streamable HTTP** transport. See the
-    [MCP specification — Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http)
-    for protocol details. Responses may be `application/json` (including JSON-RPC envelopes)
-    or `text/event-stream` depending on the request and server mode.
-  version: 0.7.0
+    The `/mcp` endpoint is a **stateless** MCP HTTP endpoint speaking protocol revision
+    **2026-07-28** only. See the
+    [MCP specification](https://modelcontextprotocol.io/specification/2026-07-28)
+    for protocol details. There are no sessions and no `initialize` handshake; every request is
+    self-contained. Clients using older protocol revisions receive an unsupported-version error.
+    Responses may be `application/json` (including JSON-RPC envelopes) or `text/event-stream`
+    (for example `subscriptions/listen`) depending on the request and server mode.
+  version: 0.8.0
 servers:
   - url: http://localhost:3001
     description: |
-      Example base URL; the real host and port come from CLI flags and env (e.g. `--port`, `MCP_HTTP_PORT`).
+      Example base URL; the real host and port come from CLI flags and env (e.g. `--port`, `MCP_PORT`).
 
 paths:
   /:
@@ -31,19 +34,25 @@ paths:
 
   /mcp:
     post:
-      summary: MCP Streamable HTTP — POST (initialize and JSON-RPC messages)
+      summary: MCP over HTTP - POST (JSON-RPC requests and notifications)
       description: |
-        Non-empty JSON body. Omit `mcp-session-id` only for an `initialize` request; after that,
-        include the session UUID returned by the transport for all further messages.
+        The only supported method on this path. Send one JSON-RPC message per request, for example
+        `tools/list` or `tools/call`; `subscriptions/listen` returns a long-lived event stream for
+        change notifications. Multi-round tools return an `input_required` result with a signed
+        `requestState`; the client retries the same request with its answers.
 
-        When HTTP bearer auth is configured, send `Authorization: Bearer <token>` or header `x-api-key`
-        with the same secret (see `components.securitySchemes`).
+        Required headers: `MCP-Protocol-Version` (`2026-07-28`), `Mcp-Method` (must match the body's
+        `method`), and `Mcp-Name` for methods that name a target (`tools/call` and `prompts/get`:
+        `params.name`; `resources/read`: `params.uri`).
+
+        When HTTP bearer auth is configured, send `Authorization: Bearer <token>` (see
+        `components.securitySchemes`).
       tags:
         - MCP
       parameters:
-        - $ref: "#/components/parameters/McpSessionIdOptional"
-        - $ref: "#/components/parameters/LastEventId"
         - $ref: "#/components/parameters/McpProtocolVersion"
+        - $ref: "#/components/parameters/McpMethod"
+        - $ref: "#/components/parameters/McpName"
       requestBody:
         required: true
         content:
@@ -52,7 +61,7 @@ paths:
               $ref: "#/components/schemas/JSONRPCRequest"
       responses:
         "200":
-          description: JSON-RPC success, SSE stream, or transport-defined body.
+          description: JSON-RPC result or error envelope, or an SSE stream.
           content:
             application/json:
               schema:
@@ -60,122 +69,53 @@ paths:
             text/event-stream:
               schema:
                 type: string
-                description: Server-Sent Events stream (session lifecycle / notifications).
+                description: Server-Sent Events stream (for example `subscriptions/listen` notifications).
         "400":
-          description: Invalid JSON, empty body, invalid session, or missing session for non-initialize.
+          description: |
+            Invalid JSON or empty body, missing or mismatched `MCP-Protocol-Version` / `Mcp-Method` /
+            `Mcp-Name` headers, or an unsupported protocol version.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/JSONRPCError"
         "401":
-          description: Invalid or missing credentials (only when HTTP bearer auth is configured).
+          description: |
+            Invalid or missing credentials (only when HTTP bearer auth is configured). The response
+            carries `WWW-Authenticate: Bearer`.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedError"
         "405":
-          description: Method not found (JSON-RPC).
+          description: "Method other than POST (GET and DELETE are not supported). The response carries `Allow: POST`."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/JSONRPCError"
-        "404":
-          description: Unknown session (JSON-RPC).
+        "403":
+          description: |
+            Host header rejected by DNS-rebinding protection (JSON-RPC error with `id: null`), or an
+            `Origin` header that is not on the allowlist (JSON-RPC error without `id`).
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/JSONRPCError"
+        "413":
+          description: "Request body too large (JSON-RPC error with `id: null`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
+        "415":
+          description: Content-Type is not `application/json`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
+        "429":
+          description: Rate limit exceeded (only when rate limiting is enabled).
         "500":
-          description: Internal error (JSON-RPC or generic error body).
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: "#/components/schemas/JSONRPCError"
-                  - $ref: "#/components/schemas/ErrorResponse"
-
-    get:
-      summary: MCP Streamable HTTP — GET (SSE / resume)
-      description: |
-        Requires `mcp-session-id` for an existing session.
-        When HTTP bearer auth is configured, use `Authorization: Bearer <token>` or `x-api-key` (see `components.securitySchemes`).
-      tags:
-        - MCP
-      parameters:
-        - $ref: "#/components/parameters/McpSessionIdRequired"
-        - $ref: "#/components/parameters/LastEventId"
-        - $ref: "#/components/parameters/McpProtocolVersion"
-      responses:
-        "200":
-          description: SSE or JSON per transport.
-          content:
-            text/event-stream:
-              schema:
-                type: string
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JSONRPCEnvelope"
-        "400":
-          description: Missing or invalid session header.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JSONRPCError"
-        "401":
-          description: Invalid or missing credentials (only when HTTP bearer auth is configured).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedError"
-        "404":
-          description: No transport for session.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JSONRPCError"
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JSONRPCError"
-
-    delete:
-      summary: MCP Streamable HTTP — DELETE (terminate session)
-      description: |
-        Requires `mcp-session-id` for an existing session.
-        When HTTP bearer auth is configured, use `Authorization: Bearer <token>` or `x-api-key` (see `components.securitySchemes`).
-      tags:
-        - MCP
-      parameters:
-        - $ref: "#/components/parameters/McpSessionIdRequired"
-        - $ref: "#/components/parameters/LastEventId"
-        - $ref: "#/components/parameters/McpProtocolVersion"
-      responses:
-        "200":
-          description: Session terminated; body shape depends on transport.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JSONRPCEnvelope"
-        "400":
-          description: Missing or invalid session header.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JSONRPCError"
-        "401":
-          description: Invalid or missing credentials (only when HTTP bearer auth is configured).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedError"
-        "404":
-          description: No transport for session.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JSONRPCError"
-        "500":
+          description: "Internal error (JSON-RPC error with `id: null`)."
           content:
             application/json:
               schema:
@@ -242,18 +182,12 @@ paths:
     get:
       summary: URL-mode elicitation — confirmation page (HTML)
       description: |
-        Registered only when the URL elicitation demo is enabled. Query parameters must reference a
-        valid pending elicitation for an active MCP session.
+        Used by the `url-elicitation-demo` tool, and only present when `urlElicitation` is on in
+        `src/mcp/serverDefinition.ts`. The query parameter must reference a valid pending elicitation;
+        there is no session.
       tags:
         - MCP
       parameters:
-        - name: session
-          in: query
-          required: true
-          description: MCP session UUID.
-          schema:
-            type: string
-            format: uuid
         - name: elicitation
           in: query
           required: true
@@ -269,7 +203,7 @@ paths:
               schema:
                 type: string
         "400":
-          description: Invalid parameters, unknown session, or unknown elicitation.
+          description: Invalid parameters, or unknown or expired elicitation.
           content:
             text/html:
               schema:
@@ -287,13 +221,9 @@ paths:
             schema:
               type: object
               required:
-                - session
                 - elicitation
                 - action
               properties:
-                session:
-                  type: string
-                  format: uuid
                 elicitation:
                   type: string
                   format: uuid
@@ -341,46 +271,37 @@ components:
       scheme: bearer
       description: |
         Applies only when the server is configured with an HTTP bearer token. Then `/mcp` requests
-        must send `Authorization: Bearer <token>` (or use `x-api-key` with the same secret). If no
-        token is configured, these routes do not require authentication.
-    apiKeyHeader:
-      type: apiKey
-      in: header
-      name: x-api-key
-      description: |
-        Same as bearer auth when enabled: header value must match the configured token. Not checked
-        when no bearer token is configured.
+        must send `Authorization: Bearer <token>`. If no token is configured, these routes do not
+        require authentication.
 
   parameters:
-    McpSessionIdRequired:
-      name: mcp-session-id
-      in: header
-      required: true
-      description: Active MCP session UUID.
-      schema:
-        type: string
-        format: uuid
-    McpSessionIdOptional:
-      name: mcp-session-id
-      in: header
-      required: false
-      description: Omit for `initialize`; required for other JSON-RPC methods once a session exists.
-      schema:
-        type: string
-        format: uuid
-    LastEventId:
-      name: last-event-id
-      in: header
-      required: false
-      description: Resume streaming from this event id when supported by the transport.
-      schema:
-        type: string
     McpProtocolVersion:
       name: mcp-protocol-version
       in: header
-      required: false
+      required: true
+      description: Protocol revision of the request. Only `2026-07-28` is supported.
       schema:
         type: string
+        enum:
+          - "2026-07-28"
+    McpMethod:
+      name: mcp-method
+      in: header
+      required: true
+      description: JSON-RPC method of the request body (for example `tools/call`); must match the body.
+      schema:
+        type: string
+        example: tools/call
+    McpName:
+      name: mcp-name
+      in: header
+      required: false
+      description: |
+        Required for `tools/call` and `prompts/get` (the `params.name`) and `resources/read`
+        (the `params.uri`); must match the body. Omit for other methods.
+      schema:
+        type: string
+        example: increment-counter
 
   schemas:
     JSONRPCRequest:
@@ -399,7 +320,7 @@ components:
         method:
           type: string
           description: Method to call
-          example: initialize
+          example: tools/list
         params:
           type: object
           description: Method parameters
@@ -449,7 +370,6 @@ components:
               description: Additional error data
       required:
         - jsonrpc
-        - id
         - error
 
     JSONRPCEnvelope:
@@ -469,11 +389,3 @@ components:
       required:
         - error
         - message
-
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-      required:
-        - error
