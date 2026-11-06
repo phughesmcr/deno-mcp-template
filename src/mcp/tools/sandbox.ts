@@ -61,7 +61,9 @@ export default defineTool({
   inputSchema: schema,
   annotations: {
     title: "Execute Code in Sandbox",
-    readOnlyHint: true,
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
     openWorldHint: false,
   },
   handler: async ({ code, language, timeoutMs }, ctx): Promise<CallToolResult> => {
@@ -70,80 +72,72 @@ export default defineTool({
     const filePath = `/tmp/user_code.${ext}`;
     const start = performance.now();
 
-    const cancelled = (): CallToolResult =>
-      createCallToolErrorResponse({ error: "Code execution was cancelled" });
+    /** Reports progress, then stops if the client cancelled while the last step ran. */
+    const step = async (progress: number, message: string): Promise<void> => {
+      await sendExecuteCodeProgress(ctx, progress, message);
+      signal.throwIfAborted();
+    };
 
     try {
-      await sendExecuteCodeProgress(ctx, 1, "Creating isolated sandbox…");
-      if (signal.aborted) return cancelled();
-
+      await step(1, "Creating isolated sandbox…");
       await using sandbox = await Sandbox.create();
 
-      await sendExecuteCodeProgress(ctx, 2, "Writing code to sandbox…");
-      if (signal.aborted) return cancelled();
-
+      await step(2, "Writing code to sandbox…");
       await sandbox.fs.writeTextFile(filePath, code);
 
-      await sendExecuteCodeProgress(ctx, 3, "Starting Deno in sandbox…");
-      if (signal.aborted) return cancelled();
-
+      await step(3, "Starting Deno in sandbox…");
       const child = await sandbox.spawn("deno", {
         args: ["run", filePath],
         stdout: "piped",
         stderr: "piped",
       });
 
-      await sendExecuteCodeProgress(ctx, 4, "Running code (waiting for exit)…");
-      if (signal.aborted) return cancelled();
+      await step(4, "Running code (waiting for exit)…");
 
-      const killTimerId = setTimeout(() => child.kill(), timeoutMs);
-      let timedOut = false;
-      let rejectTimerId: ReturnType<typeof setTimeout> | undefined;
+      // Starts here so that `timeoutMs` measures the code, not the VM boot. SIGKILL, not spawn's
+      // `signal` option: that sends SIGTERM, which the code could trap to keep `output()` pending.
+      const timeout = AbortSignal.timeout(timeoutMs);
+      AbortSignal.any([signal, timeout]).addEventListener(
+        "abort",
+        () => child.kill("SIGKILL").catch(console.error),
+        { once: true },
+      );
 
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        rejectTimerId = setTimeout(() => {
-          timedOut = true;
-          reject(new Error(`Execution timed out after ${timeoutMs}ms`));
-        }, timeoutMs + 500);
-      });
+      const output = await child.output();
+      const executionTimeMs = Math.round(performance.now() - start);
 
-      try {
-        const output = await Promise.race([child.output(), timeoutPromise]);
-        clearTimeout(killTimerId);
-        clearTimeout(rejectTimerId);
-
-        const executionTimeMs = Math.round(performance.now() - start);
-        const stdout = output.stdoutText?.trim() ?? "";
-        const stderr = output.stderrText?.trim() ?? "";
-
-        if (output.status.code !== 0) {
-          return createCallToolErrorResponse({
-            error: "Code execution failed",
-            exitCode: output.status.code,
-            stdout: stdout || undefined,
-            stderr: stderr || undefined,
-            executionTimeMs,
-          });
-        }
-
-        return createCallToolTextResponse({
-          stdout: stdout || "(no output)",
-          stderr: stderr || undefined,
-          exitCode: output.status.code,
+      if (timeout.aborted) {
+        return createCallToolErrorResponse({
+          error: `Execution timed out after ${timeoutMs}ms`,
           executionTimeMs,
         });
-      } catch (raceError) {
-        clearTimeout(killTimerId);
-        clearTimeout(rejectTimerId);
-        if (timedOut) {
-          return createCallToolErrorResponse({
-            error: `Execution timed out after ${timeoutMs}ms`,
-            executionTimeMs: Math.round(performance.now() - start),
-          });
-        }
-        throw raceError;
       }
+      signal.throwIfAborted();
+
+      const stdout = output.stdoutText?.trim() ?? "";
+      const stderr = output.stderrText?.trim() ?? "";
+
+      if (output.status.code !== 0) {
+        return createCallToolErrorResponse({
+          error: "Code execution failed",
+          exitCode: output.status.code,
+          stdout: stdout || undefined,
+          stderr: stderr || undefined,
+          executionTimeMs,
+        });
+      }
+
+      return createCallToolTextResponse({
+        stdout: stdout || "(no output)",
+        stderr: stderr || undefined,
+        exitCode: output.status.code,
+        executionTimeMs,
+      });
     } catch (error) {
+      // The SDK discards a cancelled request's result; stopping early only frees the sandbox.
+      if (signal.aborted) {
+        return createCallToolErrorResponse({ error: "Code execution was cancelled" });
+      }
       return createCallToolErrorResponse({
         error: error instanceof Error ? error.message : "Unknown error during code execution",
         executionTimeMs: Math.round(performance.now() - start),

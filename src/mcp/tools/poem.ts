@@ -7,6 +7,7 @@ import { createCallToolErrorResponse, createCallToolTextResponse } from "$/share
 
 const INPUT_KEY = "poem";
 
+/** Sampling is deprecated by SEP-2577, still in the spec for at least twelve months. */
 export default defineTool({
   name: "poem",
   title: "Generate a poem",
@@ -17,6 +18,7 @@ export default defineTool({
       .max(5000, "Prompt too long (max 5000 characters)")
       .describe("The prompt to generate a poem for"),
   }),
+  annotations: { readOnlyHint: true, openWorldHint: false },
   handler: ({ prompt }, ctx) => {
     const view = inputResponse(ctx.mcpReq.inputResponses, INPUT_KEY);
     if (view.kind === "missing") {

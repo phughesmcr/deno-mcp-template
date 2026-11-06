@@ -3,6 +3,7 @@ import { z } from "zod";
 import { defineTool } from "$/mcp/plugin-types.ts";
 import { createCallToolTextResponse } from "$/shared/utils.ts";
 
+/** Logging is deprecated by SEP-2577, still in the spec for at least twelve months. */
 export default defineTool({
   name: "log-message",
   title: "Log a message",
@@ -21,6 +22,7 @@ export default defineTool({
     ]).default("info"),
     logger: z.string().max(100, "Logger name too long").optional(),
   }),
+  annotations: { readOnlyHint: true, openWorldHint: false },
   handler: async ({ message, level, logger }, ctx) => {
     await ctx.mcpReq.log(level, { message }, logger);
     return createCallToolTextResponse({ logged: true, level, logger: logger ?? null, message });

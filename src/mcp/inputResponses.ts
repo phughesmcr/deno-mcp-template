@@ -29,7 +29,10 @@ export function samplingText(ctx: ServerContext, key: string): string | undefine
   return first?.type === "text" ? first.text : undefined;
 }
 
-/** Number of roots in the roots answer to `key`, if there is one. */
+/**
+ * Number of roots in the roots answer to `key`, if there is one.
+ * @deprecated Roots are deprecated by SEP-2577, still in the spec for at least twelve months.
+ */
 export function rootCount(ctx: ServerContext, key: string): number | undefined {
   const view = inputResponse(ctx.mcpReq.inputResponses, key);
   return view.kind === "roots" ? view.roots.length : undefined;

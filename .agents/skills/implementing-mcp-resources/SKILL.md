@@ -71,9 +71,12 @@ For resources with variable URI segments like `greetings://{name}`:
 ```typescript
 import {
   type CompleteResourceTemplateCallback,
+  ProtocolError,
+  ProtocolErrorCode,
   type ReadResourceResult,
   type ResourceMetadata,
   ResourceTemplate,
+  type Variables,
 } from "@modelcontextprotocol/server";
 
 import type { ResourceTemplatePlugin } from "$/mcp/plugin-types.ts";
@@ -100,11 +103,11 @@ const config: ResourceMetadata = {
 };
 
 // Parameters are optional: (uri, variables, ctx, deps)
-async function readCallback(
-  uri: URL,
-  variables: Record<string, unknown>,
-): Promise<ReadResourceResult> {
-  const variable = variables.variable as string;
+function readCallback(uri: URL, variables: Variables): ReadResourceResult {
+  const { variable } = variables; // string | string[]
+  if (typeof variable !== "string") {
+    throw new ProtocolError(ProtocolErrorCode.InvalidParams, "Expected a single variable");
+  }
   return {
     contents: [{
       uri: uri.toString(),
@@ -153,7 +156,7 @@ export type ResourcePlugin = {
   type: "resource";
   name: string;
   uri: string;
-  config: ResourceMetadata;
+  config: ResourceConfig; // ResourceMetadata plus an optional cacheHint
   readCallback: (uri: URL, ctx: ServerContext, deps: McpServerFactoryContext) => ResourceResult;
 };
 
@@ -161,7 +164,7 @@ export type ResourceTemplatePlugin = {
   type: "template";
   name: string;
   template: ResourceTemplate;
-  config: ResourceMetadata;
+  config: ResourceConfig; // ResourceMetadata plus an optional cacheHint
   readCallback: (
     uri: URL,
     variables: Variables,

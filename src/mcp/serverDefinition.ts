@@ -6,8 +6,9 @@
 
 import type { ServerCapabilities } from "@modelcontextprotocol/server";
 
+import DenoJson from "../../deno.json" with { type: "json" };
 import type { AnyResourcePlugin, AppPlugin, PromptPlugin, ToolPlugin } from "$/mcp/plugin-types.ts";
-import { APP_NAME, APP_TITLE, APP_VERSION } from "$/shared/constants/app.ts";
+import { APP_DESCRIPTION, APP_NAME, APP_TITLE, APP_VERSION } from "$/shared/constants/app.ts";
 import { apps } from "./apps/mod.ts";
 import { prompts } from "./prompts/mod.ts";
 import { resources } from "./resources/mod.ts";
@@ -61,6 +62,7 @@ export const mcpServerDefinition: McpServerDefinition = {
  */
 export function buildServerCapabilities(def: McpServerDefinition): ServerCapabilities {
   return {
+    // Logging is deprecated by SEP-2577, still in the spec for at least twelve months.
     logging: {},
     ...(def.resourceSubscribe ? { resources: { subscribe: true } } : {}),
     ...(def.apps.length > 0 ? { extensions: { [MCP_APPS_EXTENSION_ID]: {} } } : {}),
@@ -71,4 +73,9 @@ export const SERVER_INFO = {
   name: APP_NAME,
   title: APP_TITLE,
   version: APP_VERSION,
+  websiteUrl: DenoJson.homepage,
 } as const;
+
+/** Shown to the client's model. Replace with guidance on when to use your own tools. */
+export const SERVER_INSTRUCTIONS = `${APP_DESCRIPTION} ` +
+  "The server keeps no session, so give each call everything it needs in its arguments.";

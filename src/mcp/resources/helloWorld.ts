@@ -1,14 +1,15 @@
-import type { ReadResourceResult, ResourceMetadata } from "@modelcontextprotocol/server";
+import type { ReadResourceResult } from "@modelcontextprotocol/server";
 
-import type { ResourcePlugin } from "$/mcp/plugin-types.ts";
+import type { ResourceConfig, ResourcePlugin } from "$/mcp/plugin-types.ts";
 
 const name = "helloWorld";
 
 const uri = "hello://world";
 
-const config: ResourceMetadata = {
+const config: ResourceConfig = {
   description: "A simple greeting message",
   mimeType: "text/plain",
+  cacheHint: { ttlMs: 60 * 60 * 1000, cacheScope: "public" }, // The text never changes.
 };
 
 async function readCallback(): Promise<ReadResourceResult> {

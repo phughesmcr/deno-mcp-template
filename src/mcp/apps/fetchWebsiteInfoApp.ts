@@ -8,7 +8,7 @@ import {
   registerAppTool,
   RESOURCE_MIME_TYPE,
 } from "@modelcontextprotocol/ext-apps/server";
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer, ReadResourceResult } from "@modelcontextprotocol/server";
 import { fromFileUrl } from "@std/path";
 
 import type { AppPlugin } from "$/mcp/plugin-types.ts";
@@ -16,6 +16,7 @@ import {
   executeFetchWebsiteInfo,
   FETCH_WEBSITE_INFO_TOOL_NAME,
   fetchWebsiteInfoInputSchema,
+  fetchWebsiteInfoOutputSchema,
   fetchWebsiteInfoToolDescription,
   fetchWebsiteInfoToolTitle,
 } from "$/mcp/tools/fetchWebsiteInfoShared.ts";
@@ -52,13 +53,8 @@ function getAppHtml(): string {
 function registerFetchWebsiteInfoApp(server: McpServer): void {
   const html = getAppHtml();
 
-  async function readFetchWebsiteInfoResource(): Promise<{
-    contents: Array<{
-      uri: string;
-      mimeType: string;
-      text: string;
-    }>;
-  }> {
+  // The bundle is the same for every client and only changes with a deploy.
+  async function readFetchWebsiteInfoResource(): Promise<ReadResourceResult> {
     return {
       contents: [
         {
@@ -67,6 +63,8 @@ function registerFetchWebsiteInfoApp(server: McpServer): void {
           text: html,
         },
       ],
+      ttlMs: 60 * 60 * 1000,
+      cacheScope: "public",
     };
   }
 
@@ -85,6 +83,8 @@ function registerFetchWebsiteInfoApp(server: McpServer): void {
       title: fetchWebsiteInfoToolTitle,
       description: fetchWebsiteInfoToolDescription,
       inputSchema: fetchWebsiteInfoInputSchema,
+      outputSchema: fetchWebsiteInfoOutputSchema,
+      annotations: { readOnlyHint: true, openWorldHint: true },
       _meta: { ui: { resourceUri: FETCH_WEBSITE_INFO_RESOURCE_URI } },
     },
     executeFetchWebsiteInfo,

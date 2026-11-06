@@ -16,6 +16,12 @@ export default defineTool({
   inputSchema: z.object({
     target: z.enum(["tools", "prompts", "resources"]),
   }),
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
   handler: ({ target }, _ctx, { events }) => {
     events.publish({ kind: EVENT_KINDS[target] });
     return createCallToolTextResponse({ notified: true, target });

@@ -1,6 +1,7 @@
 import type { McpServerDefinition } from "$/mcp/mod.ts";
 import { buildServerCapabilities, MCP_APPS_EXTENSION_ID } from "$/mcp/mod.ts";
 import { defineTool } from "$/mcp/plugin-types.ts";
+import { SERVER_INFO, SERVER_INSTRUCTIONS } from "$/mcp/serverDefinition.ts";
 import helloWorld from "$/mcp/resources/helloWorld.ts";
 import { createCallToolTextResponse } from "$/shared/utils.ts";
 import { z } from "zod";
@@ -43,8 +44,6 @@ Deno.test("buildServerCapabilities advertises subscribe and MCP Apps only when e
 
 Deno.test({
   name: "createMcpServer registers exactly the definition's tools and resources",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const handler = createTestMcpHandler(minimalDefinition());
 
@@ -66,4 +65,24 @@ Deno.test({
       "tool handler should receive the shared factory context",
     );
   },
+});
+
+Deno.test("server/discover reports the instructions and website", async () => {
+  const handler = createTestMcpHandler(minimalDefinition());
+  const discover = await (await handler.fetch(mcpRequest("server/discover"))).json() as {
+    result?: { instructions?: string; _meta?: Record<string, { websiteUrl?: string }> };
+  };
+  assertEquals(discover.result?.instructions, SERVER_INSTRUCTIONS);
+  const serverInfo = discover.result?._meta?.["io.modelcontextprotocol/serverInfo"];
+  assertEquals(serverInfo?.websiteUrl, SERVER_INFO.websiteUrl);
+  assert(URL.canParse(SERVER_INFO.websiteUrl), "websiteUrl should be a URL");
+});
+
+Deno.test("hello://world reads carry its cache hint", async () => {
+  const handler = createTestMcpHandler(minimalDefinition());
+  const read = await (await handler.fetch(
+    mcpRequest("resources/read", { uri: "hello://world" }, { name: "hello://world" }),
+  )).json() as { result?: { ttlMs?: number; cacheScope?: string } };
+  assertEquals(read.result?.ttlMs, 3_600_000);
+  assertEquals(read.result?.cacheScope, "public");
 });
