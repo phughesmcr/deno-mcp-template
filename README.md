@@ -250,40 +250,25 @@ claude mcp add --transport http my-mcp-server http://localhost:3001/mcp
 
 ### Deploy to Deno Deploy (optional)
 
+Set up a new app once, after logging in with `deno deploy` or setting `DENO_DEPLOY_TOKEN`:
+
 ```bash
-# Create app (one-time)
-deno deploy create \
-  --org <YOUR_ORG> \
-  --app <YOUR_APP> \
-  --source local \
-  --runtime-mode dynamic \
-  --entrypoint main.ts \
-  --build-timeout 5 \
-  --build-memory-limit 1024 \
-  --region us
-
-# Attach a KV database (one-time). `create` deploys straight away, and that first
-# revision fails because the server can't start without KV.
-deno deploy database provision <YOUR_DB> --kind denokv --org <YOUR_ORG>
-deno deploy database assign <YOUR_DB> --org <YOUR_ORG> --app <YOUR_APP>
-
-# Allow your public hostname. Without this, every request gets a 403 "Invalid Host".
-deno deploy env add MCP_DNS_REBINDING true --org <YOUR_ORG> --app <YOUR_APP>
-deno deploy env add MCP_ALLOWED_HOSTS <YOUR_HOSTNAME> --org <YOUR_ORG> --app <YOUR_APP>
-
-# Require a token on /mcp, and sign requestState with a key shared by every instance.
-deno deploy env add --secret MCP_HTTP_BEARER_TOKEN <YOUR_TOKEN> --org <YOUR_ORG> --app <YOUR_APP>
-deno deploy env add --secret MCP_REQUEST_STATE_KEY <32_PLUS_BYTES> --org <YOUR_ORG> --app <YOUR_APP>
-
-# Deploy
-deno deploy --prod
+deno task deploy:setup --org <YOUR_ORG> --app <YOUR_APP>
 ```
 
-Preview URLs include the revision ID, so an exact allowlist can't cover them.
+This creates the app, attaches a KV database, sets the variables below, and deploys to production. It prints a generated bearer token once at the end, so save it. Add `--dry-run` to see the commands first, `--host <domain>` for a custom domain, and `--region` to change from `us`. It only works for a new app, and it stops at the first failed step.
 
-On Deploy the server sees no client IP, so all clients share the unknown-client rate limit: 20 requests per 15 minutes per instance. A single client session can use that up. Raise it with `MCP_HTTP_RATE_LIMIT_UNKNOWN_MAX`. Requests to `/mcp` without a valid token don't count, so they can't use up that limit, but failed token guesses aren't rate limited.
+| Setting | Why Deploy needs it |
+| --- | --- |
+| KV database | The server can't start without one, and it can only attach after `deno deploy create` has run. |
+| `MCP_DNS_REBINDING`, `MCP_ALLOWED_HOSTS` | Without them every request gets a 403 `Invalid Host`. `*.<YOUR_ORG>.deno.net` also covers preview URLs, whose hostnames change with each revision. |
+| `MCP_HTTP_BEARER_TOKEN` | The app is public, so `/mcp` needs a token. |
+| `MCP_REQUEST_STATE_KEY` | Multi-round calls must survive restarts and work across instances. |
+| `MCP_HTTP_RATE_LIMIT_UNKNOWN_MAX` | The server sees no client IP on Deploy, so all clients share this limit. The default of 20 requests per 15 minutes is too low, so setup sets 1000. Requests to `/mcp` without a valid token don't count, but failed token guesses aren't rate limited. |
 
-Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Actions secrets for automatic deploys. Remove `.github/workflows/deploy.yml` if not using Deploy.
+For automatic deploys, set the `DENO_DEPLOY_TOKEN` secret and the `DENO_DEPLOY_ORG` and `DENO_DEPLOY_APP` variables in GitHub Actions. Remove `.github/workflows/deploy.yml` if not using Deploy.
+
+`deploy.yml` deploys to production on pushes to `main`. A manual run makes a preview unless you tick `prod`. It first checks the token can reach the org and app, and afterwards smoke-tests the deployed URL with `scripts/smoke-deploy.ts`. Add the deployed token as an `MCP_HTTP_BEARER_TOKEN` repository secret for a full check rather than stopping at the 401. If a run fails, it prints recent app logs, which are public on public repositories.
 
 ## Production Checklist
 
@@ -313,7 +298,7 @@ Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Acti
 | `MCP_JSON_RESPONSE` | `--json-response` | `false` | JSON-only responses (disable SSE) |
 | `MCP_DNS_REBINDING` | `--dnsRebinding` | `false` | Enable transport-level Origin/Host checks (loopback binds already get Host validation) |
 | `MCP_ALLOWED_ORIGINS` | `--origin` | | Allowed CORS origins (collection) |
-| `MCP_ALLOWED_HOSTS` | `--host` | | Allowed hostnames (collection) |
+| `MCP_ALLOWED_HOSTS` | `--host` | | Allowed hostnames (collection). `*.example.com` matches one subdomain label |
 | `MCP_KV_PATH` | `--kv-path` | | Custom Deno KV database path |
 | `MCP_REQUEST_STATE_KEY` | | random per process | Secret (32+ bytes) that signs `requestState`; env only, share it across instances |
 | `MCP_HTTP_RATE_LIMIT_ENABLED` | `--http-rate-limit` / `--no-http-rate-limit` | `true` | Enable per-IP HTTP rate limiting (`MCP_HTTP_RATE_LIMIT_*` for window and caps — see `.env.example`) |

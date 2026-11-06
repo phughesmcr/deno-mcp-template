@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       prod:
-        description: Deploy to production (untick for a preview deployment)
+        description: Deploy to production (leave unticked for a preview deployment)
         type: boolean
-        default: true
+        default: false
 
 jobs:
   deploy:
@@ -27,15 +27,52 @@ jobs:
         with:
           deno-version: v2.9.8
 
+      - name: Check Deno Deploy access
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
+          DENO_DEPLOY_APP: ${{ vars.DENO_DEPLOY_APP }}
+        run: |
+          if [ -z "$DENO_DEPLOY_TOKEN" ] || [ -z "$DENO_DEPLOY_ORG" ] || [ -z "$DENO_DEPLOY_APP" ]; then
+            echo "::error::Missing DENO_DEPLOY_TOKEN secret or DENO_DEPLOY_ORG / DENO_DEPLOY_APP repository variables."
+            exit 1
+          fi
+          # Org slugs stay out of the log: it's public on public repositories.
+          if ! deno deploy whoami --json | jq -e --arg org "$DENO_DEPLOY_ORG" '[.orgs[].slug] | index($org)' > /dev/null; then
+            echo "::error::DENO_DEPLOY_TOKEN can't reach the org in DENO_DEPLOY_ORG. Check the slug, or use a token from that org."
+            exit 1
+          fi
+          if ! deno deploy apps get --json --non-interactive --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" > /dev/null; then
+            echo "::error::App not found in the org. Create it once with: deno task deploy:setup --org <org> --app <app>"
+            exit 1
+          fi
+
       - name: Deploy to Deno Deploy
+        id: deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
           DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
           DENO_DEPLOY_APP: ${{ vars.DENO_DEPLOY_APP }}
           DEPLOY_TARGET: ${{ (github.event_name != 'workflow_dispatch' || inputs.prod) && '--prod' || '' }}
         run: |
-          if [ -z "$DENO_DEPLOY_TOKEN" ] || [ -z "$DENO_DEPLOY_ORG" ] || [ -z "$DENO_DEPLOY_APP" ]; then
-            echo "Missing DENO_DEPLOY_TOKEN secret or DENO_DEPLOY_ORG / DENO_DEPLOY_APP repository variables."
-            exit 1
-          fi
-          deno deploy --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" $DEPLOY_TARGET
+          result=$(deno deploy --json --non-interactive --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" $DEPLOY_TARGET)
+          echo "$result" | jq -c '{status, revisionId}'
+          echo "url=$(echo "$result" | jq -r '.timelines[0].domains[0]')" >> "$GITHUB_OUTPUT"
+
+      # Deno Deploy only proves the server booted. Set the optional MCP_HTTP_BEARER_TOKEN
+      # repository secret for a full check rather than stopping at the 401.
+      - name: Smoke test the deployment
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          MCP_HTTP_BEARER_TOKEN: ${{ secrets.MCP_HTTP_BEARER_TOKEN }}
+        run: deno run -A scripts/smoke-deploy.ts "$DEPLOY_URL"
+
+      # App logs land in the workflow log, which is public on public repositories.
+      - name: Show app logs
+        if: failure()
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
+          DENO_DEPLOY_APP: ${{ vars.DENO_DEPLOY_APP }}
+        run: |
+          timeout 60 deno deploy logs --once --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" 2>&1 | grep -v Download | cut -c1-300 | tail -25 || true

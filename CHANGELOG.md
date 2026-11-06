@@ -23,7 +23,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as describ
   bundle holds all five binaries, and `static/mcpb-launcher.sh` picks one by platform.
 - HTTP logs requests the SDK refuses as one line instead of a stack trace.
 - CI runs on `dev` and passes `DENO_DEPLOY_TOKEN`, so the real sandbox test runs.
-- `deploy.yml` has a `prod` dispatch input (default true). `prod=false` makes a preview deployment.
+- `deploy.yml` has a `prod` dispatch input (default false), so a manual run makes a preview. It checks
+  org and app access first, smoke-tests the deployed URL, and prints app logs on failure.
 - Conformance runs `--requirements 2026-07-28` on `@modelcontextprotocol/conformance`
   0.2.0-alpha.12, and CI pins Deno 2.9.8.
 
@@ -50,6 +51,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as describ
   issue labels (`deno task labels:github` / `scripts/setup-sep1730-labels.sh`), issue templates, and
   maintainer triage expectations in `CONTRIBUTING.md`.
 - `.github/dependabot.yml` for automated dependency update PRs where supported.
+- `deno task deploy:setup` sets up a new Deno Deploy app, and `scripts/smoke-deploy.ts` checks a
+  deployed server answers MCP.
+- `MCP_ALLOWED_HOSTS` accepts `*.example.com`, matching one subdomain label.
 - `.github/workflows/binaries.yml` and `scripts/smoke-binary.ts`: smoke test on all five binary
   targets.
 
