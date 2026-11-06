@@ -22,6 +22,7 @@ export default defineTool({
   inputSchema: z.object({
     purpose: z.string().min(1, "Purpose is required").max(200, "Purpose too long"),
   }),
+  annotations: { readOnlyHint: true, openWorldHint: false },
   handler: ({ purpose }, ctx) => {
     if (wasDeclined(ctx, INPUT_KEY)) return createCallToolTextResponse({ cancelled: true });
 

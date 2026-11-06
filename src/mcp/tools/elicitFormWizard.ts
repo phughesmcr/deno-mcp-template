@@ -41,6 +41,7 @@ export default defineTool({
   description:
     "Collect event details in two sequential form elicitation steps (title/description, then date/time).",
   inputSchema: z.object({}),
+  annotations: { readOnlyHint: true, openWorldHint: false },
   handler: async (_args, ctx, { requestState }) => {
     const responses = ctx.mcpReq.inputResponses;
     const state = wizardState.safeParse(ctx.mcpReq.requestState());

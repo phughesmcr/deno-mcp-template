@@ -4,6 +4,7 @@
  */
 
 import type {
+  CacheHint,
   CallToolResult,
   GetPromptResult,
   InputRequiredResult,
@@ -111,12 +112,15 @@ export function definePrompt<Args extends StandardSchemaWithJSON>(
 
 type ResourceResult = MaybePromise<ReadResourceResult | InputRequiredResult>;
 
+/** Resource metadata, plus an optional `resources/read` cache hint for unchanging content. */
+export type ResourceConfig = ResourceMetadata & { cacheHint?: CacheHint };
+
 /** Static resource. */
 export type ResourcePlugin = {
   type: "resource";
   name: string;
   uri: string;
-  config: ResourceMetadata;
+  config: ResourceConfig;
   readCallback: (uri: URL, ctx: ServerContext, deps: McpServerFactoryContext) => ResourceResult;
 };
 
@@ -125,7 +129,7 @@ export type ResourceTemplatePlugin = {
   type: "template";
   name: string;
   template: ResourceTemplate;
-  config: ResourceMetadata;
+  config: ResourceConfig;
   readCallback: (
     uri: URL,
     variables: Variables,

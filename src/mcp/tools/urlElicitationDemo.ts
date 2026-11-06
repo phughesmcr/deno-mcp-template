@@ -49,6 +49,12 @@ export default defineTool({
       .max(200, "Label too long")
       .describe("Short text shown on the browser confirmation page"),
   }),
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
   handler: async ({ label }, ctx, deps) => {
     const { publicBaseUrl } = deps;
     if (!publicBaseUrl) {

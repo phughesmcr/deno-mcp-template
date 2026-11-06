@@ -7,6 +7,7 @@ import {
   type McpServerDefinition,
   mcpServerDefinition,
   SERVER_INFO,
+  SERVER_INSTRUCTIONS,
 } from "./serverDefinition.ts";
 
 /**
@@ -20,6 +21,7 @@ export function createMcpServer(
 ): McpServer {
   const server = new McpServer(SERVER_INFO, {
     capabilities: buildServerCapabilities(def),
+    instructions: SERVER_INSTRUCTIONS,
     requestState: { verify: ctx.requestState.verify },
   });
 
