@@ -50,6 +50,7 @@
   "tasks": {
     "setup": "deno run -A scripts/setup-template.ts",
     "labels:github": "bash scripts/setup-sep1730-labels.sh",
+    "deploy:setup": "deno run -A scripts/deploy-setup.ts",
     "start": "deno run --env-file=.env -A main.ts",
     "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts",
     "test:integration": "deno test --frozen -P --ignore=__test__/cli-env-prefix.integration.test.ts,__test__/mcp-protocol.integration.test.ts && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts __test__/mcp-protocol.integration.test.ts",
