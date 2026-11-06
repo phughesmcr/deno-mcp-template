@@ -26,6 +26,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - CI runs on `dev` and passes `DENO_DEPLOY_TOKEN`, so the real sandbox test runs.
 - `deploy.yml` has a `prod` dispatch input (default false), so a manual run makes a preview. It checks
   org and app access first, smoke-tests the deployed URL, and prints app logs on failure.
+- `release.yml` is merged into `publish.yml`: a tag must match `deno.json`, CI runs before publishing,
+  and the GitHub release is only created after a successful JSR publish.
+- Workflows pin actions to commit SHAs, and set read-only `permissions` and `concurrency`.
+- Stricter compiler options and lint rules, a two-day `minimumDependencyAge`, and the JSR package
+  no longer ships tests, scripts or repository tooling.
 - Agent rules moved to `AGENTS.md` and skills to `.agents/skills/`. `CONTRIBUTING.md` and
   `SECURITY.md` moved to `.github/`.
 - Conformance runs `--requirements 2026-07-28` on `@modelcontextprotocol/conformance`

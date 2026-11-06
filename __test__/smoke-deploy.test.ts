@@ -4,7 +4,8 @@ import { assert, assertEquals } from "./helpers.ts";
 const stub = (...responses: Array<[number, string] | Error>) => {
   let calls = 0;
   const fetchFn = (() => {
-    const next = responses[Math.min(calls++, responses.length - 1)]!;
+    const next = responses[Math.min(calls++, responses.length - 1)] ??
+      new Error("no stubbed response");
     if (next instanceof Error) return Promise.reject(next);
     return Promise.resolve(new Response(next[1], { status: next[0] }));
   }) as typeof fetch;

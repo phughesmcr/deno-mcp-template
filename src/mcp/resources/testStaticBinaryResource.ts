@@ -9,8 +9,8 @@ const config: ResourceMetadata = { mimeType: "application/octet-stream" };
 async function readCallback(): Promise<ReadResourceResult> {
   const bytes = new Uint8Array([0, 1, 2, 3, 255]);
   let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]!);
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
   }
 
   return {

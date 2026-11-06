@@ -11,7 +11,7 @@ import type { CallToolResult } from "@modelcontextprotocol/server";
 export function createValidator<T>(
   predicate: (value: T) => boolean,
   errorMessage: (value: T) => string,
-) {
+): (value: T) => T {
   return (value: T): T => {
     if (!predicate(value)) {
       throw new Error(errorMessage(value));
@@ -25,7 +25,7 @@ export function createValidator<T>(
  */
 export function createArrayValidator<T>(
   itemValidator: (item: T) => T,
-) {
+): (items: T[]) => T[] {
   return (items: T[]): T[] => items.map(itemValidator);
 }
 

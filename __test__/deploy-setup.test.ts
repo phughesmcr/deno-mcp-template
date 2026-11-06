@@ -14,6 +14,12 @@ function indexOfStep(...parts: string[]): number {
   return steps.findIndex((step) => parts.every((part) => step.args.includes(part)));
 }
 
+function stepWith(...parts: string[]) {
+  const step = steps[indexOfStep(...parts)];
+  assert(step !== undefined, `no step with ${parts.join(" ")}`);
+  return step;
+}
+
 Deno.test("setup attaches KV after create and before the production deploy", () => {
   const create = indexOfStep("create");
   const assign = indexOfStep("assign");
@@ -22,13 +28,13 @@ Deno.test("setup attaches KV after create and before the production deploy", () 
   assert(indexOfStep("provision") < assign, "provision before assign");
   assertEquals(deploy, steps.length - 1);
   assert(
-    steps[create]!.args.includes("--no-wait"),
+    stepWith("create").args.includes("--no-wait"),
     "create must not wait on a revision that fails",
   );
 });
 
 Deno.test("setup allows previews and custom domains", () => {
-  const hosts = steps[indexOfStep("MCP_ALLOWED_HOSTS")]!;
+  const hosts = stepWith("MCP_ALLOWED_HOSTS");
   assert(hosts.args.includes("*.acme.deno.net,mcp.example.com"), hosts.args.join(" "));
 });
 
@@ -36,7 +42,7 @@ Deno.test("setup never shows secrets in its display form", () => {
   const shown = steps.flatMap((step) => step.display ?? step.args).join(" ");
   assert(!shown.includes("token-value"), "bearer token leaked");
   assert(!shown.includes("state-value"), "state key leaked");
-  assert(steps[indexOfStep("MCP_REQUEST_STATE_KEY")]!.args.includes("--secret"), "must be secret");
+  assert(stepWith("MCP_REQUEST_STATE_KEY").args.includes("--secret"), "must be secret");
 });
 
 Deno.test("setup stops at the first failed step", async () => {

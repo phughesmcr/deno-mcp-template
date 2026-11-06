@@ -19,10 +19,13 @@ Deno.test({
     const payload = await response.json() as {
       result?: { contents: Array<{ mimeType?: string; text?: string }> };
     };
-    assert(payload.result != null, `expected result, got ${JSON.stringify(payload).slice(0, 300)}`);
+    assert(
+      payload.result !== undefined,
+      `expected result, got ${JSON.stringify(payload).slice(0, 300)}`,
+    );
 
     const content = payload.result.contents[0];
-    assert(content != null, "expected one resource content item");
+    assert(content !== undefined, "expected one resource content item");
     assert(
       content.mimeType === RESOURCE_MIME_TYPE,
       `mimeType should be ${RESOURCE_MIME_TYPE}, got ${content.mimeType}`,

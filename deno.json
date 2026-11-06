@@ -28,6 +28,7 @@
     "type": "git",
     "url": "git+https://github.com/phughesmcr/deno-mcp-template.git"
   },
+  "minimumDependencyAge": "P2D",
   "imports": {
     "$/": "./src/",
     "@cliffy/command": "jsr:@cliffy/command@^1.3.1",
@@ -100,11 +101,12 @@
     "erasableSyntaxOnly": true,
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
+    "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
-    "noUncheckedIndexedAccess": false,
+    "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "verbatimModuleSyntax": true
@@ -177,9 +179,40 @@
         "require-await"
       ],
       "include": [
-        "no-useless-rename"
+        "camelcase",
+        "default-param-last",
+        "eqeqeq",
+        "explicit-module-boundary-types",
+        "guard-for-in",
+        "no-eval",
+        "no-external-import",
+        "no-implicit-declare-namespace-export",
+        "no-inferrable-types",
+        "no-node-globals",
+        "no-non-null-assertion",
+        "no-process-global",
+        "no-self-compare",
+        "no-sparse-arrays",
+        "no-sync-fn-in-async-fn",
+        "no-throw-literal",
+        "no-useless-rename",
+        "single-var-declarator",
+        "triple-slash-reference"
       ]
     }
+  },
+  "publish": {
+    "exclude": [
+      ".agents/",
+      ".gitattributes",
+      ".github/",
+      ".vscode/",
+      "AGENTS.md",
+      "__bench__/",
+      "__test__/",
+      "mcp-ui/",
+      "scripts/"
+    ]
   },
   "lock": {
     "path": "./deno.lock",

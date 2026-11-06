@@ -9,7 +9,7 @@ import {
   RESOURCE_MIME_TYPE,
 } from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer } from "@modelcontextprotocol/server";
-import { join } from "@std/path";
+import { fromFileUrl } from "@std/path";
 
 import {
   executeFetchWebsiteInfo,
@@ -27,14 +27,8 @@ let cachedAppHtml: string | undefined;
 
 function getAppHtml(): string {
   if (cachedAppHtml !== undefined) return cachedAppHtml;
-  const path = join(
-    import.meta.dirname!,
-    "..",
-    "..",
-    "..",
-    "static",
-    "mcp-apps",
-    "fetch-website-info.html",
+  const path = fromFileUrl(
+    new URL("../../../static/mcp-apps/fetch-website-info.html", import.meta.url),
   );
   try {
     cachedAppHtml = Deno.readTextFileSync(path);

@@ -71,7 +71,8 @@ export function createHttpServer(
   const connect = () => {
     if (!enabled || server !== null) return;
     ensureStack();
-    if (!hono) return;
+    const app = hono;
+    if (!app) return;
     if (shouldWarnAllInterfacesBindWithoutHostAllowlist(config)) {
       console.error(
         `${APP_NAME}: HTTP is binding to ${hostname} without Host allowlist middleware. ` +
@@ -104,7 +105,7 @@ export function createHttpServer(
       };
     server = Deno.serve(serveOptions, (request, info) => {
       const clientIp = resolveClientIp(info);
-      return hono!.fetch(request, { clientIp });
+      return app.fetch(request, { clientIp });
     });
   };
 

@@ -8,7 +8,7 @@ function fixedLengthDigestEqual(a: ArrayBuffer, b: ArrayBuffer): boolean {
   if (ua.length !== ub.length) return false;
   let diff = 0;
   for (let i = 0; i < ua.length; i++) {
-    diff |= ua[i]! ^ ub[i]!;
+    diff |= (ua[i] ?? 0) ^ (ub[i] ?? 0);
   }
   return diff === 0;
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { defineTool } from "$/mcp/plugin-types.ts";
 import { createCallToolTextResponse } from "$/shared/utils.ts";
-import { assertEquals } from "./helpers.ts";
+import { assert, assertEquals } from "./helpers.ts";
 import { mcpFactoryContext } from "./helpers.ts";
 
 Deno.test("defineTool registers under its name and passes deps to the handler", async () => {
@@ -34,7 +34,9 @@ Deno.test("defineTool registers under its name and passes deps to the handler", 
   tool.register(fakeMcp, deps);
 
   assertEquals(registered.length, 1);
-  assertEquals(registered[0]!.name, "test-tool");
-  await registered[0]!.cb({}, {});
+  const entry = registered[0];
+  assert(entry !== undefined, "tool should be registered");
+  assertEquals(entry.name, "test-tool");
+  await entry.cb({}, {});
   assertEquals(seenDeps, deps);
 });

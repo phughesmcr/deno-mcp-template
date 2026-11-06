@@ -98,7 +98,7 @@ export default defineTool({
 
       const killTimerId = setTimeout(() => child.kill(), timeoutMs);
       let timedOut = false;
-      let rejectTimerId: ReturnType<typeof setTimeout>;
+      let rejectTimerId: ReturnType<typeof setTimeout> | undefined;
 
       const timeoutPromise = new Promise<never>((_, reject) => {
         rejectTimerId = setTimeout(() => {
@@ -110,7 +110,7 @@ export default defineTool({
       try {
         const output = await Promise.race([child.output(), timeoutPromise]);
         clearTimeout(killTimerId);
-        clearTimeout(rejectTimerId!);
+        clearTimeout(rejectTimerId);
 
         const executionTimeMs = Math.round(performance.now() - start);
         const stdout = output.stdoutText?.trim() ?? "";
@@ -134,7 +134,7 @@ export default defineTool({
         });
       } catch (raceError) {
         clearTimeout(killTimerId);
-        clearTimeout(rejectTimerId!);
+        clearTimeout(rejectTimerId);
         if (timedOut) {
           return createCallToolErrorResponse({
             error: `Execution timed out after ${timeoutMs}ms`,

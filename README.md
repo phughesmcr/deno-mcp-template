@@ -96,7 +96,7 @@ See [`AGENTS.md`](AGENTS.md) (Architecture) for the per-request `McpServer` inst
 | Change notifications | `subscriptions/listen` streams fed by a `ServerEventBus`; KV watches publish resource updates | `src/app/app.ts`, `src/kv/watch.ts` |
 | Sandboxed execution | `@deno/sandbox` microVMs for untrusted code | `src/mcp/tools/sandbox.ts` |
 | MCP Apps (interactive UI) | Example tool + `ui://` HTML bundle via `@modelcontextprotocol/ext-apps` | `mcp-ui/`, `src/mcp/apps/`, `static/mcp-apps/` |
-| CI/CD workflows | GitHub Actions for CI, release, deploy, JSR publish | `.github/workflows/` |
+| CI/CD workflows | GitHub Actions for CI, deploy, JSR publish | `.github/workflows/` |
 | Config management | CLI flags + env vars with validation and merging | `src/app/cli.ts` |
 | Permission preflight | Fail-fast startup checks with actionable guidance | `src/app/permissions.ts` |
 
@@ -391,7 +391,7 @@ static/                     # Static files, OpenAPI spec, MCPB manifest, mcp-app
 scripts/                    # Setup, build, and packaging helpers
 __test__                    # Tests
 __bench__                   # Benchmarks
-.github/workflows/          # CI, release, deploy, publish
+.github/workflows/          # CI, deploy, publish
 ```
 
 For the annotated source tree, transport internals, and development caveats, see
