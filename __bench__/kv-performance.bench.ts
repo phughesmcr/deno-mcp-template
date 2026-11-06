@@ -1,108 +1,42 @@
-import { KvEventStore } from "$/app/http/kvEventStore.ts";
-import { closeKvStore, configureKvPath, getKvStore, openKvStore } from "$/kv/mod.ts";
-import { createWorkingIndexKey, KvTaskStore, TASK_META_PREFIX } from "$/mcp/tasks/kvTaskStore.ts";
-import { runTaskPeriodicMaintenance } from "$/mcp/tasks/maintenance.ts";
-import type { Request } from "@modelcontextprotocol/sdk/types.js";
+import { closeKvStore, configureKvPath, getProcessKvRuntime, openKvStore } from "$/kv/mod.ts";
+import { incrementPersistedCounterValue } from "$/mcp/resources/counterStore.ts";
+import { createUrlElicitation, resolveUrlElicitation } from "$/mcp/urlElicitation/store.ts";
 
-const request = { method: "tools/call", params: {} } as unknown as Request;
+async function withTempKv(run: (kv: Deno.Kv) => Promise<void>): Promise<void> {
+  const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
+  try {
+    configureKvPath(kvPath);
+    const kv = await openKvStore(kvPath);
+    await run(kv);
+  } finally {
+    await closeKvStore();
+    await Deno.remove(kvPath).catch(() => {});
+  }
+}
 
 Deno.bench({
-  name: "kvEventStore replayEventsAfter streams without full sort",
+  name: "counter: 50 atomic increments",
   group: "kv",
-  fn: async () => {
-    const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
-    try {
-      configureKvPath(kvPath);
-      await openKvStore(kvPath);
-      const store = await KvEventStore.create();
-      const streamId = crypto.randomUUID();
-      const ids: string[] = [];
-      for (let i = 0; i < 40; i++) {
-        const id = await store.storeEvent(streamId, {
-          jsonrpc: "2.0",
-          id: i,
-          method: "ping",
-        } as never);
-        ids.push(id);
-      }
-      const pivot = ids[19]!;
-      let sent = 0;
-      await store.replayEventsAfter(pivot, {
-        send: async () => {
-          sent += 1;
-        },
-      });
-      if (sent !== 20) {
-        throw new Error(`expected 20 replayed events, got ${sent}`);
-      }
-    } finally {
-      await closeKvStore();
-      await Deno.remove(kvPath).catch(() => {});
-    }
-  },
+  fn: () =>
+    withTempKv(async () => {
+      const runtime = getProcessKvRuntime();
+      for (let i = 0; i < 50; i++) await incrementPersistedCounterValue(1, runtime);
+      const final = await incrementPersistedCounterValue(0, runtime);
+      if (final !== 50) throw new Error(`expected 50, got ${final}`);
+    }),
 });
 
 Deno.bench({
-  name: "runTaskPeriodicMaintenance uses working index after migration",
+  name: "url elicitation: create and resolve",
   group: "kv",
-  fn: async () => {
-    const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
-    try {
-      configureKvPath(kvPath);
-      await openKvStore(kvPath);
-      const taskStore = new KvTaskStore();
-      const kv = await getKvStore();
-
-      const stale = await taskStore.createTask(
-        { ttl: 600_000, pollInterval: 1000 },
-        "req-stale",
-        request,
-      );
-      const fresh = await taskStore.createTask(
-        { ttl: 600_000, pollInterval: 1000 },
-        "req-fresh",
-        request,
-      );
-
-      const staleMetaKey = [...TASK_META_PREFIX, stale.taskId] as Deno.KvKey;
-      const staleEntry = await kv.get(staleMetaKey);
-      type Meta = {
-        task: { lastUpdatedAt: string; status: string; taskId: string };
-        requestId: string;
-        request: unknown;
-        sessionId?: string;
-        expiresAt?: number;
-      };
-      const rec = staleEntry.value as Meta;
-      const now = Date.now();
-      await kv.set(staleMetaKey, {
-        ...rec,
-        task: {
-          ...rec.task,
-          status: "working",
-          lastUpdatedAt: new Date(now - 20 * 60 * 1000).toISOString(),
-        },
-      });
-
-      const cleaned = await runTaskPeriodicMaintenance({ now });
-      if (cleaned !== 1) {
-        throw new Error(`expected 1 stale cleanup, got ${cleaned}`);
+  fn: () =>
+    withTempKv(async (kv) => {
+      const id = await createUrlElicitation(kv, "bench");
+      if (!await resolveUrlElicitation(kv, id, "confirmed")) {
+        throw new Error("expected first resolve to succeed");
       }
-      const freshAfter = await taskStore.getTask(fresh.taskId);
-      if (freshAfter?.status !== "working") {
-        throw new Error("expected fresh task to remain working");
+      if (await resolveUrlElicitation(kv, id, "cancelled")) {
+        throw new Error("expected second resolve to fail");
       }
-    } finally {
-      await closeKvStore();
-      await Deno.remove(kvPath).catch(() => {});
-    }
-  },
-});
-
-Deno.bench({
-  name: "working index key allocation",
-  group: "kv",
-  fn: () => {
-    createWorkingIndexKey(new Date().toISOString(), crypto.randomUUID());
-  },
+    }),
 });

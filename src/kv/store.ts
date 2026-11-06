@@ -10,16 +10,6 @@ export function configureKvPath(path?: string): void {
   getProcessKvRuntime().configurePath(path);
 }
 
-/** Returns the configured KV path if one is set. */
-export function getConfiguredKvPath(): string | undefined {
-  return getProcessKvRuntime().getConfiguredPath();
-}
-
-/** Opens the shared KV store if needed and returns it. */
-export async function getKvStore(): Promise<Deno.Kv> {
-  return await getProcessKvRuntime().get();
-}
-
 /** Configures (optional) path and opens KV. */
 export async function openKvStore(path?: string): Promise<Deno.Kv> {
   return await getProcessKvRuntime().open(path);

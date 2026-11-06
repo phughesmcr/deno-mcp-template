@@ -7,4 +7,6 @@
  * @module
  */
 
-await Deno.remove("./dist", { recursive: true });
+await Deno.remove("./dist", { recursive: true }).catch((error) => {
+  if (!(error instanceof Deno.errors.NotFound)) throw error;
+});

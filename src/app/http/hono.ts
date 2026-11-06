@@ -1,4 +1,4 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpHttpHandler } from "@modelcontextprotocol/server";
 import { fromFileUrl, join } from "@std/path";
 import type { Context } from "hono";
 import { Hono } from "hono";
@@ -9,12 +9,10 @@ import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 
-import { createEnsureTransportConnected } from "$/app/http/transportMcpBinding.ts";
-import type { UrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 import { APP_NAME, BODY_LIMIT, HTTP_STATUS, RPC_ERROR_CODES, TIMEOUT } from "$/shared/constants.ts";
 import { httpSecurityPolicyFromHttpConfig } from "$/shared/httpSecurityPolicy.ts";
-import { createGetAndDeleteHandler, createPostHandler } from "./handlers.ts";
 import type { HonoBindings, HonoEnv } from "./honoEnv.ts";
 import { createHttpBearerAuthMiddleware } from "./httpBearerAuthMiddleware.ts";
 import {
@@ -24,20 +22,17 @@ import {
 import { rateLimitKeyFromIdentity, resolveRateLimitIdentity } from "./rateLimitIdentity.ts";
 import { registerUrlElicitationRoutes } from "./urlElicitationRoutes.ts";
 
-import type { HTTPTransportManager } from "./transport.ts";
-
 export type { HonoBindings, HonoEnv };
 
+/** The part of the SDK handler the routes use. */
+export type McpFetchHandler = Pick<McpHttpHandler, "fetch">;
+
 export interface HonoAppSpec {
-  /**
-   * Bound factory: returns a **new** `McpServer` per streamable HTTP session. Usually
-   * `() => createMcpServer(ctx)` so each session shares the same app `ctx` (e.g. subscriptions).
-   */
-  createMcpServer: () => McpServer;
+  /** Serves `/mcp`; builds a fresh `McpServer` per request. */
+  handler: McpFetchHandler;
   config: AppConfig["http"];
-  transports: HTTPTransportManager;
-  /** When set, registers `/mcp-elicitation/*` browser routes for URL-mode elicitation. */
-  urlElicitationRegistry?: UrlElicitationRegistry;
+  /** Backs the `/mcp-elicitation/*` browser routes for URL-mode elicitation. */
+  kv: KvRuntime;
 }
 
 const STATIC_ROOT = fromFileUrl(new URL("../../../static/", import.meta.url));
@@ -68,7 +63,7 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
   applyHttpHostProtectionMiddleware(app, httpSecurityPolicy);
 
   app.use(secureHeaders());
-  // Apply timeout to all routes except /mcp (SSE streams are long-lived)
+  // Apply timeout to all routes except /mcp (`subscriptions/listen` streams are long-lived)
   app.use("*", async (c, next) => {
     if (c.req.path === "/mcp") {
       return next();
@@ -82,12 +77,9 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
       maxSize: BODY_LIMIT,
       onError: (c) => {
         return c.json({
-          isError: true,
-          details: {
-            error: "Request body too large",
-            code: RPC_ERROR_CODES.INVALID_REQUEST,
-            message: "Request body too large",
-          },
+          jsonrpc: "2.0",
+          id: null,
+          error: { code: RPC_ERROR_CODES.INVALID_REQUEST, message: "Request body too large" },
         }, HTTP_STATUS.CONTENT_TOO_LARGE);
       },
     }),
@@ -119,27 +111,13 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
 
 function createRoutes(
   app: Hono<HonoEnv>,
-  createMcpServer: () => McpServer,
-  transports: HTTPTransportManager,
+  handler: McpFetchHandler,
+  kv: KvRuntime,
   notFoundHtml: string,
-  urlElicitationRegistry: UrlElicitationRegistry | undefined,
 ) {
-  const ensureTransportConnected = createEnsureTransportConnected(createMcpServer);
+  app.all("/mcp", (c) => handler.fetch(c.req.raw));
 
-  // MCP POST route
-  const postHandler = createPostHandler(transports, ensureTransportConnected);
-  app.post("/mcp", postHandler);
-
-  // MCP GET and DELETE routes
-  const getAndDeleteHandler = createGetAndDeleteHandler(
-    transports,
-    ensureTransportConnected,
-  );
-  app.on(["GET", "DELETE"], "/mcp", getAndDeleteHandler);
-
-  if (urlElicitationRegistry) {
-    registerUrlElicitationRoutes(app, { registry: urlElicitationRegistry, transports });
-  }
+  registerUrlElicitationRoutes(app, kv);
 
   // Static Routes
   app.use("/static/*", serveStatic({ root: STATIC_ROOT }));
@@ -159,20 +137,19 @@ function createRoutes(
  * @param spec - The Hono application specification
  * @returns The configured Hono application
  */
-export function createHonoApp(
-  { createMcpServer, config, transports, urlElicitationRegistry }: HonoAppSpec,
-): Hono<HonoEnv> {
+export function createHonoApp({ handler, config, kv }: HonoAppSpec): Hono<HonoEnv> {
   const app = new Hono<HonoEnv>();
   const notFoundHtml = loadNotFoundPageHtml();
   configureMiddleware(app, config);
-  createRoutes(app, createMcpServer, transports, notFoundHtml, urlElicitationRegistry);
+  createRoutes(app, handler, kv, notFoundHtml);
   app.onError((err, c) => {
     console.error("Unhandled HTTP route error", err);
     const path = c.req.path;
     if (path === "/mcp") {
       return c.json({
-        content: [{ type: "text", text: "Internal error" }],
-        isError: true,
+        jsonrpc: "2.0",
+        id: null,
+        error: { code: RPC_ERROR_CODES.INTERNAL_ERROR, message: "Internal error" },
       }, HTTP_STATUS.INTERNAL_SERVER_ERROR);
     }
     return c.text("Internal server error", HTTP_STATUS.INTERNAL_SERVER_ERROR);

@@ -12,7 +12,7 @@ import {
 import type {
   CallToolResult,
   ContentBlock,
-} from "@modelcontextprotocol/sdk/types.js";
+} from "@modelcontextprotocol/client";
 
 import "./mcp-app.css";
 

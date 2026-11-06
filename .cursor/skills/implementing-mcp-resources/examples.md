@@ -2,15 +2,14 @@
 
 Complete, working examples from the codebase.
 
-## Static Resource — Hello World
+## Static Resource - Hello World
 
 `src/mcp/resources/helloWorld.ts` is the simplest resource:
 
 ```typescript
-import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import type { ReadResourceResult, ResourceMetadata } from "@modelcontextprotocol/server";
 
-import type { ResourcePlugin } from "$/shared/types.ts";
+import type { ResourcePlugin } from "$/mcp/plugin-types.ts";
 
 const name = "helloWorld";
 
@@ -45,31 +44,22 @@ export default module;
 
 Key patterns:
 - `type: "resource"` for fixed-URI resources
-- `readCallback` takes no parameters
+- `readCallback` may take no parameters; the full signature is `(uri, ctx, deps)`
 - Returns `ReadResourceResult` with `contents` array
 
 ---
 
-## KV-Backed Resource — Counter
+## KV-Backed Resource - Counter
 
-`src/mcp/resources/counter.ts` reads from Deno KV:
+`src/mcp/resources/counter.ts` reads from Deno KV via `deps.kv`:
 
 ```typescript
-import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import type { ReadResourceResult, ResourceMetadata } from "@modelcontextprotocol/server";
 
-import type { ResourcePlugin } from "$/shared/types.ts";
-import { getPersistedCounterValue, incrementPersistedCounterValue } from "./counterStore.ts";
+import type { ResourcePlugin } from "$/mcp/plugin-types.ts";
+import { getPersistedCounterValue } from "./counterStore.ts";
 
 export const COUNTER_URI = "counter://value";
-
-export async function incrementCounterValue(delta: number): Promise<number> {
-  return await incrementPersistedCounterValue(delta);
-}
-
-export async function getCounterValue(): Promise<number> {
-  return await getPersistedCounterValue();
-}
 
 const name = "counter";
 
@@ -78,8 +68,12 @@ const config: ResourceMetadata = {
   mimeType: "application/json",
 };
 
-async function readCallback(): Promise<ReadResourceResult> {
-  const value = await getCounterValue();
+const readCallback: ResourcePlugin["readCallback"] = async (
+  _uri,
+  _ctx,
+  { kv },
+): Promise<ReadResourceResult> => {
+  const value = await getPersistedCounterValue(kv);
   return {
     contents: [
       {
@@ -88,7 +82,7 @@ async function readCallback(): Promise<ReadResourceResult> {
       },
     ],
   };
-}
+};
 
 const module: ResourcePlugin = {
   type: "resource",
@@ -102,16 +96,17 @@ export default module;
 ```
 
 Key patterns:
-- Exports `COUNTER_URI` and mutation functions for tools to import
+- Exports `COUNTER_URI` for tools to import
+- Typing the callback as `ResourcePlugin["readCallback"]` gives `ctx` and `deps` their types
 - JSON content with `mimeType: "application/json"`
 - Persistence layer separated into `counterStore.ts`
 
-### Counter Store — KV Persistence
+### Counter Store - KV Persistence
 
 `src/mcp/resources/counterStore.ts`:
 
 ```typescript
-import { getKvStore } from "$/kv/mod.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
 
 export const COUNTER_KEY: Deno.KvKey = ["resource", "counter", "value"];
 
@@ -127,22 +122,26 @@ function ensureNumber(value: unknown): number {
   throw new Error("Counter value in KV is not a number");
 }
 
-export async function getPersistedCounterValue(): Promise<number> {
-  const kv = await getKvStore();
-  const entry = await kv.get<unknown>(COUNTER_KEY);
+export async function getPersistedCounterValue(kv: KvRuntime): Promise<number> {
+  const store = await kv.get();
+  const entry = await store.get<unknown>(COUNTER_KEY);
   return ensureNumber(entry.value);
 }
 
-export async function incrementPersistedCounterValue(delta: number): Promise<number> {
+export async function incrementPersistedCounterValue(
+  delta: number,
+  kv: KvRuntime,
+): Promise<number> {
   if (!Number.isSafeInteger(delta) || delta < 0) {
     throw new Error("Counter delta must be a non-negative safe integer");
   }
-  const kv = await getKvStore();
-  const result = await kv.atomic().sum(COUNTER_KEY, BigInt(delta)).commit();
+
+  const store = await kv.get();
+  const result = await store.atomic().sum(COUNTER_KEY, BigInt(delta)).commit();
   if (!result.ok) {
     throw new Error("Failed to increment counter atomically");
   }
-  const entry = await kv.get<unknown>(COUNTER_KEY);
+  const entry = await store.get<unknown>(COUNTER_KEY);
   return ensureNumber(entry.value);
 }
 ```
@@ -150,11 +149,12 @@ export async function incrementPersistedCounterValue(delta: number): Promise<num
 Key patterns:
 - `kv.atomic().sum()` for atomic counter increments
 - `Deno.KvU64` handling for large integers
+- Store functions take a `KvRuntime`; there is no global KV accessor to import
 - Separate store file keeps persistence logic isolated
 
 ### KV Key Mapping
 
-`src/mcp/resources/kvKeys.ts` maps URIs to KV keys for subscription tracking:
+`src/mcp/resources/kvKeys.ts` maps URIs to KV keys; `createApp` watches each key and publishes `resource_updated` events:
 
 ```typescript
 import { COUNTER_URI } from "./counter.ts";
@@ -169,7 +169,7 @@ Add new entries here for each KV-backed resource to enable automatic subscriptio
 
 ---
 
-## Resource Template — Greetings
+## Resource Template - Greetings
 
 `src/mcp/resources/greetings.ts` uses a URI pattern with autocomplete:
 
@@ -178,10 +178,10 @@ import {
   type CompleteResourceTemplateCallback,
   type ResourceMetadata,
   ResourceTemplate,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+} from "@modelcontextprotocol/server";
+import type { ReadResourceResult } from "@modelcontextprotocol/server";
 
-import type { ResourceTemplatePlugin } from "$/shared/types.ts";
+import type { ResourceTemplatePlugin } from "$/mcp/plugin-types.ts";
 
 const name = "greetings";
 
@@ -194,7 +194,7 @@ const nameSuggestions = [
   "Ken",
 ];
 
-const completeName: CompleteResourceTemplateCallback = (value) => {
+const completeName: CompleteResourceTemplateCallback = (value: string) => {
   const prefix = value.trim().toLowerCase();
   return nameSuggestions
     .filter((name) => name.toLowerCase().startsWith(prefix))
@@ -254,7 +254,7 @@ export default module;
 Key patterns:
 - `ResourceTemplate` constructor takes URI pattern and options (`list`, `complete`)
 - `complete` maps each variable name to a `CompleteResourceTemplateCallback`
-- `readCallback` receives `(uri: URL, variables: Record<string, unknown>)`
+- `readCallback` receives `(uri: URL, variables, ctx, deps)`; trailing parameters can be omitted
 - Input sanitization to prevent injection
 - `type: "template"` differentiates from static resources
 
@@ -265,7 +265,7 @@ Key patterns:
 `src/mcp/resources/mod.ts`:
 
 ```typescript
-import type { AnyResourcePlugin } from "$/shared/types.ts";
+import type { AnyResourcePlugin } from "$/mcp/plugin-types.ts";
 
 import counter from "./counter.ts";
 import greetings from "./greetings.ts";
@@ -286,10 +286,9 @@ export const resources: AnyResourcePlugin[] = [
 ### Static Resource
 
 ```typescript
-import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import type { ReadResourceResult, ResourceMetadata } from "@modelcontextprotocol/server";
 
-import type { ResourcePlugin } from "$/shared/types.ts";
+import type { ResourcePlugin } from "$/mcp/plugin-types.ts";
 
 const name = "TODO-name";
 const uri = "TODO-scheme://TODO-path";
@@ -317,10 +316,13 @@ export default module;
 ### Resource Template
 
 ```typescript
-import { type ResourceMetadata, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import {
+  type ReadResourceResult,
+  type ResourceMetadata,
+  ResourceTemplate,
+} from "@modelcontextprotocol/server";
 
-import type { ResourceTemplatePlugin } from "$/shared/types.ts";
+import type { ResourceTemplatePlugin } from "$/mcp/plugin-types.ts";
 
 const name = "TODO-name";
 

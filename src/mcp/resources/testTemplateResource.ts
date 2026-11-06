@@ -1,6 +1,5 @@
-import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import type { ReadResourceResult, ResourceMetadata } from "@modelcontextprotocol/server";
+import { ResourceTemplate } from "@modelcontextprotocol/server";
 
 import type { ResourceTemplatePlugin } from "$/mcp/plugin-types.ts";
 

@@ -9,7 +9,8 @@ expectations for projects that opt in).
 
 - **Server conformance** — Keep `deno task conformance:server` (pinned
   [`@modelcontextprotocol/conformance`](https://www.npmjs.com/package/@modelcontextprotocol/conformance))
-  passing on date-versioned scenarios; extend CI coverage as scenarios evolve.
+  passing for `--requirements 2026-07-28`; move off the alpha CLI when a stable release covers
+  that revision.
 - **Governance** — Maintain [VERSIONING.md](VERSIONING.md), [CHANGELOG.md](CHANGELOG.md),
   [DEPENDENCY_POLICY.md](DEPENDENCY_POLICY.md), SEP-1730 label set, and triage SLAs documented in
   [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -31,5 +32,5 @@ tier-style audits to score every axis:
 ## Out of scope (by design)
 
 - **Full SDK-style documentation** of every MCP feature for **library consumers** — This repository
-  is a **server template**, not the `@modelcontextprotocol/sdk` package. Link to upstream docs for
+  is a **server template**, not the `@modelcontextprotocol/server` package. Link to upstream docs for
   client-only features (e.g. roots on the client) when relevant.

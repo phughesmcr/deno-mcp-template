@@ -10,7 +10,7 @@ description: Implement new MCP resources and resource templates in the deno-mcp-
 ```
 Task Progress:
 - [ ] Step 1: Create resource file in src/mcp/resources/
-- [ ] Step 2: Define name, URI/template, config, and readCallback
+- [ ] Step 2: Define name, URI/template, config, and readCallback (optionally taking ctx and deps)
 - [ ] Step 3: Export as default ResourcePlugin or ResourceTemplatePlugin
 - [ ] Step 4: Register in src/mcp/resources/mod.ts
 - [ ] Step 5: (If KV-backed) Add URI-to-key mapping in kvKeys.ts
@@ -30,10 +30,9 @@ Task Progress:
 Create a new file in `src/mcp/resources/`.
 
 ```typescript
-import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import type { ReadResourceResult, ResourceMetadata } from "@modelcontextprotocol/server";
 
-import type { ResourcePlugin } from "$/shared/types.ts";
+import type { ResourcePlugin } from "$/mcp/plugin-types.ts";
 
 const name = "myResource";
 
@@ -41,9 +40,10 @@ const uri = "my-scheme://my-path";
 
 const config: ResourceMetadata = {
   description: "What this resource provides",
-  mimeType: "text/plain",  // or "application/json"
+  mimeType: "text/plain", // or "application/json"
 };
 
+// Parameters are optional: (uri, ctx, deps)
 async function readCallback(): Promise<ReadResourceResult> {
   return {
     contents: [{
@@ -71,16 +71,18 @@ For resources with variable URI segments like `greetings://{name}`:
 ```typescript
 import {
   type CompleteResourceTemplateCallback,
+  type ReadResourceResult,
   type ResourceMetadata,
   ResourceTemplate,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+} from "@modelcontextprotocol/server";
 
-import type { ResourceTemplatePlugin } from "$/shared/types.ts";
+import type { ResourceTemplatePlugin } from "$/mcp/plugin-types.ts";
 
 const name = "myTemplate";
 
-const completeName: CompleteResourceTemplateCallback = (value) => {
+const suggestions = ["alpha", "beta"];
+
+const completeName: CompleteResourceTemplateCallback = (value: string) => {
   const prefix = value.trim().toLowerCase();
   return suggestions.filter((s) => s.toLowerCase().startsWith(prefix)).slice(0, 5);
 };
@@ -88,7 +90,7 @@ const completeName: CompleteResourceTemplateCallback = (value) => {
 const template = new ResourceTemplate(
   "my-scheme://{variable}",
   {
-    list: undefined,               // optional: callback to list all instances
+    list: undefined,                       // optional: callback to list all instances
     complete: { variable: completeName },  // optional: autocomplete per variable
   },
 );
@@ -97,6 +99,7 @@ const config: ResourceMetadata = {
   mimeType: "text/plain",
 };
 
+// Parameters are optional: (uri, variables, ctx, deps)
 async function readCallback(
   uri: URL,
   variables: Record<string, unknown>,
@@ -135,13 +138,15 @@ export const resources: AnyResourcePlugin[] = [
 ];
 ```
 
-The server dispatches based on `resource.type`:
-- `"resource"` calls `registerResource(name, uri, config, readCallback)`
-- `"template"` calls `registerResource(name, template, config, readCallback)`
+`createMcpServer` (`src/mcp/mod.ts`) calls `registerResource(server, resource, deps)` for each entry, which dispatches on `resource.type`:
+- `"resource"` calls `server.registerResource(name, uri, config, (uri, ctx) => readCallback(uri, ctx, deps))`
+- `"template"` calls `server.registerResource(name, template, config, (uri, variables, ctx) => readCallback(uri, variables, ctx, deps))`
+
+A fresh `McpServer` is built per HTTP request, so keep state in KV (`deps.kv`), not in module scope.
 
 ## Key Types
 
-From `src/shared/types.ts`:
+From `src/mcp/plugin-types.ts`:
 
 ```typescript
 export type ResourcePlugin = {
@@ -149,7 +154,7 @@ export type ResourcePlugin = {
   name: string;
   uri: string;
   config: ResourceMetadata;
-  readCallback: ReadResourceCallback;
+  readCallback: (uri: URL, ctx: ServerContext, deps: McpServerFactoryContext) => ResourceResult;
 };
 
 export type ResourceTemplatePlugin = {
@@ -157,44 +162,49 @@ export type ResourceTemplatePlugin = {
   name: string;
   template: ResourceTemplate;
   config: ResourceMetadata;
-  readCallback: ReadResourceTemplateCallback;
+  readCallback: (
+    uri: URL,
+    variables: Variables,
+    ctx: ServerContext,
+    deps: McpServerFactoryContext,
+  ) => ResourceResult;
 };
 
 export type AnyResourcePlugin = ResourcePlugin | ResourceTemplatePlugin;
 ```
 
+`ResourceResult` is `ReadResourceResult | InputRequiredResult` (or a Promise of either), so a resource read can also return `inputRequired(...)`. `deps` is `McpServerFactoryContext` (`kv`, `events`, `requestState`, `publicBaseUrl`).
+
 ## KV-Backed Resources
 
-For resources with persistent mutable state:
+For resources with persistent mutable state. Store functions take the `KvRuntime` from `deps.kv` rather than a global.
 
 1. **Create a store file** (e.g. `myStore.ts`) with KV read/write functions:
 
 ```typescript
-import { getKvStore } from "$/kv/mod.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
 
 export const MY_KEY: Deno.KvKey = ["resource", "my-resource", "value"];
 
-export async function getValue(): Promise<string> {
-  const kv = await getKvStore();
-  const entry = await kv.get<string>(MY_KEY);
+export async function getValue(kv: KvRuntime): Promise<string> {
+  const store = await kv.get();
+  const entry = await store.get<string>(MY_KEY);
   return entry.value ?? "default";
 }
 
-export async function setValue(value: string): Promise<void> {
-  const kv = await getKvStore();
-  await kv.set(MY_KEY, value);
+export async function setValue(kv: KvRuntime, value: string): Promise<void> {
+  const store = await kv.get();
+  await store.set(MY_KEY, value);
 }
 ```
 
-2. **Use in the resource readCallback**:
+2. **Use in the resource readCallback** (third parameter is `deps`):
 
 ```typescript
-import { getValue } from "./myStore.ts";
-
-async function readCallback(): Promise<ReadResourceResult> {
-  const value = await getValue();
+const readCallback: ResourcePlugin["readCallback"] = async (_uri, _ctx, { kv }) => {
+  const value = await getValue(kv);
   return { contents: [{ uri, text: JSON.stringify({ value }) }] };
-}
+};
 ```
 
 3. **Register the KV key mapping** in `src/mcp/resources/kvKeys.ts`:
@@ -209,18 +219,16 @@ export const RESOURCE_KV_KEYS: ReadonlyMap<string, Deno.KvKey> = new Map([
 ]);
 ```
 
-This enables automatic subscription notifications — when a tool mutates the KV key, the subscription tracker detects the change and notifies subscribed clients.
+This enables automatic update notifications: when a tool mutates the KV key, the watcher publishes a `resource_updated` event and subscribers are notified.
 
 ## Subscription Flow
 
-When `resourceSubscribe: true` in `mcpServerDefinition` (`src/mcp/serverDefinition.ts`), resources get subscription support:
+When `resourceSubscribe: true` in `mcpServerDefinition` (`src/mcp/serverDefinition.ts`), the server advertises `resources.subscribe`. There is no per-session subscription state:
 
-1. Client subscribes to a URI
-2. `subscriptionTracker.subscribe()` starts watching the mapped KV key
-3. When the KV key changes, all subscribed clients receive `resourceUpdated` notifications
-4. No manual notification code needed in tools — just mutate KV state
-
-The subscription tracker (`src/mcp/resources/subscriptionTracker.ts`) handles ref-counting, KV watching, and notifier lifecycle automatically.
+1. `createApp` (`src/app/app.ts`) starts a KV watcher (`src/kv/watch.ts`) for every entry in `RESOURCE_KV_KEYS`
+2. When a mapped KV key changes, the watcher publishes `{ kind: "resource_updated", uri }` on the shared `ServerEventBus`
+3. Over HTTP, clients receive it on a `subscriptions/listen` stream; over STDIO, `src/app/stdio.ts` forwards it as `notifications/resources/updated`
+4. No manual notification code needed in tools - just mutate KV state. For non-KV changes, call `deps.events.publish({ kind: "resource_updated", uri })`
 
 ## ReadResourceResult Format
 
@@ -242,4 +250,4 @@ Use `text` for text/JSON, `blob` for binary data. Set `mimeType` in config accor
 ## Additional Resources
 
 - For complete resource examples, see [examples.md](examples.md)
-- MCP Resources spec: https://modelcontextprotocol.io/specification/2025-06-18/server/resources
+- MCP Resources spec: https://modelcontextprotocol.io/specification/2026-07-28/server/resources

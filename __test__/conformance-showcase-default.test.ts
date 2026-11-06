@@ -4,9 +4,8 @@ import { mcpServerDefinition } from "$/mcp/serverDefinition.ts";
 import { assert, assertEquals } from "./helpers.ts";
 
 Deno.test("default server definition includes conformance showcase tools", () => {
-  const names = mcpServerDefinition.tools.map((t) => t[0]);
+  const names = mcpServerDefinition.tools.map((t) => t.name);
   assert(names.includes("test_simple_text"), "expected test_simple_text tool");
-  assert(names.includes("test_sampling"), "expected test_sampling tool");
 });
 
 Deno.test("default server definition includes test:// resources", () => {
@@ -21,7 +20,7 @@ Deno.test("default server definition includes test:// resources", () => {
 });
 
 Deno.test("default server definition includes conformance showcase prompts", () => {
-  const names = mcpServerDefinition.prompts.map((p) => p[0]);
+  const names = mcpServerDefinition.prompts.map((p) => p.name);
   assert(names.includes("test_simple_prompt"), "expected test_simple_prompt");
   assert(names.includes("test_prompt_with_arguments"), "expected test_prompt_with_arguments");
 });

@@ -1,97 +1,82 @@
 /**
- * @description Demo tool for URL-mode elicitation (browser confirmation + completion notification).
+ * @description Demo tool for URL-mode elicitation. The browser page records the outcome in KV; the
+ * client's retry carries the elicitation id back in signed `requestState` and reads it from there.
  * @module
  */
 
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import type {
-  CallToolResult,
-  ServerNotification,
-  ServerRequest,
-} from "@modelcontextprotocol/sdk/types.js";
-import { UrlElicitationRequiredError } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import { inputRequired, type ServerContext } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
 import type { McpServerFactoryContext } from "$/mcp/context.ts";
-import { createCallToolErrorResponse } from "$/shared/utils.ts";
-
-const schema = z.object({
-  label: z.string()
-    .min(1, "Label is required")
-    .max(200, "Label too long")
-    .describe("Short text shown on the browser confirmation page"),
-});
+import { wasDeclined } from "$/mcp/inputResponses.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
+import { createUrlElicitation, getUrlElicitation } from "$/mcp/urlElicitation/store.ts";
+import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
 
 const name = "url-elicitation-demo";
+const INPUT_KEY = "browser_confirmation";
 
-/**
- * Registers a tool that throws {@link UrlElicitationRequiredError} so the client opens a URL;
- * completing the flow in the browser sends `notifications/elicitation/complete`.
- */
-export function registerUrlElicitationDemoTool(mcp: McpServer, ctx: McpServerFactoryContext): void {
-  mcp.registerTool(
-    name,
-    {
-      title: "URL elicitation demo",
-      description: "Requires confirming an action in the browser (URL-mode elicitation). " +
-        "Only works over streamable HTTP with an MCP session; use the link the client shows after calling this tool.",
-      inputSchema: schema.shape,
+/** `tool` stops state minted by another multi-round tool from being replayed here. */
+const demoState = z.object({ tool: z.literal(name), elicitationId: z.uuid() });
+
+async function askForConfirmation(
+  elicitationId: string,
+  baseUrl: string,
+  ctx: ServerContext,
+  deps: McpServerFactoryContext,
+) {
+  const url = new URL("/mcp-elicitation/confirm", `${baseUrl}/`);
+  url.searchParams.set("elicitation", elicitationId);
+  return inputRequired({
+    inputRequests: {
+      [INPUT_KEY]: inputRequired.elicitUrl({
+        message: "Open the link in your browser to confirm or cancel this demo action.",
+        url: url.href,
+      }),
     },
-    async (
-      args: unknown,
-      extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-    ): Promise<CallToolResult> => {
-      const parsed = schema.safeParse(args);
-      if (!parsed.success) {
-        return createCallToolErrorResponse({
-          error: "Invalid arguments",
-          details: parsed.error.flatten(),
-          received: args,
-        });
-      }
-
-      const sessionId = extra.sessionId?.trim();
-      if (!sessionId) {
-        return createCallToolErrorResponse({
-          error: "URL elicitation needs a streamable HTTP session (Mcp-Session-Id). " +
-            "It is not available on the STDIO transport.",
-        });
-      }
-
-      const baseUrl = ctx.urlElicitation.baseUrl;
-      if (!baseUrl) {
-        return createCallToolErrorResponse({
-          error: "HTTP is disabled; URL elicitation is not available.",
-        });
-      }
-
-      const elicitationId = crypto.randomUUID();
-      const completionNotifier = mcp.server.createElicitationCompletionNotifier(elicitationId);
-      const { label } = parsed.data;
-
-      ctx.urlElicitation.registry.registerPending({
-        elicitationId,
-        sessionId,
-        label,
-        completionNotifier,
-      });
-
-      const url = new URL("/mcp-elicitation/confirm", `${baseUrl}/`);
-      url.searchParams.set("session", sessionId);
-      url.searchParams.set("elicitation", elicitationId);
-
-      throw new UrlElicitationRequiredError(
-        [
-          {
-            mode: "url",
-            message: "Open the link in your browser to confirm or cancel this demo action.",
-            url: url.href,
-            elicitationId,
-          },
-        ],
-        "Browser confirmation required",
-      );
-    },
-  );
+    requestState: await deps.requestState.mint({ tool: name, elicitationId }, ctx),
+  });
 }
+
+export default defineTool({
+  name,
+  title: "URL elicitation demo",
+  description: "Requires confirming an action in the browser (URL-mode elicitation). " +
+    "Needs the HTTP server, which hosts the confirmation page.",
+  inputSchema: z.object({
+    label: z.string()
+      .min(1, "Label is required")
+      .max(200, "Label too long")
+      .describe("Short text shown on the browser confirmation page"),
+  }),
+  handler: async ({ label }, ctx, deps) => {
+    const { publicBaseUrl } = deps;
+    if (!publicBaseUrl) {
+      return createCallToolErrorResponse({
+        error: "HTTP is disabled; URL elicitation is not available.",
+      });
+    }
+
+    const kv = await deps.kv.get();
+    const state = demoState.safeParse(ctx.mcpReq.requestState());
+    if (!state.success) {
+      const id = await createUrlElicitation(kv, label);
+      return await askForConfirmation(id, publicBaseUrl, ctx, deps);
+    }
+
+    if (wasDeclined(ctx, INPUT_KEY)) return createCallToolTextResponse({ cancelled: true, label });
+
+    const { elicitationId } = state.data;
+    const record = await getUrlElicitation(kv, elicitationId);
+    switch (record?.status) {
+      case "confirmed":
+        return createCallToolTextResponse({ confirmed: true, label: record.label });
+      case "cancelled":
+        return createCallToolErrorResponse({ error: "Cancelled in the browser." });
+      case "pending":
+        return await askForConfirmation(elicitationId, publicBaseUrl, ctx, deps);
+      default:
+        return createCallToolErrorResponse({ error: "The confirmation link has expired." });
+    }
+  },
+});

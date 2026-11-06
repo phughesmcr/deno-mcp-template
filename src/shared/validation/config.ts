@@ -3,20 +3,16 @@ import type {
   AppConfig,
   HttpServerConfig,
   KvConfig,
+  McpConfig,
   StdioConfig,
-  TasksConfig,
 } from "$/shared/config-types.ts";
-import {
-  ABSOLUTE_MAX_TASK_TTL_MS,
-  DEFAULT_MAX_TASK_TTL_MS,
-  MIN_MAX_TASK_TTL_MS,
-} from "$/shared/constants.ts";
 import {
   isAllInterfacesBindHostname,
   RATE_LIMIT,
   RATE_LIMIT_UNKNOWN_CLIENT,
   RATE_LIMIT_WINDOW,
 } from "$/shared/constants/http.ts";
+import { REQUEST_STATE_KEY_MIN_BYTES } from "$/shared/constants/mcp.ts";
 import { normalizePublicBaseUrl } from "$/shared/publicBaseUrl.ts";
 import {
   validateHeaders,
@@ -220,7 +216,7 @@ export function validateHttpConfig(
  * @param config - The CLI options to validate
  * @returns The validation result with STDIO config or error
  */
-export function validateStdioConfig(config: McpConfigInput): ValidationResult<StdioConfig> {
+function validateStdioConfig(config: McpConfigInput): ValidationResult<StdioConfig> {
   const { stdio } = config;
   return {
     success: true,
@@ -235,7 +231,7 @@ export function validateStdioConfig(config: McpConfigInput): ValidationResult<St
  * @param config - The CLI options to validate
  * @returns The validation result with KV config or error
  */
-export function validateKvConfig(config: McpConfigInput): ValidationResult<KvConfig> {
+function validateKvConfig(config: McpConfigInput): ValidationResult<KvConfig> {
   const kvPath = config.kvPath?.trim();
   if (config.kvPath !== undefined && !kvPath) {
     return {
@@ -252,36 +248,22 @@ export function validateKvConfig(config: McpConfigInput): ValidationResult<KvCon
 }
 
 /**
- * Validates task-related limits from CLI options.
+ * Validates MCP protocol settings.
  */
-export function validateTasksConfig(config: McpConfigInput): ValidationResult<TasksConfig> {
-  const raw = config.maxTaskTtlMs ?? DEFAULT_MAX_TASK_TTL_MS;
-  if (!Number.isSafeInteger(raw)) {
-    return {
-      success: false,
-      error: new Error("maxTaskTtlMs must be a safe integer."),
-    };
-  }
-  if (raw < MIN_MAX_TASK_TTL_MS) {
+function validateMcpConfig(config: McpConfigInput): ValidationResult<McpConfig> {
+  const requestStateKey = config.requestStateKey?.trim() || undefined;
+  if (
+    requestStateKey &&
+    new TextEncoder().encode(requestStateKey).length < REQUEST_STATE_KEY_MIN_BYTES
+  ) {
     return {
       success: false,
       error: new Error(
-        `maxTaskTtlMs must be at least ${MIN_MAX_TASK_TTL_MS} ms (use MCP_MAX_TASK_TTL_MS or --max-task-ttl-ms).`,
+        `MCP_REQUEST_STATE_KEY must be at least ${REQUEST_STATE_KEY_MIN_BYTES} bytes.`,
       ),
     };
   }
-  if (raw > ABSOLUTE_MAX_TASK_TTL_MS) {
-    return {
-      success: false,
-      error: new Error(
-        `maxTaskTtlMs must not exceed ${ABSOLUTE_MAX_TASK_TTL_MS} ms (one year).`,
-      ),
-    };
-  }
-  return {
-    success: true,
-    value: { maxTtlMs: raw },
-  };
+  return { success: true, value: { requestStateKey } };
 }
 
 /**
@@ -304,8 +286,8 @@ export function validateConfig(
     const validatedKv = validateKvConfig(config);
     if (!validatedKv.success) throw validatedKv.error;
 
-    const validatedTasks = validateTasksConfig(config);
-    if (!validatedTasks.success) throw validatedTasks.error;
+    const validatedMcp = validateMcpConfig(config);
+    if (!validatedMcp.success) throw validatedMcp.error;
 
     if (!config.stdio && !config.http) {
       throw new Error(
@@ -319,7 +301,7 @@ export function validateConfig(
         http: validatedHttp.value,
         stdio: validatedStdio.value,
         kv: validatedKv.value,
-        tasks: validatedTasks.value,
+        mcp: validatedMcp.value,
       },
     };
   } catch (error) {

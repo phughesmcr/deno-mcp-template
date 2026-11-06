@@ -1,31 +1,40 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
-import type { ToolModule } from "$/mcp/plugin-types.ts";
-import { ToolManager } from "$/mcp/tools/mod.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
 import { createCallToolTextResponse } from "$/shared/utils.ts";
 import { assertEquals } from "./helpers.ts";
+import { mcpFactoryContext } from "./helpers.ts";
 
-Deno.test("ToolManager registers a tool only once by name", () => {
-  let registrations = 0;
-
+Deno.test("defineTool registers under its name and passes deps to the handler", async () => {
+  const registered: { name: string; cb: (args: unknown, ctx: unknown) => unknown }[] = [];
   const fakeMcp = {
-    registerTool: () => {
-      registrations += 1;
+    registerTool: (
+      name: string,
+      _config: unknown,
+      cb: (args: unknown, ctx: unknown) => unknown,
+    ) => {
+      registered.push({ name, cb });
     },
   } as unknown as McpServer;
 
-  const manager = new ToolManager(fakeMcp);
-  const tool: ToolModule = [
-    "test-tool",
-    {
-      title: "Test tool",
-      description: "A test tool",
+  const deps = mcpFactoryContext();
+  let seenDeps: unknown;
+  const tool = defineTool({
+    name: "test-tool",
+    title: "Test tool",
+    description: "A test tool",
+    inputSchema: z.object({}),
+    handler: (_args, _ctx, d) => {
+      seenDeps = d;
+      return createCallToolTextResponse({ status: "ok" });
     },
-    () => async () => createCallToolTextResponse({ status: "ok" }),
-  ];
+  });
 
-  manager.addTool(tool);
-  manager.addTool(tool);
+  tool.register(fakeMcp, deps);
 
-  assertEquals(registrations, 1);
+  assertEquals(registered.length, 1);
+  assertEquals(registered[0]!.name, "test-tool");
+  await registered[0]!.cb({}, {});
+  assertEquals(seenDeps, deps);
 });

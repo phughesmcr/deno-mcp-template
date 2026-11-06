@@ -1,6 +1,6 @@
 ---
 name: implementing-mcp-prompts
-description: Implement new MCP prompts in the deno-mcp-template project. Provides the exact file structure, type signatures, registration steps, and patterns for prompts with static arguments or dynamic completions. Use when adding a new prompt, creating MCP prompts, or asking how prompts work in this project.
+description: Implement new MCP prompts in the deno-mcp-template project. Provides the exact file structure, type signatures, registration steps, and patterns for prompts with arguments, dynamic completions, and multi-round input. Use when adding a new prompt, creating MCP prompts, or asking how prompts work in this project.
 ---
 
 # Implementing MCP Prompts
@@ -10,8 +10,8 @@ description: Implement new MCP prompts in the deno-mcp-template project. Provide
 ```
 Task Progress:
 - [ ] Step 1: Create prompt file in src/mcp/prompts/
-- [ ] Step 2: Define Zod schema, name, config, and callback
-- [ ] Step 3: Export as default PromptPlugin
+- [ ] Step 2: Define a Zod args schema and call definePrompt({ name, argsSchema, handler })
+- [ ] Step 3: Export the result as the default export
 - [ ] Step 4: Register in src/mcp/prompts/mod.ts
 - [ ] Step 5: Run `deno task ci` to verify
 ```
@@ -21,48 +21,24 @@ Task Progress:
 Every prompt follows this structure. Create a new file in `src/mcp/prompts/`.
 
 ```typescript
-import type { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import { z } from "zod";
 
-import type { PromptPlugin } from "$/shared/types.ts";
+import { definePrompt } from "$/mcp/plugin-types.ts";
 
-// 1. Validation schema
-const schema = z.object({
-  myArg: z.string().min(1, "Required"),
-});
-
-// 2. Prompt name (kebab-case)
-const name = "my-prompt-name";
-
-// 3. Config — choose one of the two argument styles below
-const config = {
+export default definePrompt({
+  name: "my-prompt-name", // kebab-case
   title: "Human-readable title",
-  description: "What this prompt does — shown to the LLM",
-  argsSchema: {
-    myArg: schema.shape.myArg,
-  },
-};
-
-// 4. Callback — returns GetPromptResult with messages array
-async function callback(args: Record<string, unknown>): Promise<GetPromptResult> {
-  const { success, data, error } = schema.safeParse(args);
-  if (!success) throw new Error(error.message);
-
-  return {
+  description: "What this prompt does - shown to the LLM",
+  argsSchema: z.object({
+    myArg: z.string().min(1, "Required"),
+  }),
+  handler: ({ myArg }) => ({
     messages: [{
       role: "user",
-      content: {
-        type: "text",
-        text: `Do something with: ${data.myArg}`,
-      },
+      content: { type: "text", text: `Do something with: ${myArg}` },
     }],
-  };
-}
-
-// 5. Export as PromptPlugin tuple
-const prompt: PromptPlugin = [name, config, callback];
-
-export default prompt;
+  }),
+});
 ```
 
 ## Registration
@@ -73,89 +49,76 @@ In `src/mcp/prompts/mod.ts`:
 2. Add it to the `prompts` array:
 
 ```typescript
-export const prompts: PromptPlugin[] = [
+export const prompts: readonly PromptPlugin[] = [
   // ... existing prompts
   myPrompt,
 ];
 ```
 
-The server registers each prompt via `server.registerPrompt(...prompt)`.
+`createMcpServer` (`src/mcp/mod.ts`) calls `prompt.register(server, deps)` for each entry.
 
-## Key Type
+## Key Types
 
-From `src/shared/types.ts`:
+From `src/mcp/plugin-types.ts`:
+
+- **`definePrompt(definition)`** - returns a `PromptPlugin`
+- **`PromptDefinition<Args>`** - `{ name, title?, description?, argsSchema, handler }`
+- **handler** - `(args, ctx, deps) => GetPromptResult | InputRequiredResult` (or a Promise of either)
+  - `args`: validated, typed from `argsSchema`
+  - `ctx`: `ServerContext` from `@modelcontextprotocol/server`
+  - `deps`: `McpServerFactoryContext` (`kv`, `events`, `requestState`, `publicBaseUrl`)
+
+## Arguments
+
+`argsSchema` is a Zod object (any Standard Schema with JSON Schema support works). Use `z.object({})` for prompts without arguments. Wrap a field with `completable()` for dynamic suggestions:
 
 ```typescript
-export type PromptPlugin = Parameters<McpServer["registerPrompt"]>;
+import { completable } from "@modelcontextprotocol/server";
+
+argsSchema: z.object({
+  language: completable(z.string().min(1, "Language is required"), (value: string) => {
+    const prefix = value.trim().toLowerCase();
+    return options.filter((o) => o.toLowerCase().startsWith(prefix)).slice(0, 5);
+  }),
+  goal: z.string().min(1, "Goal is required"),
+}),
 ```
 
-This is a tuple: `[name, config, callback]` matching `McpServer.registerPrompt()` parameters.
+## Handler Pattern
 
-## Argument Styles
-
-### Style A: `argsSchema` (preferred)
-
-Uses Zod shapes directly. Supports `completable()` for dynamic suggestions.
+Handlers return `GetPromptResult` - an object with a `messages` array:
 
 ```typescript
-import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
-
-const config = {
-  title: "My Prompt",
-  description: "...",
-  argsSchema: {
-    language: completable(schema.shape.language, (value) => {
-      const prefix = value.trim().toLowerCase();
-      return options.filter((o) => o.toLowerCase().startsWith(prefix)).slice(0, 5);
-    }),
-    goal: schema.shape.goal,
-  },
-};
-```
-
-### Style B: `arguments` array (legacy)
-
-Uses the `Prompt` type from the SDK. No dynamic completions.
-
-```typescript
-import type { Prompt } from "@modelcontextprotocol/sdk/types.js";
-
-const config: Prompt = {
-  name,
-  title: "My Prompt",
-  description: "...",
-  arguments: [
-    { name: "code", description: "The code to review", required: true },
+handler: ({ myArg }) => ({
+  messages: [
+    { role: "user", content: { type: "text", text: `Your prompt text with ${myArg}` } },
   ],
-};
+}),
 ```
 
-## Callback Pattern
+Key differences from tool handlers:
+- Returns `GetPromptResult` (not `CallToolResult`)
+- Arguments are already validated; no `safeParse`
+- Unused `ctx` and `deps` parameters can be omitted
+- Can return multiple messages for multi-turn prompt templates
 
-Callbacks return `GetPromptResult` — an object with a `messages` array:
+## Multi-Round Prompts
+
+A prompt may return `inputRequired(...)` to collect input (form elicitation) before rendering. The client retries `prompts/get` with `ctx.mcpReq.inputResponses` populated. See `src/mcp/prompts/testInputRequiredPrompt.ts` and the tools skill for `requestState`.
 
 ```typescript
-async function callback(args: Record<string, unknown>): Promise<GetPromptResult> {
-  const { success, data, error } = schema.safeParse(args);
-  if (!success) throw new Error(error.message);
+import { acceptedContent, inputRequired } from "@modelcontextprotocol/server";
 
-  return {
-    messages: [
-      {
-        role: "user",
-        content: { type: "text", text: `Your prompt text with ${data.myArg}` },
-      },
-    ],
-  };
-}
+handler: (_args, ctx) => {
+  const answer = acceptedContent(ctx.mcpReq.inputResponses, "user_context", contextForm);
+  if (answer) return { messages: [/* ... */] };
+  return inputRequired({
+    inputRequests: {
+      user_context: inputRequired.elicit({ message: "What context?", requestedSchema: contextForm }),
+    },
+  });
+},
 ```
-
-Key differences from tool callbacks:
-- Receives `args: Record<string, unknown>` (not `any`)
-- Returns `GetPromptResult` (not `CallToolResult`)
-- Throws on validation failure (not error response objects)
-- No `McpServer` parameter — prompts don't need server access
-- Can return multiple messages for multi-turn prompt templates
 
 ## Multi-Message Prompts
 
@@ -164,14 +127,8 @@ Return multiple messages for system + user prompt patterns:
 ```typescript
 return {
   messages: [
-    {
-      role: "assistant",
-      content: { type: "text", text: "You are a code reviewer..." },
-    },
-    {
-      role: "user",
-      content: { type: "text", text: `Review this code:\n\n${data.code}` },
-    },
+    { role: "assistant", content: { type: "text", text: "You are a code reviewer..." } },
+    { role: "user", content: { type: "text", text: `Review this code:\n\n${code}` } },
   ],
 };
 ```
@@ -179,4 +136,4 @@ return {
 ## Additional Resources
 
 - For complete prompt examples, see [examples.md](examples.md)
-- MCP Prompts spec: https://modelcontextprotocol.io/specification/2025-06-18/server/prompts
+- MCP Prompts spec: https://modelcontextprotocol.io/specification/2026-07-28/server/prompts

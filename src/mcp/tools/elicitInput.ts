@@ -1,67 +1,40 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import { acceptedContent, inputRequired } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
-import type { ToolConfig, ToolModule } from "$/mcp/plugin-types.ts";
-import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
+import { wasDeclined } from "$/mcp/inputResponses.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
+import { createCallToolTextResponse } from "$/shared/utils.ts";
 
-const schema = z.object({
-  purpose: z.string().min(1, "Purpose is required").max(200, "Purpose too long"),
+const INPUT_KEY = "details";
+
+const details = z.object({
+  name: z.string().meta({ title: "Name", description: "What should we call you?" }),
+  favoriteColor: z.string().optional().meta({
+    title: "Favorite color",
+    description: "Just for fun",
+  }),
 });
 
-const name = "elicit-input";
-
-// deno-lint-ignore no-explicit-any
-const config: ToolConfig<typeof schema.shape, any> = {
+export default defineTool({
+  name: "elicit-input",
   title: "Elicit input",
   description: "Demonstrate form-based elicitation",
-  inputSchema: schema.shape,
-};
+  inputSchema: z.object({
+    purpose: z.string().min(1, "Purpose is required").max(200, "Purpose too long"),
+  }),
+  handler: ({ purpose }, ctx) => {
+    if (wasDeclined(ctx, INPUT_KEY)) return createCallToolTextResponse({ cancelled: true });
 
-// deno-lint-ignore no-explicit-any
-const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> => {
-  const parsed = schema.safeParse(args);
-  if (!parsed.success) {
-    return createCallToolErrorResponse({
-      error: "Invalid arguments",
-      details: parsed.error.flatten(),
-      received: args,
-    });
-  }
+    const answer = acceptedContent(ctx.mcpReq.inputResponses, INPUT_KEY, details);
+    if (answer) return createCallToolTextResponse({ purpose, ...answer });
 
-  const { purpose } = parsed.data;
-
-  const result = await mcp.server.elicitInput({
-    mode: "form",
-    message: `Please provide a couple details for: ${purpose}`,
-    requestedSchema: {
-      type: "object",
-      properties: {
-        name: {
-          type: "string",
-          title: "Name",
-          description: "What should we call you?",
-        },
-        favoriteColor: {
-          type: "string",
-          title: "Favorite color",
-          description: "Just for fun",
-        },
+    return inputRequired({
+      inputRequests: {
+        [INPUT_KEY]: inputRequired.elicit({
+          message: `Please provide a couple details for: ${purpose}`,
+          requestedSchema: details,
+        }),
       },
-      required: ["name"],
-    },
-  });
-
-  return createCallToolTextResponse({
-    elicitationResult: result,
-  });
-};
-
-// deno-lint-ignore no-explicit-any
-const module: ToolModule<typeof schema.shape, any> = [
-  name,
-  config,
-  callback,
-];
-
-export default module;
+    });
+  },
+});

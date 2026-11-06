@@ -1,40 +1,18 @@
-import type { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import { z } from "zod";
 
-import type { PromptPlugin } from "$/mcp/plugin-types.ts";
+import { definePrompt } from "$/mcp/plugin-types.ts";
 
-const schema = z.object({
-  code: z.string().min(1, "Code required").max(50000, "Code too long"),
-});
-
-const name = "review-code";
-
-const config = {
+export default definePrompt({
+  name: "review-code",
   title: "Code Review",
   description: "Review code for best practices and potential issues",
-  argsSchema: schema.shape,
-};
-
-async function callback(args: Record<string, unknown>): Promise<GetPromptResult> {
-  const { success, data, error } = schema.safeParse(args);
-  if (!success) {
-    throw new Error(error.message);
-  }
-  return {
+  argsSchema: z.object({
+    code: z.string().min(1, "Code required").max(50000, "Code too long"),
+  }),
+  handler: ({ code }) => ({
     messages: [{
       role: "user",
-      content: {
-        type: "text",
-        text: `Please review this code:\n\n${data.code}`,
-      },
+      content: { type: "text", text: `Please review this code:\n\n${code}` },
     }],
-  };
-}
-
-const prompt: PromptPlugin = [
-  name,
-  config,
-  callback,
-];
-
-export default prompt;
+  }),
+});

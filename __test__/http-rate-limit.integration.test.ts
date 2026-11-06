@@ -1,14 +1,13 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
+import { getProcessKvRuntime } from "$/kv/mod.ts";
 import { createHonoApp } from "$/app/http/hono.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
-import { assertEquals, baseHttpConfig, noopTransports } from "./helpers.ts";
+import { assertEquals, baseHttpConfig, noopMcpHandler } from "./helpers.ts";
 
 function createTestApp(config: AppConfig["http"] = baseHttpConfig()) {
   return createHonoApp({
-    createMcpServer: () => ({}) as McpServer,
     config,
-    transports: noopTransports,
+    handler: noopMcpHandler,
+    kv: getProcessKvRuntime(),
   });
 }
 
@@ -87,7 +86,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "requests with no IP and no session use strict unknown-client rate limit",
+  name: "requests with no client IP use strict unknown-client rate limit",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {

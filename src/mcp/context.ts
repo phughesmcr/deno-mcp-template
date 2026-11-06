@@ -1,31 +1,21 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer, RequestStateCodec, ServerEventBus } from "@modelcontextprotocol/server";
 
 import type { KvRuntime } from "$/kv/runtime.ts";
-import type { ResourceSubscriptionTracker } from "./resources/subscriptionTracker.ts";
-import type { UrlElicitationRegistry } from "./urlElicitation/registry.ts";
-
-export { createResourceSubscriptionTracker } from "./resources/subscriptionTracker.ts";
-export type { ResourceSubscriptionTracker } from "./resources/subscriptionTracker.ts";
 
 /**
- * Shared process state passed into each transport-scoped MCP server instance.
- * The subscription tracker must be shared across STDIO and all HTTP sessions so KV-backed
- * resource watches deduplicate per URI (see `createKvWatcher`).
+ * Process state shared by every MCP server instance. Instances are short-lived (one per HTTP
+ * request), so anything that must outlive a request lives here or in KV.
  */
 export interface McpServerFactoryContext {
-  subscriptions: ResourceSubscriptionTracker;
   /** Process-scoped Deno KV (same instance the app opens/closes in lifecycle). */
   kv: KvRuntime;
-  /** Browser base URL and registry for URL-mode elicitation (HTTP sessions). */
-  urlElicitation: {
-    baseUrl: string | undefined;
-    registry: UrlElicitationRegistry;
-  };
-  /** Task store limits from app config (TTL clamp, etc.). */
-  tasks: {
-    maxTtlMs: number;
-  };
+  /** Change events for `subscriptions/listen` streams (HTTP) and the stdio forwarder. */
+  events: ServerEventBus;
+  /** Signs and verifies the `requestState` that multi-round tools hand to the client. */
+  requestState: RequestStateCodec;
+  /** Public origin for browser links in URL-mode elicitation; unset when HTTP is disabled. */
+  publicBaseUrl: string | undefined;
 }
 
-/** Factory invoked once per STDIO process and once per HTTP MCP session (see `createApp`). */
-export type CreateTransportScopedMcpServer = (ctx: McpServerFactoryContext) => McpServer;
+/** Builds a fresh MCP server from the shared context (see `createApp`). */
+export type CreateMcpServer = (ctx: McpServerFactoryContext) => McpServer;

@@ -16,13 +16,13 @@ export type McpConfigInput = {
   jsonResponse: boolean;
   trustProxy: boolean;
   requireHttpAuth: boolean;
-  maxTaskTtlMs: number;
   tlsCert?: string;
   tlsKey?: string;
   kvPath?: string;
   httpBearerToken?: string;
+  requestStateKey?: string;
   publicBaseUrl?: string;
-  /** When true (default), apply per-IP/session HTTP rate limiting. */
+  /** When true (default), apply per-IP HTTP rate limiting. */
   httpRateLimitEnabled?: boolean;
   /** Override {@link HttpRateLimitConfig.windowMs} when rate limiting is enabled. */
   httpRateLimitWindowMs?: number;

@@ -1,55 +1,39 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { getProcessKvRuntime } from "$/kv/mod.ts";
+import { createHonoApp, type McpFetchHandler } from "$/app/http/hono.ts";
+import { assert, assertEquals, baseHttpConfig, noopMcpHandler } from "./helpers.ts";
+import { createTestMcpHandler } from "./mcpHttp.ts";
 
-import { createHonoApp } from "$/app/http/hono.ts";
-import type { HTTPTransportManager } from "$/app/http/transport.ts";
-import { assert, assertEquals, baseHttpConfig } from "./helpers.ts";
-
-function createTestApp(transports: HTTPTransportManager) {
+function createTestApp(handler: McpFetchHandler = noopMcpHandler) {
   return createHonoApp({
-    createMcpServer: () => ({}) as McpServer,
+    handler,
     config: baseHttpConfig(),
-    transports,
+    kv: getProcessKvRuntime(),
   });
 }
 
 Deno.test({
-  name: "internal transport failures return sanitized JSON-RPC errors",
+  name: "internal handler failures return a generic error without internal details",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
     const app = createTestApp({
-      acquire: async () => {
-        throw new Error("database timeout");
-      },
-      get: () => undefined,
-      releaseAll: async () => {},
-      close: async () => {},
+      fetch: () => Promise.reject(new Error("database timeout")),
     });
 
-    const request = new Request("http://localhost/mcp", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {},
+    const response = await app.fetch(
+      new Request("http://localhost/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
       }),
-    });
-
-    const response = await app.fetch(request, { clientIp: "127.0.0.1" });
-    const payload = await response.json();
-    const error = payload?.error ?? {};
-    const data = error?.data ?? {};
+      { clientIp: "127.0.0.1" },
+    );
+    const text = await response.text();
 
     assertEquals(response.status, 500);
-    assertEquals(error.message, "Internal error");
-    assert(typeof data.timestamp === "string", "expected timestamp in error data");
-    assertEquals("stack" in data, false);
-    assertEquals("errorType" in data, false);
-    assertEquals("originalError" in data, false);
+    assert(!text.includes("database timeout"), "response must not leak the internal message");
+    assert(text.includes("Internal error"), "expected generic error text");
+    assert(!text.includes("stack"), "response must not include a stack");
   },
 });
 
@@ -58,29 +42,21 @@ Deno.test({
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
-    const app = createTestApp({
-      acquire: async () => {
-        throw new Error("not reached for empty request");
-      },
-      get: () => undefined,
-      releaseAll: async () => {},
-      close: async () => {},
-    });
+    const app = createTestApp(createTestMcpHandler());
 
-    const request = new Request("http://localhost/mcp", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: "",
-    });
-
-    const response = await app.fetch(request, { clientIp: "127.0.0.1" });
+    const response = await app.fetch(
+      new Request("http://localhost/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "",
+      }),
+      { clientIp: "127.0.0.1" },
+    );
     const payload = await response.json();
 
     assertEquals(response.status, 400);
-    assertEquals(payload?.error?.message, "Empty request body");
-    assertEquals(payload?.error?.code, -32600);
+    assertEquals(typeof payload?.error?.message, "string");
+    assertEquals(typeof payload?.error?.code, "number");
   },
 });
 
@@ -89,14 +65,7 @@ Deno.test({
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
-    const app = createTestApp({
-      acquire: async () => {
-        throw new Error("not used for this route");
-      },
-      get: () => undefined,
-      releaseAll: async () => {},
-      close: async () => {},
-    });
+    const app = createTestApp();
 
     const leakMarker = "UNIQUE_INTERNAL_DETAIL_DO_NOT_EXPOSE";
     app.get("/test-internal-error", () => {

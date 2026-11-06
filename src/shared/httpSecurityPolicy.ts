@@ -19,7 +19,7 @@ export type HostHeaderProtectionMode =
   | { kind: "none" };
 
 /**
- * Resolves which Host-header protection applies (aligned with MCP streamable HTTP guidance).
+ * Resolves which Host-header protection applies (aligned with MCP HTTP transport guidance).
  */
 export function resolveHostHeaderProtection(
   http: AppConfig["http"],
@@ -116,7 +116,7 @@ export function shouldWarnAllInterfacesBindWithoutHostAllowlist(
   return isAllInterfacesBindHostname(http.hostname);
 }
 
-export function isLoopbackBindHostname(hostname: string): boolean {
+function isLoopbackBindHostname(hostname: string): boolean {
   return LOOPBACK_BIND_HOSTNAMES.has(hostname.trim().toLowerCase());
 }
 

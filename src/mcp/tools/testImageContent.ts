@@ -1,25 +1,19 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import type { CallToolResult } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
-import type { ToolModule } from "$/mcp/plugin-types.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
 import { MINIMAL_PNG_BASE64 } from "$/mcp/showcase/sharedConstants.ts";
 
-const schema = z.object({});
-
-const tool: ToolModule<typeof schema.shape> = [
-  "test_image_content",
-  {
-    title: "Conformance image",
-    description: "Returns a minimal PNG",
-    inputSchema: schema.shape,
-  },
-  () => async (): Promise<CallToolResult> => ({
+export default defineTool({
+  name: "test_image_content",
+  title: "Conformance image",
+  description: "Returns a minimal PNG",
+  inputSchema: z.object({}),
+  handler: (): CallToolResult => ({
     content: [{
       type: "image",
       data: MINIMAL_PNG_BASE64,
       mimeType: "image/png",
     }],
   }),
-];
-
-export default tool;
+});

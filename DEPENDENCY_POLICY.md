@@ -38,7 +38,7 @@ Document manual bumps in the PR description (what changed, why).
   `conformance:server` via [`scripts/run-mcp-conformance.sh`](scripts/run-mcp-conformance.sh) using
   `MCP_CONFORMANCE_CLI_VERSION`). Bump intentionally when validating against a new
   `@modelcontextprotocol/conformance` release.
-- **npm-specified packages** (e.g. `@modelcontextprotocol/sdk`) — Resolved through Deno’s npm
+- **npm-specified packages** (e.g. `@modelcontextprotocol/server`) — Resolved through Deno’s npm
   compatibility and recorded in `deno.lock`.
 
 ## MCP UI (`mcp-ui/`)

@@ -1,5 +1,5 @@
 /**
- * @description Host / CLI / runtime configuration types (HTTP, STDIO, KV, tasks). For MCP tool/prompt/resource registration shapes, use `$/mcp/plugin-types.ts`.
+ * @description Host / CLI / runtime configuration types (HTTP, STDIO, KV, MCP). For MCP tool/prompt/resource registration shapes, use `$/mcp/plugin-types.ts`.
  * @module
  */
 
@@ -20,9 +20,9 @@ export type HttpRateLimitConfig = {
   enabled: boolean;
   /** Sliding window duration in milliseconds. */
   windowMs: number;
-  /** Max requests per window when client identity is a resolved IP or session. */
+  /** Max requests per window when client identity is a resolved IP. */
   limit: number;
-  /** Max requests per window for unknown client identity (no IP / session). */
+  /** Max requests per window for unknown client identity (no IP). */
   unknownClientLimit: number;
 };
 
@@ -90,13 +90,13 @@ export type KvConfig = {
   path?: string;
 };
 
-/** Task store limits (MCP experimental tasks). */
-export type TasksConfig = {
+/** MCP protocol settings. */
+export type McpConfig = {
   /**
-   * Upper bound for requested task TTL in milliseconds. Values above this are clamped;
-   * `null` / unlimited client TTL remains unlimited.
+   * Secret that signs `requestState`, at least 32 bytes. Every instance must share it; when unset,
+   * each process uses a random key.
    */
-  maxTtlMs: number;
+  requestStateKey?: string;
 };
 
 /** Public app config */
@@ -104,5 +104,5 @@ export interface AppConfig {
   http: HttpServerConfig;
   stdio: StdioConfig;
   kv: KvConfig;
-  tasks: TasksConfig;
+  mcp: McpConfig;
 }

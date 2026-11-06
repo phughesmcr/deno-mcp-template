@@ -1,22 +1,16 @@
-import type { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 
-import type { PromptPlugin } from "$/mcp/plugin-types.ts";
+import { definePrompt } from "$/mcp/plugin-types.ts";
 
-const prompt: PromptPlugin = [
-  "test_simple_prompt",
-  {
-    title: "Conformance simple prompt",
-    description: "test_simple_prompt for MCP conformance",
-  },
-  async (): Promise<GetPromptResult> => ({
+export default definePrompt({
+  name: "test_simple_prompt",
+  title: "Conformance simple prompt",
+  description: "test_simple_prompt for MCP conformance",
+  argsSchema: z.object({}),
+  handler: () => ({
     messages: [{
       role: "user",
-      content: {
-        type: "text",
-        text: "This is a simple prompt for testing.",
-      },
+      content: { type: "text", text: "This is a simple prompt for testing." },
     }],
   }),
-];
-
-export default prompt;
+});

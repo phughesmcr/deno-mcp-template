@@ -2,70 +2,46 @@
 
 Complete, working examples from the codebase.
 
-## Simple Prompt — Code Review (Legacy Arguments)
+## Simple Prompt - Code Review
 
-`src/mcp/prompts/codeReview.ts` uses the `arguments` array style:
+`src/mcp/prompts/codeReview.ts`:
 
 ```typescript
-import type { GetPromptResult, Prompt } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import { z } from "zod";
 
-import type { PromptPlugin } from "$/shared/types.ts";
+import { definePrompt } from "$/mcp/plugin-types.ts";
 
-const schema = z.object({
-  code: z.string().min(1, "Code required").max(50000, "Code too long"),
-});
-
-const name = "review-code";
-
-const config: Prompt = {
-  name,
+export default definePrompt({
+  name: "review-code",
   title: "Code Review",
   description: "Review code for best practices and potential issues",
-  arguments: [{
-    name: "code",
-    description: "The code to review",
-    required: true,
-  }],
-};
-
-async function callback(args: Record<string, unknown>): Promise<GetPromptResult> {
-  const { success, data, error } = schema.safeParse(args);
-  if (!success) throw new Error(error.message);
-
-  return {
+  argsSchema: z.object({
+    code: z.string().min(1, "Code required").max(50000, "Code too long"),
+  }),
+  handler: ({ code }) => ({
     messages: [{
       role: "user",
-      content: {
-        type: "text",
-        text: `Please review this code:\n\n${data.code}`,
-      },
+      content: { type: "text", text: `Please review this code:\n\n${code}` },
     }],
-  };
-}
-
-const prompt: PromptPlugin = [name, config, callback];
-
-export default prompt;
+  }),
+});
 ```
 
 Key patterns:
-- `Prompt` type from SDK for legacy config
-- `arguments` array with `name`, `description`, `required`
-- Validation still uses Zod, but arguments are declared manually
+- One Zod object is both the argument declaration and the validator
+- The handler receives already-validated, typed arguments
 
 ---
 
-## Dynamic Prompt — Language Snippet (argsSchema + completable)
+## Dynamic Prompt - Language Snippet (completable)
 
-`src/mcp/prompts/languagePrompt.ts` uses `argsSchema` with autocompletion:
+`src/mcp/prompts/languagePrompt.ts` uses `completable()` for autocompletion:
 
 ```typescript
-import type { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
-import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
-import { z } from "zod/v3";
+import { completable } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
-import type { PromptPlugin } from "$/shared/types.ts";
+import { definePrompt } from "$/mcp/plugin-types.ts";
 
 const languageOptions = [
   "TypeScript",
@@ -76,51 +52,73 @@ const languageOptions = [
   "Deno",
 ];
 
-const schema = z.object({
-  language: z.string().min(1, "Language is required"),
-  goal: z.string().min(1, "Goal is required"),
-});
-
-const name = "language-snippet";
-
-const config = {
+export default definePrompt({
+  name: "language-snippet",
   title: "Language Snippet",
   description: "Generate a short code snippet for a language and goal",
-  argsSchema: {
-    language: completable(schema.shape.language, (value) => {
+  argsSchema: z.object({
+    language: completable(z.string().min(1, "Language is required"), (value: string) => {
       const prefix = value.trim().toLowerCase();
       return languageOptions
         .filter((option) => option.toLowerCase().startsWith(prefix))
         .slice(0, 5);
     }),
-    goal: schema.shape.goal,
-  },
-};
-
-async function callback(args: Record<string, unknown>): Promise<GetPromptResult> {
-  const { success, data, error } = schema.safeParse(args);
-  if (!success) throw new Error(error.message);
-
-  return {
+    goal: z.string().min(1, "Goal is required"),
+  }),
+  handler: ({ language, goal }) => ({
     messages: [{
       role: "user",
-      content: {
-        type: "text",
-        text: `Write a short ${data.language} snippet for: ${data.goal}`,
-      },
+      content: { type: "text", text: `Write a short ${language} snippet for: ${goal}` },
     }],
-  };
-}
-
-const prompt: PromptPlugin = [name, config, callback];
-
-export default prompt;
+  }),
+});
 ```
 
 Key patterns:
 - `completable()` wraps a Zod field and adds a completion callback
-- Completion callback receives current value, returns matching suggestions
-- Non-completable fields use the raw Zod shape: `goal: schema.shape.goal`
+- The callback receives the current value and returns matching suggestions
+- Other fields are plain Zod schemas
+
+---
+
+## Multi-Round Prompt - input_required
+
+`src/mcp/prompts/testInputRequiredPrompt.ts` asks for context before rendering:
+
+```typescript
+import { acceptedContent, inputRequired } from "@modelcontextprotocol/server";
+import { z } from "zod";
+
+import { definePrompt } from "$/mcp/plugin-types.ts";
+
+const contextForm = z.object({ context: z.string() });
+
+export default definePrompt({
+  name: "test_input_required_result_prompt",
+  title: "Conformance input_required prompt",
+  description: "Asks for context before rendering the prompt",
+  argsSchema: z.object({}),
+  handler: (_args, ctx) => {
+    const answer = acceptedContent(ctx.mcpReq.inputResponses, "user_context", contextForm);
+    if (answer) {
+      return {
+        messages: [{
+          role: "user",
+          content: { type: "text", text: `Prompt with context: ${answer.context}` },
+        }],
+      };
+    }
+    return inputRequired({
+      inputRequests: {
+        user_context: inputRequired.elicit({
+          message: "What context should the prompt use?",
+          requestedSchema: contextForm,
+        }),
+      },
+    });
+  },
+});
+```
 
 ---
 
@@ -129,15 +127,15 @@ Key patterns:
 `src/mcp/prompts/mod.ts`:
 
 ```typescript
-import type { PromptPlugin } from "$/shared/types.ts";
+import type { PromptPlugin } from "$/mcp/plugin-types.ts";
 import codeReview from "./codeReview.ts";
 import languagePrompt from "./languagePrompt.ts";
 
-export const prompts: PromptPlugin[] = [
+export const prompts: readonly PromptPlugin[] = [
   codeReview,
   languagePrompt,
   // ... more prompts
-] as const;
+];
 ```
 
 ---
@@ -147,43 +145,27 @@ export const prompts: PromptPlugin[] = [
 Copy-paste starting point for a new prompt:
 
 ```typescript
-import type { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import { z } from "zod";
 
-import type { PromptPlugin } from "$/shared/types.ts";
+import { definePrompt } from "$/mcp/plugin-types.ts";
 
-const schema = z.object({
-  // TODO: define your arguments
-});
-
-const name = "TODO-prompt-name";
-
-const config = {
+export default definePrompt({
+  name: "TODO-prompt-name",
   title: "TODO title",
   description: "TODO description",
-  argsSchema: {
-    // TODO: map schema fields (optionally wrap with completable())
-  },
-};
-
-async function callback(args: Record<string, unknown>): Promise<GetPromptResult> {
-  const { success, data, error } = schema.safeParse(args);
-  if (!success) throw new Error(error.message);
-
-  return {
+  argsSchema: z.object({
+    // TODO: define your arguments (optionally wrap with completable())
+  }),
+  handler: (args) => ({
     messages: [{
       role: "user",
       content: {
         type: "text",
-        text: `TODO: build prompt text from ${JSON.stringify(data)}`,
+        text: `TODO: build prompt text from ${JSON.stringify(args)}`,
       },
     }],
-  };
-}
-
-const prompt: PromptPlugin = [name, config, callback];
-
-export default prompt;
+  }),
+});
 ```
 
 Then register in `src/mcp/prompts/mod.ts`:
@@ -191,7 +173,7 @@ Then register in `src/mcp/prompts/mod.ts`:
 ```typescript
 import myPrompt from "./myPrompt.ts";
 
-export const prompts: PromptPlugin[] = [
+export const prompts: readonly PromptPlugin[] = [
   // ... existing prompts
   myPrompt,
 ];

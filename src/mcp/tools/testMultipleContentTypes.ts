@@ -1,22 +1,18 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import type { CallToolResult } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
-import type { ToolModule } from "$/mcp/plugin-types.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
 import {
   MINIMAL_PNG_BASE64,
   TEST_MIXED_CONTENT_RESOURCE_URI,
 } from "$/mcp/showcase/sharedConstants.ts";
 
-const schema = z.object({});
-
-const tool: ToolModule<typeof schema.shape> = [
-  "test_multiple_content_types",
-  {
-    title: "Conformance mixed tool content",
-    description: "Text, image, and resource in one result",
-    inputSchema: schema.shape,
-  },
-  () => async (): Promise<CallToolResult> => ({
+export default defineTool({
+  name: "test_multiple_content_types",
+  title: "Conformance mixed tool content",
+  description: "Text, image, and resource in one result",
+  inputSchema: z.object({}),
+  handler: (): CallToolResult => ({
     content: [
       { type: "text", text: "Mixed content: text line." },
       { type: "image", data: MINIMAL_PNG_BASE64, mimeType: "image/png" },
@@ -30,6 +26,4 @@ const tool: ToolModule<typeof schema.shape> = [
       },
     ],
   }),
-];
-
-export default tool;
+});

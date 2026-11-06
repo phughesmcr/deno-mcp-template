@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Runs @modelcontextprotocol/conformance against this repo's HTTP MCP endpoint.
+# Runs the 2026-07-28 requirements of @modelcontextprotocol/conformance against this
+# repo's HTTP MCP endpoint.
 # Requires Node.js (npx). Start from the repository root.
 #
 # Use http://localhost (not 127.0.0.1): the HTTP hostname defaults to localhost
@@ -22,7 +23,7 @@ cd "$ROOT"
 PORT="${MCP_HTTP_PORT:-3001}"
 URL="http://localhost:${PORT}/mcp"
 BASELINE="$ROOT/conformance-baseline.yml"
-CONFORMANCE_CLI_VERSION="${MCP_CONFORMANCE_CLI_VERSION:-0.1.16}"
+CONFORMANCE_CLI_VERSION="${MCP_CONFORMANCE_CLI_VERSION:-0.2.0-alpha.12}"
 
 export MCP_HTTP_RATE_LIMIT_ENABLED=false
 
@@ -63,7 +64,7 @@ fi
 
 set +e
 # shellcheck disable=SC2068
-npx --yes "@modelcontextprotocol/conformance@${CONFORMANCE_CLI_VERSION}" server --url "$URL" ${extra[@]+"${extra[@]}"} "$@"
+npx --yes "@modelcontextprotocol/conformance@${CONFORMANCE_CLI_VERSION}" server --url "$URL" --requirements 2026-07-28 ${extra[@]+"${extra[@]}"} "$@"
 ec=$?
 set -e
 exit "$ec"

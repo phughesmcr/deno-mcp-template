@@ -1,9 +1,8 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
+import { getProcessKvRuntime } from "$/kv/mod.ts";
 import { createHonoApp } from "$/app/http/hono.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 import { validateOrigin } from "$/shared/validation/origin.ts";
-import { assertEquals, baseHttpConfig, noopTransports } from "./helpers.ts";
+import { assertEquals, baseHttpConfig, noopMcpHandler } from "./helpers.ts";
 
 function createAppWithAllowedOrigin(origin: string) {
   const httpConfig: AppConfig["http"] = baseHttpConfig({
@@ -11,9 +10,9 @@ function createAppWithAllowedOrigin(origin: string) {
   });
 
   return createHonoApp({
-    createMcpServer: () => ({}) as McpServer,
     config: httpConfig,
-    transports: noopTransports,
+    handler: noopMcpHandler,
+    kv: getProcessKvRuntime(),
   });
 }
 

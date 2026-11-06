@@ -1,15 +1,14 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
+import { getProcessKvRuntime } from "$/kv/mod.ts";
 import { createHonoApp } from "$/app/http/hono.ts";
-import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
 import { validateHttpConfig } from "$/shared/validation/config.ts";
 import {
   assertEquals,
   baseHttpConfig,
   baseMcpConfigInput,
   defaultValidateConfigDeps,
-  noopTransports,
+  noopMcpHandler,
 } from "./helpers.ts";
+import { withMemoryKv } from "./memoryKv.ts";
 
 const secret = "test-bearer-secret-xyz";
 
@@ -24,9 +23,9 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const app = createHonoApp({
-      createMcpServer: () => ({}) as McpServer,
       config: httpConfigWithAuth,
-      transports: noopTransports,
+      handler: noopMcpHandler,
+      kv: getProcessKvRuntime(),
     });
 
     const response = await app.fetch(
@@ -50,9 +49,9 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const app = createHonoApp({
-      createMcpServer: () => ({}) as McpServer,
       config: httpConfigWithAuth,
-      transports: noopTransports,
+      handler: noopMcpHandler,
+      kv: getProcessKvRuntime(),
     });
 
     const response = await app.fetch(
@@ -67,9 +66,8 @@ Deno.test({
       { clientIp: "127.0.0.1" },
     );
 
-    assertEquals(response.status, 400);
-    const payload = await response.json() as { error?: { message?: string } };
-    assertEquals(payload.error?.message, "Empty request body");
+    // The no-op handler answers 204, so reaching it proves bearer auth let the request through.
+    assertEquals(response.status, 204);
   },
 });
 
@@ -79,9 +77,9 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const app = createHonoApp({
-      createMcpServer: () => ({}) as McpServer,
       config: httpConfigWithAuth,
-      transports: noopTransports,
+      handler: noopMcpHandler,
+      kv: getProcessKvRuntime(),
     });
 
     const response = await app.fetch(
@@ -103,25 +101,24 @@ Deno.test({
   name: "GET /mcp-elicitation/confirm bypasses bearer auth",
   sanitizeOps: false,
   sanitizeResources: false,
-  fn: async () => {
-    const registry = createUrlElicitationRegistry();
-    const app = createHonoApp({
-      createMcpServer: () => ({}) as McpServer,
-      config: httpConfigWithAuth,
-      transports: noopTransports,
-      urlElicitationRegistry: registry,
-    });
+  fn: () =>
+    withMemoryKv(async (_kv, kv) => {
+      const app = createHonoApp({
+        handler: noopMcpHandler,
+        config: httpConfigWithAuth,
+        kv,
+      });
 
-    const url =
-      "http://localhost/mcp-elicitation/confirm?session=00000000-0000-4000-8000-000000000001&elicitation=00000000-0000-4000-8000-000000000002";
-    const response = await app.fetch(new Request(url), { clientIp: "127.0.0.1" });
+      const url =
+        "http://localhost/mcp-elicitation/confirm?elicitation=00000000-0000-4000-8000-000000000002";
+      const response = await app.fetch(new Request(url), { clientIp: "127.0.0.1" });
 
-    assertEquals(response.status, 400);
-    const text = await response.text();
-    if (text.includes("Unauthorized") || text.toLowerCase().includes("401")) {
-      throw new Error("expected HTML error page, not auth failure");
-    }
-  },
+      assertEquals(response.status, 400);
+      const text = await response.text();
+      if (text.includes("Unauthorized") || text.toLowerCase().includes("401")) {
+        throw new Error("expected HTML error page, not auth failure");
+      }
+    }),
 });
 
 Deno.test({

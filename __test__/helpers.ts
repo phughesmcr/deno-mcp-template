@@ -1,17 +1,16 @@
 import { denoFileStatPort } from "$/app/denoFileStatPort.ts";
-import type { HTTPTransportManager } from "$/app/http/transport.ts";
+import type { McpFetchHandler } from "$/app/http/hono.ts";
 import { getProcessKvRuntime } from "$/kv/mod.ts";
-import type { McpServerFactoryContext, ResourceSubscriptionTracker } from "$/mcp/context.ts";
-import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
+import type { McpServerFactoryContext } from "$/mcp/context.ts";
+import { createRequestState } from "$/mcp/requestState.ts";
 import type { McpConfigInput, ValidateConfigDeps } from "$/shared/config-input.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
-import { DEFAULT_MAX_TASK_TTL_MS } from "$/shared/constants.ts";
 import {
   RATE_LIMIT,
   RATE_LIMIT_UNKNOWN_CLIENT,
   RATE_LIMIT_WINDOW,
 } from "$/shared/constants/http.ts";
-import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
+import { InMemoryServerEventBus } from "@modelcontextprotocol/server";
 import { delay } from "@std/async/delay";
 
 export function assert(condition: unknown, message?: string): asserts condition {
@@ -26,13 +25,9 @@ export function assertEquals<T>(actual: T, expected: T): void {
   }
 }
 
-export const noopTransports: HTTPTransportManager = {
-  acquire: async () => {
-    throw new Error("not used");
-  },
-  get: () => undefined,
-  releaseAll: async () => {},
-  close: async () => {},
+/** Stands in for the MCP handler in tests that only exercise the middleware in front of it. */
+export const noopMcpHandler: McpFetchHandler = {
+  fetch: () => Promise.resolve(new Response(null, { status: 204 })),
 };
 
 export function baseHttpConfig(overrides: Partial<AppConfig["http"]> = {}): AppConfig["http"] {
@@ -55,25 +50,16 @@ export function baseHttpConfig(overrides: Partial<AppConfig["http"]> = {}): AppC
   };
 }
 
-export function baseTasksConfig(overrides: Partial<AppConfig["tasks"]> = {}): AppConfig["tasks"] {
-  return {
-    maxTtlMs: DEFAULT_MAX_TASK_TTL_MS,
-    ...overrides,
-  };
-}
-
-/** Minimal `McpServerFactoryContext` for tests (URL elicitation unused). */
+/** Minimal `McpServerFactoryContext` for tests. */
 export function mcpFactoryContext(
-  subscriptions: ResourceSubscriptionTracker,
+  overrides: Partial<McpServerFactoryContext> = {},
 ): McpServerFactoryContext {
   return {
-    subscriptions,
     kv: getProcessKvRuntime(),
-    urlElicitation: {
-      registry: createUrlElicitationRegistry(),
-      baseUrl: undefined,
-    },
-    tasks: baseTasksConfig(),
+    events: new InMemoryServerEventBus(),
+    requestState: createRequestState(crypto.randomUUID() + crypto.randomUUID()),
+    publicBaseUrl: undefined,
+    ...overrides,
   };
 }
 
@@ -90,7 +76,6 @@ export function baseMcpConfigInput(overrides: Partial<McpConfigInput> = {}): Mcp
     jsonResponse: false,
     trustProxy: false,
     requireHttpAuth: false,
-    maxTaskTtlMs: DEFAULT_MAX_TASK_TTL_MS,
     ...overrides,
   };
 }
@@ -110,32 +95,4 @@ export async function waitFor(
     await delay(intervalMs);
   }
   throw new Error("Timed out waiting for condition");
-}
-
-export function hasResultForId(messages: JSONRPCMessage[], id: number): boolean {
-  return messages.some((message) => {
-    const candidate = message as Record<string, unknown>;
-    return candidate.id === id && "result" in candidate;
-  });
-}
-
-export class InMemoryTransport {
-  onclose?: () => void;
-  onerror?: (error: Error) => void;
-  onmessage?: (message: JSONRPCMessage) => void;
-  sentMessages: JSONRPCMessage[] = [];
-
-  async start(): Promise<void> {}
-
-  async send(message: JSONRPCMessage): Promise<void> {
-    this.sentMessages.push(message);
-  }
-
-  async close(): Promise<void> {
-    this.onclose?.();
-  }
-
-  receive(message: JSONRPCMessage): void {
-    this.onmessage?.(message);
-  }
 }

@@ -7,8 +7,8 @@
     "moduleResolution": "bundler"
   },
   "imports": {
-    "@modelcontextprotocol/ext-apps": "npm:@modelcontextprotocol/ext-apps@^1.5.0",
-    "@modelcontextprotocol/sdk/types.js": "npm:@modelcontextprotocol/sdk@^1.29.0/types.js",
+    "@modelcontextprotocol/client": "npm:@modelcontextprotocol/client@^2.4.0",
+    "@modelcontextprotocol/ext-apps": "npm:@modelcontextprotocol/ext-apps@^2.0.4",
     "typescript": "npm:typescript@^5.9.3",
     "vite": "npm:vite@^6.3.5",
     "vite-plugin-singlefile": "npm:vite-plugin-singlefile@^2.3.0"

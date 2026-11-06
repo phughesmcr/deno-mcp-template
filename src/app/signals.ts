@@ -30,21 +30,9 @@ export function setupSignalHandlers(onShutdown: () => Promise<void>): () => void
     }
   }
 
-  const onError = (event: ErrorEvent) => {
-    if (
-      event.error instanceof TypeError &&
-      event.error.message.includes("stream controller cannot close or enqueue")
-    ) {
-      event.preventDefault();
-      return;
-    }
-  };
-  globalThis.addEventListener("error", onError);
-
   return () => {
     globalThis.removeEventListener("beforeunload", onBeforeUnload);
     globalThis.removeEventListener("unhandledrejection", onUnhandledRejection);
-    globalThis.removeEventListener("error", onError);
     Deno.removeSignalListener("SIGINT", onSigInt);
     for (const { signal, handler } of extraListeners) {
       try {

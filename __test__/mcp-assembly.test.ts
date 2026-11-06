@@ -1,83 +1,68 @@
-import {
-  createMcpServer,
-  createResourceSubscriptionTracker,
-  type McpServerDefinition,
-  type McpServerFactoryContext,
-  type ResourceSubscriptionTracker,
-} from "$/mcp/mod.ts";
+import type { McpServerDefinition } from "$/mcp/mod.ts";
+import { buildServerCapabilities, MCP_APPS_EXTENSION_ID } from "$/mcp/mod.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
 import helloWorld from "$/mcp/resources/helloWorld.ts";
-import { KvTaskMessageQueue, KvTaskStore } from "$/mcp/tasks/mod.ts";
+import { createCallToolTextResponse } from "$/shared/utils.ts";
+import { z } from "zod";
 
-import { mcpFactoryContext } from "./helpers.ts";
+import { assert, assertEquals } from "./helpers.ts";
+import { createTestMcpHandler, mcpRequest } from "./mcpHttp.ts";
 
-function minimalSubscribeDefinition(): McpServerDefinition {
+const echoTool = defineTool({
+  name: "assembly-echo",
+  inputSchema: z.object({}),
+  handler: (_args, _ctx, deps) => createCallToolTextResponse({ hasKv: deps.kv !== undefined }),
+});
+
+function minimalDefinition(overrides: Partial<McpServerDefinition> = {}): McpServerDefinition {
   return {
     prompts: [],
     resources: [helloWorld],
-    tools: [],
-    promptsListChanged: false,
-    resourceListChanged: false,
+    tools: [echoTool],
     resourceSubscribe: true,
-    toolsListChanged: false,
-    tasksEnabled: false,
-    experimentalElicitation: false,
     mcpAppsExtension: false,
     fetchWebsiteInfoApp: false,
-    urlElicitationDemo: false,
+    ...overrides,
   };
 }
 
-Deno.test("createMcpServer invokes assembly ports with ctx.tasks.maxTtlMs", () => {
-  const subscriptions = createResourceSubscriptionTracker();
-  const ctx: McpServerFactoryContext = {
-    ...mcpFactoryContext(subscriptions),
-    tasks: { maxTtlMs: 42_000 },
-  };
+Deno.test("buildServerCapabilities advertises subscribe and MCP Apps only when enabled", () => {
+  const on = buildServerCapabilities(
+    minimalDefinition({ resourceSubscribe: true, mcpAppsExtension: true }),
+  );
+  assertEquals(on.resources?.subscribe, true);
+  assert(on.extensions?.[MCP_APPS_EXTENSION_ID] !== undefined, "expected MCP Apps extension");
 
-  let seenTtl: number | undefined;
-  let queues = 0;
-
-  createMcpServer(ctx, {
-    definition: minimalSubscribeDefinition(),
-    ports: {
-      createTaskStore: (args) => {
-        seenTtl = args.maxTtlMs;
-        return new KvTaskStore({ maxTtlMs: args.maxTtlMs, kv: args.kv });
-      },
-      createTaskMessageQueue: (args) => {
-        queues++;
-        return new KvTaskMessageQueue(args.kv);
-      },
-    },
-  });
-
-  if (seenTtl !== 42_000) throw new Error(`expected maxTtlMs 42000, got ${seenTtl}`);
-  if (queues !== 1) throw new Error(`expected one queue, got ${queues}`);
+  const off = buildServerCapabilities(
+    minimalDefinition({ resourceSubscribe: false, mcpAppsExtension: false }),
+  );
+  assertEquals(off.resources?.subscribe, undefined);
+  assertEquals(off.extensions?.[MCP_APPS_EXTENSION_ID], undefined);
 });
 
-Deno.test("createMcpServer onclose invokes subscription unregister", async () => {
-  const inner = createResourceSubscriptionTracker();
-  let unregisterCalls = 0;
-  const subscriptions = {
-    ...inner,
-    unregister: async (notifier: (uri: string) => Promise<void>) => {
-      unregisterCalls++;
-      await inner.unregister(notifier);
-    },
-  };
+Deno.test({
+  name: "createMcpServer registers exactly the definition's tools and resources",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const handler = createTestMcpHandler(minimalDefinition());
 
-  const ctx: McpServerFactoryContext = mcpFactoryContext(
-    subscriptions as unknown as ResourceSubscriptionTracker,
-  );
-  const server = createMcpServer(ctx, { definition: minimalSubscribeDefinition() });
+    const tools = await (await handler.fetch(mcpRequest("tools/list"))).json() as {
+      result?: { tools: { name: string }[] };
+    };
+    assertEquals(tools.result?.tools.map((t) => t.name).join(","), "assembly-echo");
 
-  const close = server.server.onclose;
-  if (!close) throw new Error("expected onclose");
-  close.call(server.server);
+    const resources = await (await handler.fetch(mcpRequest("resources/list"))).json() as {
+      result?: { resources: { uri: string }[] };
+    };
+    assertEquals(resources.result?.resources.length, 1);
 
-  await new Promise((r) => setTimeout(r, 0));
-
-  if (unregisterCalls < 1) {
-    throw new Error(`expected unregister invoked, got ${unregisterCalls}`);
-  }
+    const call = await (await handler.fetch(
+      mcpRequest("tools/call", { name: "assembly-echo", arguments: {} }, { name: "assembly-echo" }),
+    )).json() as { result?: { content: { text: string }[] } };
+    assert(
+      call.result?.content[0]?.text.includes('"hasKv":true') === true,
+      "tool handler should receive the shared factory context",
+    );
+  },
 });

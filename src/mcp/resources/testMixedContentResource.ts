@@ -1,5 +1,4 @@
-import type { ResourceMetadata } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import type { ReadResourceResult, ResourceMetadata } from "@modelcontextprotocol/server";
 
 import type { ResourcePlugin } from "$/mcp/plugin-types.ts";
 import { TEST_MIXED_CONTENT_RESOURCE_URI } from "$/mcp/showcase/sharedConstants.ts";

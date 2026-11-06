@@ -1,8 +1,7 @@
-import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
-import type { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import { completable } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
-import type { PromptPlugin } from "$/mcp/plugin-types.ts";
+import { definePrompt } from "$/mcp/plugin-types.ts";
 
 const languageOptions = [
   "TypeScript",
@@ -13,48 +12,23 @@ const languageOptions = [
   "Deno",
 ];
 
-const schema = z.object({
-  language: z.string().min(1, "Language is required"),
-  goal: z.string().min(1, "Goal is required"),
-});
-
-const name = "language-snippet";
-
-const config = {
+export default definePrompt({
+  name: "language-snippet",
   title: "Language Snippet",
   description: "Generate a short code snippet for a language and goal",
-  argsSchema: {
-    language: completable(schema.shape.language, (value: string) => {
+  argsSchema: z.object({
+    language: completable(z.string().min(1, "Language is required"), (value: string) => {
       const prefix = value.trim().toLowerCase();
       return languageOptions
         .filter((option) => option.toLowerCase().startsWith(prefix))
         .slice(0, 5);
     }),
-    goal: schema.shape.goal,
-  },
-};
-
-async function callback(args: Record<string, unknown>): Promise<GetPromptResult> {
-  const { success, data, error } = schema.safeParse(args);
-  if (!success) {
-    throw new Error(error.message);
-  }
-
-  return {
+    goal: z.string().min(1, "Goal is required"),
+  }),
+  handler: ({ language, goal }) => ({
     messages: [{
       role: "user",
-      content: {
-        type: "text",
-        text: `Write a short ${data.language} snippet for: ${data.goal}`,
-      },
+      content: { type: "text", text: `Write a short ${language} snippet for: ${goal}` },
     }],
-  };
-}
-
-const prompt: PromptPlugin = [
-  name,
-  config,
-  callback,
-];
-
-export default prompt;
+  }),
+});

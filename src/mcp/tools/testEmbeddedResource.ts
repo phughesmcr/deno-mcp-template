@@ -1,19 +1,15 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import type { CallToolResult } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
-import type { ToolModule } from "$/mcp/plugin-types.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
 import { TEST_EMBEDDED_RESOURCE_URI } from "$/mcp/showcase/sharedConstants.ts";
 
-const schema = z.object({});
-
-const tool: ToolModule<typeof schema.shape> = [
-  "test_embedded_resource",
-  {
-    title: "Conformance embedded resource",
-    description: "Returns embedded resource content",
-    inputSchema: schema.shape,
-  },
-  () => async (): Promise<CallToolResult> => ({
+export default defineTool({
+  name: "test_embedded_resource",
+  title: "Conformance embedded resource",
+  description: "Returns embedded resource content",
+  inputSchema: z.object({}),
+  handler: (): CallToolResult => ({
     content: [{
       type: "resource",
       resource: {
@@ -23,6 +19,4 @@ const tool: ToolModule<typeof schema.shape> = [
       },
     }],
   }),
-];
-
-export default tool;
+});

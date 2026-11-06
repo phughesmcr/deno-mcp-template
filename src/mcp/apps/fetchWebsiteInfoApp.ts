@@ -8,7 +8,7 @@ import {
   registerAppTool,
   RESOURCE_MIME_TYPE,
 } from "@modelcontextprotocol/ext-apps/server";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/server";
 import { join } from "@std/path";
 
 import {
@@ -50,12 +50,9 @@ function getAppHtml(): string {
 /**
  * Registers the fetch-website-info MCP App resource and tool.
  *
- * We always use {@link registerAppTool} (with `_meta.ui`) rather than branching on
- * `getUiCapability` in `oninitialized`: some clients may call `tools/list` before
- * `notifications/initialized`, so late-only registration can omit the tool. Hosts without
- * MCP Apps ignore UI metadata and still consume `content`. For a text-only variant, use
- * `getUiCapability` from `@modelcontextprotocol/ext-apps/server` with a design that fits
- * your transport (for example per-session tool lists if your client supports it).
+ * We always use {@link registerAppTool} (with `_meta.ui`): hosts without MCP Apps ignore the UI
+ * metadata and still consume `content`, and a stateless server has no per-client tool list to
+ * vary anyway.
  */
 export function registerFetchWebsiteInfoApp(server: McpServer): void {
   const html = getAppHtml();
@@ -92,7 +89,7 @@ export function registerFetchWebsiteInfoApp(server: McpServer): void {
     {
       title: fetchWebsiteInfoToolTitle,
       description: fetchWebsiteInfoToolDescription,
-      inputSchema: fetchWebsiteInfoInputSchema.shape,
+      inputSchema: fetchWebsiteInfoInputSchema,
       _meta: { ui: { resourceUri: FETCH_WEBSITE_INFO_RESOURCE_URI } },
     },
     executeFetchWebsiteInfo,

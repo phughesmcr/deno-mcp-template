@@ -1,5 +1,8 @@
-import { closeKvStore, configureKvPath, openKvStore } from "$/kv/mod.ts";
-import { getCounterValue, incrementCounterValue } from "$/mcp/resources/counter.ts";
+import { closeKvStore, configureKvPath, getProcessKvRuntime, openKvStore } from "$/kv/mod.ts";
+import {
+  getPersistedCounterValue,
+  incrementPersistedCounterValue,
+} from "$/mcp/resources/counterStore.ts";
 import { assertEquals } from "./helpers.ts";
 
 Deno.test({
@@ -8,16 +11,17 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
+    const kv = getProcessKvRuntime();
     try {
       configureKvPath(kvPath);
       await openKvStore(kvPath);
 
-      const initialValue = await getCounterValue();
+      const initialValue = await getPersistedCounterValue(kv);
       assertEquals(initialValue, 0);
 
-      // Run parallel increments to verify compare-and-set update safety.
-      await Promise.all(Array.from({ length: 25 }, () => incrementCounterValue(1)));
-      const afterParallelIncrements = await getCounterValue();
+      // Run parallel increments to verify atomic update safety.
+      await Promise.all(Array.from({ length: 25 }, () => incrementPersistedCounterValue(1, kv)));
+      const afterParallelIncrements = await getPersistedCounterValue(kv);
       assertEquals(afterParallelIncrements, 25);
 
       await closeKvStore();
@@ -25,7 +29,7 @@ Deno.test({
       // Re-open the same KV file and verify persisted value.
       configureKvPath(kvPath);
       await openKvStore(kvPath);
-      const persistedValue = await getCounterValue();
+      const persistedValue = await getPersistedCounterValue(kv);
       assertEquals(persistedValue, 25);
     } finally {
       await closeKvStore();

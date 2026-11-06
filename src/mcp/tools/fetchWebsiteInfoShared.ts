@@ -3,8 +3,8 @@
  * @module
  */
 
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import type { CallToolResult } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
 import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
 import {
@@ -41,70 +41,43 @@ export const fetchWebsiteInfoToolDescription =
  * Executes the website HEAD fetch and returns a {@link CallToolResult} with
  * `structuredContent` for MCP Apps UI hosts.
  */
-export async function executeFetchWebsiteInfo(args: unknown): Promise<CallToolResult> {
+export async function executeFetchWebsiteInfo(
+  { url }: z.infer<typeof fetchWebsiteInfoInputSchema>,
+): Promise<CallToolResult> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
   try {
-    const parsed = fetchWebsiteInfoInputSchema.safeParse(args);
-    if (!parsed.success) {
-      return createCallToolErrorResponse({
-        error: "Invalid arguments",
-        details: parsed.error.flatten(),
-        received: args,
-      });
+    const { response, redirected } = await headUrlWithSafeRedirects(url, controller.signal);
+
+    const headers: Record<string, string> = {};
+    for (const key of ["content-type", "server", "x-powered-by", "cache-control", "etag"]) {
+      const value = response.headers.get(key);
+      if (value) headers[key] = value;
     }
 
-    const { url } = parsed.data;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    const payload: FetchWebsiteInfoSuccess = {
+      url: response.url,
+      status: response.status,
+      statusText: response.statusText,
+      redirected,
+      headers,
+      timestamp: new Date().toISOString(),
+    };
 
-    try {
-      const { response, redirected } = await headUrlWithSafeRedirects(url, controller.signal);
-      clearTimeout(timeoutId);
-
-      const headers: Record<string, string> = {};
-      for (const key of ["content-type", "server", "x-powered-by", "cache-control", "etag"]) {
-        const value = response.headers.get(key);
-        if (value) headers[key] = value;
-      }
-
-      const payload: FetchWebsiteInfoSuccess = {
-        url: response.url,
-        status: response.status,
-        statusText: response.statusText,
-        redirected,
-        headers,
-        timestamp: new Date().toISOString(),
-      };
-
-      return createCallToolTextResponse(payload, payload as unknown as Record<string, unknown>);
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-
-      if (fetchError instanceof DisallowedFetchUrlError) {
-        return createCallToolErrorResponse({
-          error: "URL not allowed",
-        });
-      }
-
-      if (fetchError instanceof Error && fetchError.name === "AbortError") {
-        return createCallToolErrorResponse({
-          error: "Request timed out after 10 seconds",
-          url,
-        });
-      }
-
-      let networkMessage = "Unknown network error";
-      if (fetchError instanceof Error) {
-        networkMessage = `Network error: ${fetchError.message}`;
-      }
-      return createCallToolErrorResponse({
-        error: networkMessage,
-        url,
-      });
-    }
+    return createCallToolTextResponse(payload, payload);
   } catch (error) {
-    return createCallToolErrorResponse({
-      error: error instanceof Error ? error.message : "Unknown error occurred",
-      args,
-    });
+    if (error instanceof DisallowedFetchUrlError) {
+      return createCallToolErrorResponse({ error: "URL not allowed" });
+    }
+    if (error instanceof Error && error.name === "AbortError") {
+      return createCallToolErrorResponse({ error: "Request timed out after 10 seconds", url });
+    }
+    const message = error instanceof Error ?
+      `Network error: ${error.message}` :
+      "Unknown network error";
+    return createCallToolErrorResponse({ error: message, url });
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

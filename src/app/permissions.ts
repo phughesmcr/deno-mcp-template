@@ -42,7 +42,7 @@ export async function verifyRuntimePermissions(config: AppConfig): Promise<void>
     },
     {
       descriptor: { name: "write" },
-      reason: "Persist Deno KV data for resumable sessions and task/resource state.",
+      reason: "Persist Deno KV data for resources and pending URL elicitations.",
       required: true,
       grantFlag: "--allow-write",
     },

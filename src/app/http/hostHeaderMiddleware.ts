@@ -3,7 +3,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { HTTP_STATUS } from "$/shared/constants.ts";
 
 /** Hostnames allowed by {@link createLocalhostHostValidationMiddleware} (matches MCP SDK). */
-export const SDK_LOCALHOST_ALLOWED_HOSTNAMES = [
+const SDK_LOCALHOST_ALLOWED_HOSTNAMES = [
   "localhost",
   "127.0.0.1",
   "[::1]",
@@ -26,7 +26,7 @@ function normalizeAllowedList(hostnames: readonly string[]): string[] {
  * Prefer the `Host` header; if absent (common for synthetic `Request` in tests), use the URL
  * authority. Real `Deno.serve` requests include `Host`.
  */
-export function resolveHostHeaderInput(c: Context): string | undefined {
+function resolveHostHeaderInput(c: Context): string | undefined {
   const fromHeader = c.req.header("host")?.trim();
   if (fromHeader) return fromHeader;
   try {

@@ -1,108 +1,108 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-
 import { createHonoApp } from "$/app/http/hono.ts";
-import type { HTTPTransportManager } from "$/app/http/transport.ts";
-import { createUrlElicitationRegistry } from "$/mcp/urlElicitation/registry.ts";
-import { assert, assertEquals, baseHttpConfig, noopTransports } from "./helpers.ts";
+import type { KvRuntime } from "$/kv/runtime.ts";
+import {
+  createUrlElicitation,
+  getUrlElicitation,
+  resolveUrlElicitation,
+  URL_ELICITATION_TTL_MS,
+} from "$/mcp/urlElicitation/store.ts";
+import { withMemoryKv } from "./memoryKv.ts";
+import { assert, assertEquals, baseHttpConfig, noopMcpHandler } from "./helpers.ts";
 
-const SESSION = "00000000-0000-4000-8000-0000000000a1";
+function createApp(runtime: KvRuntime) {
+  return createHonoApp({
+    handler: noopMcpHandler,
+    config: baseHttpConfig({ httpBearerToken: "secret" }),
+    kv: runtime,
+  });
+}
 
-function transportsWithSession(): HTTPTransportManager {
-  return {
-    ...noopTransports,
-    get: (id) => (id === SESSION ? {} as WebStandardStreamableHTTPServerTransport : undefined),
-  };
+function confirmRequest(elicitation: string, action: string): Request {
+  return new Request("http://localhost/mcp-elicitation/confirm", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ elicitation, action }).toString(),
+  });
+}
+
+for (
+  const { action, status, heading } of [
+    { action: "confirm", status: "confirmed", heading: "Confirmed" },
+    { action: "cancel", status: "cancelled", heading: "Cancelled" },
+  ] as const
+) {
+  Deno.test({
+    name: `POST /mcp-elicitation/confirm records the outcome once (${action})`,
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: () =>
+      withMemoryKv(async (kv, runtime) => {
+        const id = await createUrlElicitation(kv, "demo");
+        const app = createApp(runtime);
+
+        const res = await app.fetch(confirmRequest(id, action), { clientIp: "127.0.0.1" });
+        assertEquals(res.status, 200);
+        assert((await res.text()).includes(heading), `expected ${heading} outcome page`);
+        assertEquals((await getUrlElicitation(kv, id))?.status, status);
+
+        // Already resolved: a second submit must not flip the outcome.
+        const again = await app.fetch(
+          confirmRequest(id, action === "confirm" ? "cancel" : "confirm"),
+          { clientIp: "127.0.0.1" },
+        );
+        assertEquals(again.status, 400);
+        assertEquals((await getUrlElicitation(kv, id))?.status, status);
+      }),
+  });
 }
 
 Deno.test({
-  name: "POST /mcp-elicitation/confirm invokes completion notifier once (confirm)",
+  name: "GET /mcp-elicitation/confirm renders pending label and rejects unknown ids",
   sanitizeOps: false,
   sanitizeResources: false,
-  fn: async () => {
-    let completions = 0;
-    const elicitationId = "00000000-0000-4000-8000-0000000000b1";
-    const registry = createUrlElicitationRegistry();
-    registry.registerPending({
-      elicitationId,
-      sessionId: SESSION,
-      label: "demo",
-      completionNotifier: async () => {
-        completions += 1;
-      },
-    });
+  fn: () =>
+    withMemoryKv(async (kv, runtime) => {
+      const id = await createUrlElicitation(kv, "<b>demo</b>");
+      const app = createApp(runtime);
 
-    const app = createHonoApp({
-      createMcpServer: () => ({}) as McpServer,
-      config: baseHttpConfig({ httpBearerToken: "secret" }),
-      transports: transportsWithSession(),
-      urlElicitationRegistry: registry,
-    });
+      const ok = await app.fetch(
+        new Request(`http://localhost/mcp-elicitation/confirm?elicitation=${id}`),
+        { clientIp: "127.0.0.1" },
+      );
+      assertEquals(ok.status, 200);
+      const html = await ok.text();
+      assert(html.includes("&lt;b&gt;demo&lt;/b&gt;"), "label must be escaped");
 
-    const body = new URLSearchParams({
-      session: SESSION,
-      elicitation: elicitationId,
-      action: "confirm",
-    });
-
-    const res = await app.fetch(
-      new Request("http://localhost/mcp-elicitation/confirm", {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: body.toString(),
-      }),
-      { clientIp: "127.0.0.1" },
-    );
-
-    assertEquals(res.status, 200);
-    assertEquals(completions, 1);
-    const html = await res.text();
-    assert(html.includes("Confirmed"), "expected confirm outcome page");
-  },
+      const unknown = await app.fetch(
+        new Request(
+          "http://localhost/mcp-elicitation/confirm?elicitation=00000000-0000-4000-8000-000000000002",
+        ),
+        { clientIp: "127.0.0.1" },
+      );
+      assertEquals(unknown.status, 400);
+    }),
 });
 
 Deno.test({
-  name: "POST /mcp-elicitation/confirm invokes completion notifier once (cancel)",
+  name: "URL elicitation store: resolves once and treats expired records as unknown",
   sanitizeOps: false,
   sanitizeResources: false,
-  fn: async () => {
-    let completions = 0;
-    const elicitationId = "00000000-0000-4000-8000-0000000000b2";
-    const registry = createUrlElicitationRegistry();
-    registry.registerPending({
-      elicitationId,
-      sessionId: SESSION,
-      label: "demo",
-      completionNotifier: async () => {
-        completions += 1;
-      },
-    });
+  fn: () =>
+    withMemoryKv(async (kv) => {
+      const id = await createUrlElicitation(kv, "once");
+      assertEquals((await getUrlElicitation(kv, id))?.label, "once");
+      assertEquals(await resolveUrlElicitation(kv, id, "confirmed"), true);
+      assertEquals(await resolveUrlElicitation(kv, id, "cancelled"), false);
+      assertEquals((await getUrlElicitation(kv, id))?.status, "confirmed");
 
-    const app = createHonoApp({
-      createMcpServer: () => ({}) as McpServer,
-      config: baseHttpConfig({ httpBearerToken: "secret" }),
-      transports: transportsWithSession(),
-      urlElicitationRegistry: registry,
-    });
-
-    const body = new URLSearchParams({
-      session: SESSION,
-      elicitation: elicitationId,
-      action: "cancel",
-    });
-
-    const res = await app.fetch(
-      new Request("http://localhost/mcp-elicitation/confirm", {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: body.toString(),
-      }),
-      { clientIp: "127.0.0.1" },
-    );
-
-    assertEquals(res.status, 200);
-    assertEquals(completions, 1);
-    const html = await res.text();
-    assert(html.includes("Cancelled"), "expected cancel outcome page");
-  },
+      const stale = await createUrlElicitation(kv, "stale");
+      const realNow = Date.now;
+      Date.now = () => realNow() + URL_ELICITATION_TTL_MS + 1;
+      try {
+        assertEquals(await getUrlElicitation(kv, stale), undefined);
+        assertEquals(await resolveUrlElicitation(kv, stale, "confirmed"), false);
+      } finally {
+        Date.now = realNow;
+      }
+    }),
 });

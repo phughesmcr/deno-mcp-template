@@ -1,6 +1,6 @@
 import { verifyRuntimePermissions } from "$/app/permissions.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
-import { assert, baseHttpConfig, baseTasksConfig } from "./helpers.ts";
+import { assert, baseHttpConfig } from "./helpers.ts";
 
 const baseConfig: AppConfig = {
   http: baseHttpConfig(),
@@ -8,7 +8,7 @@ const baseConfig: AppConfig = {
     enabled: true,
   },
   kv: {},
-  tasks: baseTasksConfig(),
+  mcp: {},
 };
 
 Deno.test({

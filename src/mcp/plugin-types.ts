@@ -1,50 +1,27 @@
 /**
- * @description MCP feature registration types (tools, prompts, resources). Import from here in new tools, prompts, and resources.
+ * @description MCP feature registration helpers (tools, prompts, resources). Import from here in new tools, prompts, and resources.
  * @module
  */
 
 import type {
+  CallToolResult,
+  GetPromptResult,
+  InputRequiredResult,
   McpServer,
-  ReadResourceCallback,
-  ReadResourceTemplateCallback,
+  PromptCallback,
+  ReadResourceResult,
   ResourceMetadata,
   ResourceTemplate,
+  ServerContext,
+  StandardSchemaWithJSON,
+  ToolAnnotations,
   ToolCallback,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
-import type { ZodRawShape } from "zod/v3";
+  Variables,
+} from "@modelcontextprotocol/server";
 
-/** Prompt parameters */
-export type PromptPlugin = Parameters<McpServer["registerPrompt"]>;
+import type { McpServerFactoryContext } from "./context.ts";
 
-/** Resource parameters */
-export type ResourcePlugin = {
-  type: "resource";
-  name: string;
-  uri: string;
-  config: ResourceMetadata;
-  readCallback: ReadResourceCallback;
-};
-
-/** Resource template parameters */
-export type ResourceTemplatePlugin = {
-  type: "template";
-  name: string;
-  template: ResourceTemplate;
-  config: ResourceMetadata;
-  readCallback: ReadResourceTemplateCallback;
-};
-
-export type AnyResourcePlugin = ResourcePlugin | ResourceTemplatePlugin;
-
-/** Tool parameters */
-export type ToolPlugin = [
-  name: string,
-  // deno-lint-ignore no-explicit-any
-  config: ToolConfig<any, any>,
-  // deno-lint-ignore no-explicit-any
-  cb: ToolCallback<any>,
-];
+type MaybePromise<T> = T | Promise<T>;
 
 /** Deno / host runtime needs for a tool (used by permission preflight). */
 export type ToolRuntimeMetadata = {
@@ -52,27 +29,126 @@ export type ToolRuntimeMetadata = {
   requiresNet?: boolean;
 };
 
-/** Tool configuration */
-export type ToolConfig<
-  InputArgs extends ZodRawShape | undefined = undefined,
-  OutputArgs extends ZodRawShape | undefined = undefined,
-> = {
+/** Tool definition passed to {@link defineTool}. `args` arrive already validated. */
+export type ToolDefinition<Input extends StandardSchemaWithJSON> = {
+  name: string;
   title?: string;
   description?: string;
-  inputSchema?: InputArgs;
-  outputSchema?: OutputArgs;
+  /** Use `z.object({})` for tools without arguments. */
+  inputSchema: Input;
+  outputSchema?: StandardSchemaWithJSON;
   annotations?: ToolAnnotations;
+  _meta?: Record<string, unknown>;
   /** Declared host/runtime needs; keep in sync with actual tool behavior. */
   runtime?: ToolRuntimeMetadata;
+  handler: (
+    args: StandardSchemaWithJSON.InferOutput<Input>,
+    ctx: ServerContext,
+    deps: McpServerFactoryContext,
+  ) => MaybePromise<CallToolResult | InputRequiredResult>;
 };
 
-/** Internal tool definition */
-export type ToolModule<
-  InputArgs extends ZodRawShape | undefined = undefined,
-  OutputArgs extends ZodRawShape | undefined = undefined,
-> = [
-  name: string,
-  config: ToolConfig<InputArgs, OutputArgs>,
-  // deno-lint-ignore no-explicit-any
-  callbackFactory: (mcp: McpServer) => ToolCallback<any>,
-];
+/** A tool ready to attach to a server instance. */
+export type ToolPlugin = {
+  name: string;
+  runtime?: ToolRuntimeMetadata;
+  register: (server: McpServer, deps: McpServerFactoryContext) => void;
+};
+
+/** Wraps a tool so {@link ToolDefinition.handler} also receives the shared app context. */
+export function defineTool<Input extends StandardSchemaWithJSON>(
+  definition: ToolDefinition<Input>,
+): ToolPlugin {
+  const { name, runtime, handler, ...config } = definition;
+  return {
+    name,
+    runtime,
+    register(server, deps) {
+      const callback = (args: StandardSchemaWithJSON.InferOutput<Input>, ctx: ServerContext) =>
+        handler(args, ctx, deps);
+      server.registerTool(name, config, callback as ToolCallback<Input>);
+    },
+  };
+}
+
+/** Prompt definition passed to {@link definePrompt}. `args` arrive already validated. */
+export type PromptDefinition<Args extends StandardSchemaWithJSON> = {
+  name: string;
+  title?: string;
+  description?: string;
+  /** Use `z.object({})` for prompts without arguments. */
+  argsSchema: Args;
+  handler: (
+    args: StandardSchemaWithJSON.InferOutput<Args>,
+    ctx: ServerContext,
+    deps: McpServerFactoryContext,
+  ) => MaybePromise<GetPromptResult | InputRequiredResult>;
+};
+
+/** A prompt ready to attach to a server instance. */
+export type PromptPlugin = {
+  name: string;
+  register: (server: McpServer, deps: McpServerFactoryContext) => void;
+};
+
+/** Wraps a prompt so {@link PromptDefinition.handler} also receives the shared app context. */
+export function definePrompt<Args extends StandardSchemaWithJSON>(
+  definition: PromptDefinition<Args>,
+): PromptPlugin {
+  const { name, handler, ...config } = definition;
+  return {
+    name,
+    register(server, deps) {
+      const callback = (args: StandardSchemaWithJSON.InferOutput<Args>, ctx: ServerContext) =>
+        handler(args, ctx, deps);
+      server.registerPrompt(name, config, callback as PromptCallback<Args>);
+    },
+  };
+}
+
+type ResourceResult = MaybePromise<ReadResourceResult | InputRequiredResult>;
+
+/** Static resource. */
+export type ResourcePlugin = {
+  type: "resource";
+  name: string;
+  uri: string;
+  config: ResourceMetadata;
+  readCallback: (uri: URL, ctx: ServerContext, deps: McpServerFactoryContext) => ResourceResult;
+};
+
+/** Resource template. */
+export type ResourceTemplatePlugin = {
+  type: "template";
+  name: string;
+  template: ResourceTemplate;
+  config: ResourceMetadata;
+  readCallback: (
+    uri: URL,
+    variables: Variables,
+    ctx: ServerContext,
+    deps: McpServerFactoryContext,
+  ) => ResourceResult;
+};
+
+export type AnyResourcePlugin = ResourcePlugin | ResourceTemplatePlugin;
+
+/** Attaches a resource or template to a server instance. */
+export function registerResource(
+  server: McpServer,
+  resource: AnyResourcePlugin,
+  deps: McpServerFactoryContext,
+): void {
+  if (resource.type === "template") {
+    const { name, template, config, readCallback } = resource;
+    server.registerResource(
+      name,
+      template,
+      config,
+      (uri, variables, ctx) => readCallback(uri, variables, ctx, deps),
+    );
+    return;
+  }
+  const { name, uri, config, readCallback } = resource;
+  server.registerResource(name, uri, config, (url, ctx) => readCallback(url, ctx, deps));
+}

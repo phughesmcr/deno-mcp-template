@@ -2,7 +2,7 @@ import { createApp } from "$/app/app.ts";
 import { createProcessKvRuntime } from "$/kv/mod.ts";
 import { createMcpServer } from "$/mcp/mod.ts";
 import type { AppConfig, Transport } from "$/shared/config-types.ts";
-import { baseHttpConfig, baseTasksConfig } from "./helpers.ts";
+import { baseHttpConfig } from "./helpers.ts";
 
 function idleAppConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
@@ -13,7 +13,7 @@ function idleAppConfig(overrides: Partial<AppConfig> = {}): AppConfig {
       enabled: true,
     },
     kv: {},
-    tasks: baseTasksConfig(),
+    mcp: {},
     ...overrides,
   };
 }
@@ -43,7 +43,6 @@ Deno.test("createApp: start then stop with isolated KV (transports off)", async 
       {
         kv: rt,
         verifyRuntimePermissions: async () => {},
-        enableMaintenanceCrons: false,
       },
     );
     await app.start();
@@ -91,7 +90,6 @@ Deno.test("createApp: failed start rolls back KV and disconnects transports", as
       stdio: failingStdio,
       http: recordingHttp,
       verifyRuntimePermissions: async () => {},
-      enableMaintenanceCrons: false,
     });
 
     let threw = false;

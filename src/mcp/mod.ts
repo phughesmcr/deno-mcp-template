@@ -1,134 +1,41 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-  type SubscribeRequest,
-  SubscribeRequestSchema,
-  type UnsubscribeRequest,
-  UnsubscribeRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { McpServer } from "@modelcontextprotocol/server";
 
 import { registerFetchWebsiteInfoApp } from "./apps/fetchWebsiteInfoApp.ts";
 import type { McpServerFactoryContext } from "./context.ts";
-import { type McpAssemblyOptions, mergeMcpAssemblyPorts } from "./mcpAssembly.ts";
-import { buildServerCapabilities, mcpServerDefinition, SERVER_INFO } from "./serverDefinition.ts";
-import { registerTaskTools, ToolManager } from "./tools/mod.ts";
-import { registerUrlElicitationDemoTool } from "./tools/urlElicitationDemo.ts";
+import { registerResource } from "./plugin-types.ts";
+import {
+  buildServerCapabilities,
+  type McpServerDefinition,
+  mcpServerDefinition,
+  SERVER_INFO,
+} from "./serverDefinition.ts";
 
 /**
- * Creates a new MCP server and initializes the request handlers.
- * @param ctx - App-scoped context; reuse the same `subscriptions` for every instance in one process.
- * @param options - Optional definition override and task store/queue factories (for tests or profiles).
+ * Creates a new MCP server with every feature in the definition registered.
+ * @param ctx - Process-wide state; reuse the same object for every instance.
+ * @param def - Feature registry override (for tests or profiles).
  */
 export function createMcpServer(
   ctx: McpServerFactoryContext,
-  options?: McpAssemblyOptions,
+  def: McpServerDefinition = mcpServerDefinition,
 ): McpServer {
-  const { subscriptions } = ctx;
-  const def = options?.definition ?? mcpServerDefinition;
-  const ports = mergeMcpAssemblyPorts(options?.ports);
-
   const server = new McpServer(SERVER_INFO, {
     capabilities: buildServerCapabilities(def),
-    taskStore: ports.createTaskStore({ maxTtlMs: ctx.tasks.maxTtlMs, kv: ctx.kv }),
-    taskMessageQueue: ports.createTaskMessageQueue({ kv: ctx.kv }),
+    requestState: { verify: ctx.requestState.verify },
   });
-  function notifyForServer(uri: string): Promise<void> {
-    return server.server.sendResourceUpdated({ uri });
-  }
-  let isNotifierReleased = false;
-  async function releaseNotifier(): Promise<void> {
-    if (isNotifierReleased) return;
-    isNotifierReleased = true;
-    await subscriptions.unregister(notifyForServer);
-  }
-  const previousOnClose = server.server.onclose;
-  server.server.onclose = function onMcpServerClose(): void {
-    previousOnClose?.();
-    void releaseNotifier().catch(function onReleaseNotifierError(error: unknown): void {
-      console.error("Failed to clean up subscriptions for closed MCP server", error);
-    });
-  };
 
-  if (def.prompts.length > 0) {
-    for (const prompt of def.prompts) {
-      server.registerPrompt(...prompt);
-    }
-  }
-
-  if (def.resources.length > 0) {
-    for (const resource of def.resources) {
-      if (resource.type === "template") {
-        server.registerResource(
-          resource.name,
-          resource.template,
-          resource.config,
-          resource.readCallback,
-        );
-      } else {
-        server.registerResource(
-          resource.name,
-          resource.uri,
-          resource.config,
-          resource.readCallback,
-        );
-      }
-    }
-
-    if (def.resourceSubscribe) {
-      server.server.setRequestHandler(SubscribeRequestSchema, async (request: SubscribeRequest) => {
-        const uri = request.params.uri;
-        await subscriptions.subscribe(notifyForServer, uri);
-        return {};
-      });
-
-      server.server.setRequestHandler(
-        UnsubscribeRequestSchema,
-        async (request: UnsubscribeRequest) => {
-          const uri = request.params.uri;
-          await subscriptions.unsubscribe(notifyForServer, uri);
-          return {};
-        },
-      );
-    }
-  }
-
-  if (def.tools.length > 0) {
-    if (def.fetchWebsiteInfoApp) {
-      registerFetchWebsiteInfoApp(server);
-    }
-    const toolManager = new ToolManager(server);
-    for (const tool of def.tools) {
-      toolManager.addTool(tool);
-    }
-  }
-
-  if (def.tasksEnabled) {
-    registerTaskTools(server);
-  }
-
-  if (def.urlElicitationDemo) {
-    registerUrlElicitationDemoTool(server, ctx);
-  }
+  for (const prompt of def.prompts) prompt.register(server, ctx);
+  for (const resource of def.resources) registerResource(server, resource, ctx);
+  for (const tool of def.tools) tool.register(server, ctx);
+  if (def.fetchWebsiteInfoApp) registerFetchWebsiteInfoApp(server);
 
   return server;
 }
 
-export {
-  createResourceSubscriptionTracker,
-  type CreateTransportScopedMcpServer,
-  type McpServerFactoryContext,
-  type ResourceSubscriptionTracker,
-} from "./context.ts";
-
-export {
-  defaultMcpAssemblyPorts,
-  type McpAssemblyOptions,
-  type McpAssemblyPorts,
-  mergeMcpAssemblyPorts,
-} from "./mcpAssembly.ts";
+export type { CreateMcpServer, McpServerFactoryContext } from "./context.ts";
 
 export {
   buildServerCapabilities,
-  type DeclaredServerCapabilities,
   deriveMcpRuntimeRequirements,
   MCP_APPS_EXTENSION_ID,
   type McpRuntimeRequirements,

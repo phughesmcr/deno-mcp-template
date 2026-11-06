@@ -62,7 +62,7 @@ const FILES_TO_UPDATE = [
   "src/mcp/apps/fetchWebsiteInfoApp.ts",
   "static/.well-known/llms.txt",
   "static/.well-known/openapi.yaml",
-  "static/dxt-manifest.json",
+  "static/mcpb-manifest.json",
   "AUTHORS.md",
   "CODE_OF_CONDUCT.md",
   "CONTRIBUTING.md",
@@ -72,7 +72,7 @@ const FILES_TO_UPDATE = [
   "SECURITY.md",
   "SUPPORT.md",
   "scripts/clean-dist.ts",
-  "scripts/dxt.ts",
+  "scripts/mcpb.ts",
 ];
 
 function effectivePublicUrl(info: ProjectInfo): string {

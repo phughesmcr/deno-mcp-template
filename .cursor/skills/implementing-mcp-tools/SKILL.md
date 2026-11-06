@@ -1,17 +1,19 @@
 ---
 name: implementing-mcp-tools
-description: Implement new MCP tools in the deno-mcp-template project. Provides the exact file structure, type signatures, registration steps, and patterns for standard tools, sampling tools, form and URL elicitation, resource-backed tools, and notification tools. Use when adding a new tool, creating MCP tools, or asking how tools work in this project.
+description: Implement new MCP tools in the deno-mcp-template project. Provides the exact file structure, type signatures, registration steps, and patterns for standard tools, sampling tools, multi-round form and URL elicitation (input_required), resource-backed tools, and notification tools. Use when adding a new tool, creating MCP tools, or asking how tools work in this project.
 ---
 
 # Implementing MCP Tools
+
+The server is stateless and speaks protocol revision 2026-07-28 only (`@modelcontextprotocol/server` 2.x). There are no sessions, no `initialize`, and no server-to-client requests mid-call: a tool that needs user input or an LLM completion **returns `inputRequired(...)`** and is called again with the answers.
 
 ## Workflow
 
 ```
 Task Progress:
 - [ ] Step 1: Create tool file in src/mcp/tools/
-- [ ] Step 2: Define Zod schema, name, config, and callback
-- [ ] Step 3: Export as default ToolModule
+- [ ] Step 2: Define a Zod schema and call defineTool({ name, inputSchema, handler })
+- [ ] Step 3: Export the result as the default export
 - [ ] Step 4: Register in src/mcp/tools/mod.ts
 - [ ] Step 5: Run `deno task ci` to verify
 ```
@@ -21,56 +23,25 @@ Task Progress:
 Every tool follows this structure. Create a new file in `src/mcp/tools/`.
 
 ```typescript
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import { z } from "zod";
 
-import type { ToolConfig, ToolModule } from "$/shared/types.ts";
-import {
-  createCallToolErrorResponse,
-  createCallToolTextResponse,
-} from "$/shared/utils.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
+import { createCallToolTextResponse } from "$/shared/utils.ts";
 
-// 1. Input schema
-const schema = z.object({
-  myField: z.string().min(1, "Required").describe("What this field does"),
-});
-
-// 2. Tool name (kebab-case)
-const name = "my-tool-name";
-
-// 3. Config
-// deno-lint-ignore no-explicit-any
-const config: ToolConfig<typeof schema.shape, any> = {
+export default defineTool({
+  name: "my-tool-name", // kebab-case
   title: "Human-readable title",
-  description: "What this tool does — shown to the LLM",
-  inputSchema: schema.shape,
-};
-
-// 4. Callback factory: receives McpServer, returns the handler
-// deno-lint-ignore no-explicit-any
-const callback = (_mcp: McpServer) => async (args: any): Promise<CallToolResult> => {
-  const parsed = schema.safeParse(args);
-  if (!parsed.success) {
-    return createCallToolErrorResponse({
-      error: "Invalid arguments",
-      details: parsed.error.flatten(),
-      received: args,
-    });
-  }
-
-  const { myField } = parsed.data;
-
-  // ... tool logic ...
-
-  return createCallToolTextResponse({ result: myField });
-};
-
-// 5. Export as ToolModule tuple
-// deno-lint-ignore no-explicit-any
-const module: ToolModule<typeof schema.shape, any> = [name, config, callback];
-
-export default module;
+  description: "What this tool does - shown to the LLM",
+  inputSchema: z.object({
+    myField: z.string().min(1, "Required").describe("What this field does"),
+  }),
+  // Optional: runtime: { requiresNet: true } when the tool does outbound I/O
+  handler: async ({ myField }, _ctx, _deps) => {
+    // `myField` is already validated and typed; no safeParse needed.
+    // ... tool logic ...
+    return createCallToolTextResponse({ result: myField });
+  },
+});
 ```
 
 ## Registration
@@ -81,43 +52,36 @@ In `src/mcp/tools/mod.ts`:
 2. Add it to the `tools` array:
 
 ```typescript
-export const tools: ToolModule<any>[] = [
+export const tools: readonly ToolPlugin[] = [
   // ... existing tools
   myTool,
 ];
 ```
 
-The `ToolManager` in the same file handles binding and registration automatically.
+`createMcpServer` (`src/mcp/mod.ts`) calls `tool.register(server, deps)` for each entry. A fresh `McpServer` is built per HTTP request, so keep state in `deps.kv`, never in module scope or closures.
 
 ## Key Types
 
-From `src/shared/types.ts`:
+From `src/mcp/plugin-types.ts`:
 
-- **`ToolModule<InputArgs, OutputArgs>`** — Export format: `[name, config, callbackFactory]`
-- **`ToolConfig<InputArgs, OutputArgs>`** — `{ title, description, inputSchema, outputSchema?, annotations? }`
-- **`ToolPlugin`** — Bound format: `[name, config, callback]` (created by `ToolManager`)
+- **`defineTool(definition)`** - returns a `ToolPlugin`
+- **`ToolDefinition<Input>`** - `{ name, title?, description?, inputSchema, outputSchema?, annotations?, _meta?, runtime?, handler }`
+- **handler** - `(args, ctx, deps) => CallToolResult | InputRequiredResult` (or a Promise of either)
+  - `args`: validated, typed from `inputSchema`
+  - `ctx`: `ServerContext` from `@modelcontextprotocol/server` (`ctx.mcpReq.inputResponses`, `ctx.mcpReq.requestState()`, `ctx.mcpReq.log()`, `ctx.mcpReq.notify()`, `ctx.mcpReq._meta`, `ctx.http?.authInfo`)
+  - `deps`: `McpServerFactoryContext` from `src/mcp/context.ts` - `{ kv, events, requestState, publicBaseUrl }`
+- **`runtime.requiresNet`** - declare it for tools that call out to the network so the permission preflight knows
 
 ## Response Helpers
 
 From `src/shared/utils.ts`:
 
-- **`createCallToolTextResponse(obj, structuredContent?)`** — Wraps `obj` as JSON text content
-- **`createCallToolErrorResponse(obj, structuredContent?)`** — Same but sets `isError: true`
+- **`createCallToolTextResponse(obj, structuredContent?)`** - Wraps `obj` as JSON text content
+- **`createCallToolErrorResponse(obj, structuredContent?)`** - Same but sets `isError: true`
 
-## Validation Pattern
+## Validation
 
-Always validate with Zod `safeParse`. For optional args, use `args ?? {}`:
-
-```typescript
-const parsed = schema.safeParse(args ?? {});
-if (!parsed.success) {
-  return createCallToolErrorResponse({
-    error: "Invalid arguments",
-    details: parsed.error.flatten(),
-    received: args,
-  });
-}
-```
+The SDK validates `args` against `inputSchema` before the handler runs, so do not `safeParse` them again. Use `.default(...)` for optional args with fallbacks (see `increment-counter`). Use `z.object({})` for tools without arguments.
 
 ## Error Handling Pattern
 
@@ -125,7 +89,7 @@ Wrap operational logic in try/catch:
 
 ```typescript
 try {
-  const result = await doSomething(parsed.data);
+  const result = await doSomething(args);
   return createCallToolTextResponse({ result });
 } catch (error) {
   return createCallToolErrorResponse({
@@ -137,136 +101,133 @@ try {
 
 ## Tool Categories
 
-### Standard Tool (no MCP server interaction)
+### Standard Tool (no client interaction)
 
-Use `_mcp` (unused) in the callback factory. See the template above.
+Ignore `ctx`/`deps`. See the template above.
 
-### Sampling Tool (LLM-powered)
+### Multi-round tools (`inputRequired`)
 
-Use `mcp.server.createMessage()` to request LLM completions:
+Sampling and elicitation are not calls the server makes. The handler returns an `InputRequiredResult`; the client fulfils each request, then **retries the same `tools/call`** with `ctx.mcpReq.inputResponses` populated (keyed by the names you chose) and any `requestState` echoed back. The handler must therefore be re-entrant: check the responses first, ask only for what is missing.
 
 ```typescript
-const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> => {
-  // ... validate args ...
-
-  const response = await mcp.server.createMessage(
-    {
-      messages: [{ role: "user", content: { type: "text", text: prompt } }],
-      maxTokens: 1024,
-      temperature: 0.7,
-    },
-    { timeout: 30000 },
-  );
-
-  const content = Array.isArray(response.content)
-    ? response.content[0]
-    : response.content;
-
-  if (!content || content.type !== "text") {
-    return createCallToolErrorResponse({ error: "No text response from sampling" });
-  }
-
-  return createCallToolTextResponse({ result: content.text });
-};
+import { inputRequired, inputResponse } from "@modelcontextprotocol/server";
 ```
 
-### Elicitation Tool (user input)
+Helpers in `src/mcp/inputResponses.ts`: `wasDeclined(ctx, key)`, `samplingText(ctx, key)`, `rootCount(ctx, key)`.
 
-Experimental elicitation is enabled in `src/mcp/serverDefinition.ts` (`experimentalElicitation: true`). Two modes matter in practice:
+#### Sampling (LLM-powered)
+
+```typescript
+handler: ({ prompt }, ctx) => {
+  const view = inputResponse(ctx.mcpReq.inputResponses, "poem");
+  if (view.kind === "missing") {
+    return inputRequired({
+      inputRequests: {
+        poem: inputRequired.createMessage({
+          messages: [{ role: "user", content: { type: "text", text: prompt } }],
+          maxTokens: 1024,
+        }),
+      },
+    });
+  }
+  const poem = samplingText(ctx, "poem");
+  if (poem === undefined) return createCallToolErrorResponse({ error: "No text response" });
+  return createCallToolTextResponse({ poem });
+},
+```
+
+#### Form elicitation
 
 | Mode | Use case | Mechanism |
 |------|----------|-----------|
-| **`form`** | Structured, non-sensitive fields; validated in the MCP client UI | `await mcp.server.elicitInput({ mode: "form", message, requestedSchema })` |
-| **`url`** | Sensitive or browser-only flows (confirmations, OAuth, secrets typed in your page) | Throw `UrlElicitationRequiredError` with a URL; complete out-of-band, then `createElicitationCompletionNotifier` fires `notifications/elicitation/complete` |
+| **form** | Structured, non-sensitive fields; validated in the client UI | `inputRequired.elicit({ message, requestedSchema })` (a Zod schema) |
+| **url** | Sensitive or browser-only flows (confirmations, OAuth, secrets typed in your page) | `inputRequired.elicitUrl({ message, url })` |
 
-#### Form mode
-
-Use `mcp.server.elicitInput()` with a JSON Schema (`requestedSchema`):
+Read the answer with `acceptedContent(ctx.mcpReq.inputResponses, key, schema)` (returns the parsed content or `undefined`) and check `wasDeclined(ctx, key)` for decline/cancel. For several steps, return another `inputRequired` and carry earlier answers in signed `requestState`:
 
 ```typescript
-const callback = (mcp: McpServer) => async (args: any): Promise<CallToolResult> => {
-  // ... validate args ...
-
-  const result = await mcp.server.elicitInput({
-    mode: "form",
-    message: "Please provide details",
-    requestedSchema: {
-      type: "object",
-      properties: {
-        name: { type: "string", title: "Name", description: "Your name" },
-      },
-      required: ["name"],
-    },
-  });
-
-  return createCallToolTextResponse({ elicitationResult: result });
-};
+return inputRequired({
+  inputRequests: { schedule: inputRequired.elicit({ message: "Step 2", requestedSchema: schedule }) },
+  requestState: await deps.requestState.mint({ tool: name, basic }, ctx),
+});
+// next round:
+const state = wizardState.safeParse(ctx.mcpReq.requestState());
 ```
 
-Branch on `result.action` (`accept` with `content`, `decline`, or cancelled) before assuming data exists. For multiple steps, call `elicitInput` more than once in one tool (see `src/mcp/tools/elicitFormWizard.ts`).
+Always put a `tool` discriminator in the minted state and check it on read, so state from another tool cannot be replayed. State is signed with `MCP_REQUEST_STATE_KEY` (32+ bytes; random per process when unset, so set it for multi-instance deployments) and bound to the method and client. See `src/mcp/tools/elicitFormWizard.ts`.
 
 #### URL mode
 
-The client opens a **browser URL** you control. The tool does **not** return a normal success result; it throws `UrlElicitationRequiredError` from `@modelcontextprotocol/sdk/types.js` with an array of `{ mode: "url", message, url, elicitationId }`.
+The client opens a **browser URL** you control. In this template:
 
-In this template:
-
-1. **`McpServerFactoryContext`** includes `urlElicitation: { baseUrl, registry }` (`src/mcp/context.ts`). Resolve `baseUrl` with `MCP_PUBLIC_BASE_URL` or the derived bind URL (`src/shared/publicBaseUrl.ts`).
-2. Register pending state and the SDK notifier: `mcp.server.createElicitationCompletionNotifier(elicitationId)`, then `ctx.urlElicitation.registry.registerPending({ elicitationId, sessionId, label, completionNotifier })`.
-3. Require **`extra.sessionId`** on the tool handler (streamable HTTP). STDIO has no session; return `createCallToolErrorResponse` instead of throwing.
-4. Browser routes live in `src/app/http/urlElicitationRoutes.ts` (`GET`/`POST` `/mcp-elicitation/confirm`). They validate session + elicitation id against the registry and active transport, then call `registry.complete(elicitationId)`. Bearer auth is skipped for `/mcp-elicitation` so users are not prompted for the MCP token in a normal browser tab (`src/app/http/httpBearerAuthMiddleware.ts`).
-5. Reference implementation: `registerUrlElicitationDemoTool` in `src/mcp/tools/urlElicitationDemo.ts`, wired from `src/mcp/mod.ts` when `mcpServerDefinition.urlElicitationDemo` is true.
+1. `deps.publicBaseUrl` is the origin for browser links (`MCP_PUBLIC_BASE_URL` or the derived bind URL, `src/shared/publicBaseUrl.ts`); it is `undefined` when HTTP is disabled, so return an error result in that case.
+2. Create a pending record in KV (`createUrlElicitation` in `src/mcp/urlElicitation/store.ts`), then return `inputRequired.elicitUrl({ message, url })` with the elicitation id in minted `requestState`.
+3. Browser routes live in `src/app/http/urlElicitationRoutes.ts` (`GET`/`POST` `/mcp-elicitation/confirm?elicitation=<uuid>`). They write the outcome to KV; there is no session and no completion notification. When the client retries, the tool reads the record with `getUrlElicitation` and reports `confirmed` / `cancelled` / still `pending` (ask again).
+4. Bearer auth is skipped for `/mcp-elicitation` so users are not prompted for the MCP token in a normal browser tab (`src/app/http/httpBearerAuthMiddleware.ts`).
+5. Reference implementation: `src/mcp/tools/urlElicitationDemo.ts`.
 
 Do not log secrets submitted on elicitation HTML forms.
 
 ### Resource-Backed Tool
 
-Import resource helpers and mutate state. Resource subscriptions handle notifications automatically via KV watchers:
+Mutate shared state through KV (from `deps`). Subscribers are notified via the KV watcher and `ServerEventBus`:
 
 ```typescript
-import { COUNTER_URI, incrementCounterValue } from "../resources/counter.ts";
+import { COUNTER_URI } from "../resources/counter.ts";
+import { incrementPersistedCounterValue } from "../resources/counterStore.ts";
 
-// In callback:
-const value = await incrementCounterValue(delta);
-return createCallToolTextResponse({ value, uri: COUNTER_URI });
+handler: async ({ delta }, _ctx, { kv }) => {
+  const value = await incrementPersistedCounterValue(delta, kv);
+  return createCallToolTextResponse({ value, delta, uri: COUNTER_URI });
+},
 ```
 
 ### Notification Tool (logging)
 
-Use `mcp.server.sendLoggingMessage()`:
+Use `ctx.mcpReq.log(level, data, logger?)`:
 
 ```typescript
-await mcp.server.sendLoggingMessage({
-  level: "info",    // debug | info | notice | warning | error | critical | alert | emergency
-  logger: "my-logger",
-  data: { message: "Something happened" },
-});
+handler: async ({ message, level, logger }, ctx) => {
+  await ctx.mcpReq.log(level, { message }, logger); // debug | info | notice | warning | error | critical | alert | emergency
+  return createCallToolTextResponse({ logged: true });
+},
 ```
+
+### Notification Tool (progress)
+
+Only send progress when the client supplied a token: `ctx.mcpReq._meta?.progressToken`, then `await ctx.mcpReq.notify({ method: "notifications/progress", params: { progressToken, progress, total } })`. See `testToolWithProgress.ts`.
 
 ### Notification Tool (list changed)
 
-Use `mcp.sendToolListChanged()`, `mcp.sendPromptListChanged()`, or `mcp.sendResourceListChanged()` to notify clients that available items have changed.
+Publish on the shared bus from `deps`; `subscriptions/listen` streams (HTTP) and the stdio forwarder deliver it:
+
+```typescript
+handler: ({ target }, _ctx, { events }) => {
+  events.publish({ kind: "tools_list_changed" }); // or prompts_list_changed | resources_list_changed
+  return createCallToolTextResponse({ notified: true, target });
+},
+```
+
+Resource updates use `{ kind: "resource_updated", uri }`.
 
 ## Annotations
 
-Add `annotations` to config for client hints:
+Add `annotations` to the definition for client hints:
 
 ```typescript
-const config: ToolConfig<typeof schema.shape, any> = {
+defineTool({
+  name: "my-tool",
   title: "My Tool",
   description: "...",
-  inputSchema: schema.shape,
-  annotations: {
-    title: "My Tool",
-    readOnlyHint: true,
-    openWorldHint: false,
-  },
-};
+  inputSchema: z.object({}),
+  annotations: { readOnlyHint: true, openWorldHint: false },
+  handler: () => createCallToolTextResponse({ ok: true }),
+});
 ```
 
 ## Additional Resources
 
 - For complete tool examples by category, see [examples.md](examples.md)
-- MCP Tool spec: https://modelcontextprotocol.io/specification/2025-06-18/server/tools
+- MCP Tool spec: https://modelcontextprotocol.io/specification/2026-07-28/server/tools
 - MCP Sampling: https://modelcontextprotocol.io/docs/concepts/sampling
 - MCP Elicitation: https://modelcontextprotocol.io/docs/concepts/elicitation

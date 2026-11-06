@@ -1,22 +1,16 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v3";
+import type { CallToolResult } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
-import type { ToolModule } from "$/mcp/plugin-types.ts";
+import { defineTool } from "$/mcp/plugin-types.ts";
 import { createCallToolErrorResponse } from "$/shared/utils.ts";
 
-const schema = z.object({});
-
-const tool: ToolModule<typeof schema.shape> = [
-  "test_error_handling",
-  {
-    title: "Conformance error tool",
-    description: "Returns isError result",
-    inputSchema: schema.shape,
-  },
-  () => async (): Promise<CallToolResult> =>
+export default defineTool({
+  name: "test_error_handling",
+  title: "Conformance error tool",
+  description: "Returns isError result",
+  inputSchema: z.object({}),
+  handler: (): CallToolResult =>
     createCallToolErrorResponse({
       error: "Intentional conformance error",
     }),
-];
-
-export default tool;
+});

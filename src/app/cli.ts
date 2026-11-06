@@ -1,5 +1,4 @@
 import { Command, ValidationError } from "@cliffy/command";
-import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
 import { denoFileStatPort } from "$/app/denoFileStatPort.ts";
 import type { McpConfigInput, ValidateConfigDeps } from "$/shared/config-input.ts";
@@ -9,8 +8,8 @@ import {
   APP_USAGE,
   APP_VERSION,
   DEFAULT_HOSTNAME,
-  DEFAULT_MAX_TASK_TTL_MS,
   DEFAULT_PORT,
+  MCP_PROTOCOL_VERSION,
 } from "$/shared/constants.ts";
 import { validateConfig } from "$/shared/validation.ts";
 
@@ -34,7 +33,7 @@ function buildCommand() {
       `$ ${APP_USAGE} --no-stdio`,
     )
     .meta("Deno", Deno.version.deno)
-    .meta("MCP Protocol", LATEST_PROTOCOL_VERSION)
+    .meta("MCP Protocol", MCP_PROTOCOL_VERSION)
     // STDIO server
     .option("--no-stdio", "Disable the STDIO server.", {
       conflicts: ["no-http"],
@@ -72,15 +71,10 @@ function buildCommand() {
     // KV path
     .option("--kv-path <path:string>", "Path to the Deno KV database file.")
     .env("MCP_KV_PATH=<value:string>", "Path to the Deno KV database file.", { prefix: "MCP_" })
-    // Task TTL ceiling (MCP experimental tasks)
-    .option(
-      "--max-task-ttl-ms <ms:integer>",
-      "Maximum task TTL in ms (client requests are clamped).",
-      { default: DEFAULT_MAX_TASK_TTL_MS },
-    )
+    // requestState signing key (env only: argv is visible in the process list)
     .env(
-      "MCP_MAX_TASK_TTL_MS=<value:integer>",
-      "Maximum task TTL in ms (client requests are clamped).",
+      "MCP_REQUEST_STATE_KEY=<value:string>",
+      "Secret (32+ bytes) that signs requestState; share it across instances.",
       { prefix: "MCP_" },
     )
     // Headers
@@ -166,7 +160,7 @@ function buildCommand() {
     // HTTP rate limiting
     .option(
       "--http-rate-limit / --no-http-rate-limit",
-      "Enable HTTP rate limiting (per IP / session).",
+      "Enable HTTP rate limiting (per IP).",
       { default: true, conflicts: ["no-http"] },
     )
     .env(

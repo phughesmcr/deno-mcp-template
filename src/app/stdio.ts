@@ -1,65 +1,79 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import type { McpServer, ServerEvent, ServerEventBus } from "@modelcontextprotocol/server";
+import { serveStdio } from "@modelcontextprotocol/server/stdio";
 
 import type { AppConfig, Transport } from "$/shared/config-types.ts";
 import { APP_NAME } from "$/shared/constants.ts";
 
+function sendEvent(server: McpServer, event: ServerEvent): Promise<void> | void {
+  switch (event.kind) {
+    case "tools_list_changed":
+      return server.sendToolListChanged();
+    case "prompts_list_changed":
+      return server.sendPromptListChanged();
+    case "resources_list_changed":
+      return server.sendResourceListChanged();
+    case "resource_updated":
+      return server.server.sendResourceUpdated({ uri: event.uri });
+  }
+}
+
 /**
  * Creates a new STDIO transport manager
- * @param mcp - The MCP server
+ * @param createServer - Builds a server; `serveStdio` also calls this for a discarded discovery
+ * probe, so change events go to the newest instance only
+ * @param events - Change events to forward to the connected client
  * @param config - The configuration for the STDIO transport
  * @returns The transport manager
  */
-export function createStdioManager(mcp: McpServer, { enabled }: AppConfig["stdio"]): Transport {
-  let transport: StdioServerTransport | null = null;
+export function createStdioManager(
+  createServer: () => McpServer,
+  events: ServerEventBus,
+  { enabled }: AppConfig["stdio"],
+): Transport {
+  let handle: ReturnType<typeof serveStdio> | null = null;
+  let unsubscribe: (() => void) | null = null;
+  let current: McpServer | null = null;
 
-  /** Get or create the STDIO transport */
-  const acquire = () => {
-    if (transport) return transport;
-    transport = new StdioServerTransport();
-    return transport;
-  };
-
-  /** Release the STDIO transport */
-  const release = async () => {
+  /** Forward a change event; a client that has not connected yet has nothing to receive it. */
+  const forward = async (event: ServerEvent) => {
+    if (!current) return;
     try {
-      if (!transport) return;
-      await transport.close();
-    } finally {
-      transport = null;
-    }
-  };
-
-  /** Connect the MCP server to the STDIO transport */
-  const connect = async () => {
-    if (!enabled) return;
-    try {
-      const _transport = acquire();
-      await mcp.connect(_transport);
-      console.error(`${APP_NAME} connected to STDIO`);
+      await sendEvent(current, event);
     } catch (error) {
-      await release();
-      throw error;
+      console.error(`${APP_NAME}: STDIO notification failed`, error);
     }
   };
 
-  /** Disconnect the MCP server from the STDIO transport */
+  const connect = () => {
+    if (!enabled || handle) return;
+    handle = serveStdio(() => {
+      current = createServer();
+      return current;
+    }, {
+      legacy: "reject",
+      onerror: (error) => console.error(`${APP_NAME}: STDIO error`, error),
+    });
+    unsubscribe = events.subscribe(forward);
+    console.error(`${APP_NAME} connected to STDIO`);
+  };
+
   const disconnect = async () => {
-    if (!enabled) return;
-    await release();
+    if (!handle) return;
+    unsubscribe?.();
+    unsubscribe = null;
+    try {
+      await handle.close();
+    } finally {
+      handle = null;
+      current = null;
+    }
     console.error(`${APP_NAME} disconnected from STDIO`);
   };
-
-  /** Check if the STDIO transport is running */
-  const isRunning = () => !!transport;
-
-  /** Check if the STDIO transport is enabled */
-  const isEnabled = () => enabled;
 
   return {
     connect,
     disconnect,
-    isEnabled,
-    isRunning,
+    isEnabled: () => enabled,
+    isRunning: () => !!handle,
   };
 }

@@ -1,12 +1,11 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
+import { getProcessKvRuntime } from "$/kv/mod.ts";
 import { createHonoApp } from "$/app/http/hono.ts";
 import {
   resolveHostHeaderProtection,
   validateHostHeaderAgainstAllowlist,
 } from "$/app/http/hostHeaderMiddleware.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
-import { assertEquals, baseHttpConfig, noopTransports } from "./helpers.ts";
+import { assertEquals, baseHttpConfig, noopMcpHandler } from "./helpers.ts";
 
 function baseHttp(overrides: Partial<AppConfig["http"]> = {}): AppConfig["http"] {
   return baseHttpConfig({ jsonResponseMode: true, ...overrides });
@@ -73,9 +72,9 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const app = createHonoApp({
-      createMcpServer: () => ({}) as McpServer,
       config: baseHttp({ hostname: "127.0.0.1" }),
-      transports: noopTransports,
+      handler: noopMcpHandler,
+      kv: getProcessKvRuntime(),
     });
 
     const res = await app.fetch(
@@ -105,9 +104,9 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const app = createHonoApp({
-      createMcpServer: () => ({}) as McpServer,
       config: baseHttp({ hostname: "127.0.0.1" }),
-      transports: noopTransports,
+      handler: noopMcpHandler,
+      kv: getProcessKvRuntime(),
     });
 
     const res = await app.fetch(

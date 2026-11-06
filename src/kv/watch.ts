@@ -2,13 +2,11 @@
  * @description Builds a {@link KvWatcher} around Deno KV’s `watch` API so callers can react when a
  * single key changes. Each logical subscription is keyed by a caller-supplied `uri` (one active watch
  * per `uri`); the first event from the stream is treated as the initial snapshot and is skipped so
- * callbacks only run on later updates. Watches use the {@link KvRuntime} passed in or the process
- * default from {@link getProcessKvRuntime}.
+ * callbacks only run on later updates.
  * @module
  */
 
 import type { KvRuntime } from "./runtime.ts";
-import { getProcessKvRuntime } from "./runtime.ts";
 
 type WatchCallback = () => Promise<void> | void;
 
@@ -23,8 +21,7 @@ export interface KvWatcher {
   stop(): Promise<void>;
 }
 
-export function createKvWatcher(kvRuntime?: KvRuntime): KvWatcher {
-  const rt = kvRuntime ?? getProcessKvRuntime();
+export function createKvWatcher(rt: KvRuntime): KvWatcher {
   /** Map<uri, WatchState> */
   const states = new Map<string, WatchState>();
   /** Serialize concurrent `watch(uri)` so only one KV watch stream is created per `uri`. */

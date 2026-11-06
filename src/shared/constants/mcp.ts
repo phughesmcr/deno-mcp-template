@@ -3,10 +3,10 @@
  * @module
  */
 
-export { MCP_APPS_EXTENSION_ID, SERVER_CAPABILITIES, SERVER_INFO } from "$/mcp/serverDefinition.ts";
+export { MCP_APPS_EXTENSION_ID, SERVER_INFO } from "$/mcp/serverDefinition.ts";
 
-// ********************************************************
-// You should not need to change anything below this line.
-// ********************************************************
+/** Minimum `MCP_REQUEST_STATE_KEY` length in bytes (the SDK codec rejects anything shorter). */
+export const REQUEST_STATE_KEY_MIN_BYTES = 32;
 
-export const INVALID_SESSION_ID = "-1";
+/** How long signed `requestState` stays valid; long enough for a URL elicitation to finish. */
+export const REQUEST_STATE_TTL_SECONDS = 60 * 60;

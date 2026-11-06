@@ -20,20 +20,20 @@
 
 **The batteries-included starting point for building production MCP servers in TypeScript.**
 
-Clone, run setup, start building. Ships with STDIO + HTTP transports, security middleware, persistent state, sandboxed execution, CI/CD workflows, and every distribution format you need -- JSR package, native binary, DXT extension, or hosted on Deno Deploy.
+Clone, run setup, start building. Ships with STDIO + HTTP transports, security middleware, persistent state, sandboxed execution, CI/CD workflows, and every distribution format you need -- JSR package, native binary, MCP Bundle, or hosted on Deno Deploy.
 
 ## Why This Template?
 
-**You get a working MCP server in under 2 minutes.** Not a toy -- a real server with rate limiting, CORS, session management, TLS support, and structured logging already wired up.
+**You get a working MCP server in under 2 minutes.** Not a toy -- a real server with rate limiting, CORS, TLS support, and structured logging already wired up. It is stateless and speaks MCP protocol revision 2026-07-28 only, on `@modelcontextprotocol/server` 2.x, so any instance can answer any request.
 
-**Deno gives you superpowers that other runtimes don't.** Built-in KV database (no Postgres/Redis to set up), native cron scheduling, sandboxed code execution in microVMs, compile-to-binary, and first-class Deploy hosting. This template puts all of them to work.
+**Deno gives you superpowers that other runtimes don't.** Built-in KV database (no Postgres/Redis to set up), sandboxed code execution in microVMs, compile-to-binary, and first-class Deploy hosting. This template puts all of them to work.
 
 **Ship anywhere, any way.** One codebase produces:
 - a local STDIO server for Cursor, Claude Desktop, or any MCP client
-- a remote HTTP server with Streamable HTTP transport
+- a remote, stateless HTTP server
 - a JSR package anyone can `deno run` without cloning
 - a standalone native binary (no runtime needed)
-- a DXT extension for one-click Claude Desktop install
+- an MCP Bundle (`.mcpb`) for one-click Claude Desktop install
 - a Deno Deploy app for managed cloud hosting
 
 **AI-agent friendly codebase.** Small files (<200 LOC), feature-grouped structure, explicit types. Your coding agent can navigate and extend it without context overload.
@@ -71,14 +71,14 @@ Connect from any MCP client:
 }
 ```
 
-That's it. You have a running MCP server with tools, resources, prompts, and task workflows.
+That's it. You have a running MCP server with tools, resources, and prompts.
 
 ### JSR subpath imports
 
 When this package is published to JSR, you can import the full program (`main.ts`) or narrower entrypoints:
 
 - **`jsr:@scope/name`** — same as `main.ts` (CLI entry).
-- **`jsr:@scope/name/mcp`** — `createMcpServer`, `mcpServerDefinition`, context/subscription helpers, and related exports. The host must still open Deno KV (and any other shared services) before handling requests, same as `createApp` does.
+- **`jsr:@scope/name/mcp`** — `createMcpServer`, `mcpServerDefinition`, the factory context type, and related exports. The host must still open Deno KV (and any other shared services) before handling requests, same as `createApp` does.
 - **`jsr:@scope/name/app`** — `createApp` for embedding the STDIO + HTTP host without copying `main.ts`.
 
 See [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc) (Architecture) for transport-scoped `McpServer` instances and shared context.
@@ -89,12 +89,11 @@ See [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc) (Architecture) for 
 
 | What | How | Where |
 | --- | --- | --- |
-| Dual transports | STDIO + Streamable HTTP from a single app | `src/app/` |
-| HTTP middleware | Rate limiting, CORS, optional bearer auth (not applied to `/mcp-elicitation/*` browser pages), security headers, timeouts, sessions | `src/app/http/hono.ts` |
+| Dual transports | STDIO (`serveStdio`) + stateless HTTP (`createMcpHandler`) from a single app | `src/app/` |
+| HTTP middleware | Rate limiting, CORS, optional bearer auth (not applied to `/mcp-elicitation/*` browser pages), security headers, timeouts | `src/app/http/hono.ts` |
 | Persistent state | Deno KV -- zero-config locally, built-in on Deploy | `src/kv/` |
-| Session resumability | KV-backed event store for stream recovery | `src/app/http/kvEventStore.ts` |
-| Background tasks | MCP experimental tasks: KV `TaskStore` + `TaskMessageQueue`, plus `listenQueue` worker for the delayed-echo demo | `src/mcp/tasks/` |
-| Scheduled jobs | `Deno.cron` for periodic maintenance | `src/app/cron.ts` |
+| Multi-round tools | `inputRequired` results with signed `requestState`, so no server-side conversation state | `src/mcp/requestState.ts` |
+| Change notifications | `subscriptions/listen` streams fed by a `ServerEventBus`; KV watches publish resource updates | `src/app/app.ts`, `src/kv/watch.ts` |
 | Sandboxed execution | `@deno/sandbox` microVMs for untrusted code | `src/mcp/tools/sandbox.ts` |
 | MCP Apps (interactive UI) | Example tool + `ui://` HTML bundle via `@modelcontextprotocol/ext-apps` | `mcp-ui/`, `src/mcp/apps/`, `static/mcp-apps/` |
 | CI/CD workflows | GitHub Actions for CI, release, deploy, JSR publish | `.github/workflows/` |
@@ -105,13 +104,13 @@ See [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc) (Architecture) for 
 
 **Prompts:** `review-code`, `language-snippet`
 
-**Resources:** `hello://world`, `greetings://{name}`, `counter://value` (KV-backed, subscribable)
+**Resources:** `hello://world`, `greetings://{name}`, `counter://value` (KV-backed, updates via `subscriptions/listen`)
 
-**Tools:** `elicit-input`, `elicit-form-wizard` (two-step form elicitation), `url-elicitation-demo` (URL-mode elicitation; streamable HTTP with a session only), `fetch-website-info` (text + optional MCP Apps UI in supporting clients), `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
+**Tools:** `elicit-input`, `elicit-form-wizard` (two-step form elicitation), `url-elicitation-demo` (URL-mode elicitation; HTTP only), `fetch-website-info` (text + optional MCP Apps UI in supporting clients), `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
 
-**Task workflows (experimental):** `delayed-echo`, `guided-poem` (elicitation + sampling pipeline)
+**Conformance fixtures:** the `test_*` tools, prompts and `test://` resources exist for the MCP conformance suite. Delete them with the examples if you drop the suite from CI.
 
-These cover prompts with arguments, static and dynamic resources, subscriptions, sampling, form and URL elicitation, notifications, list-changed events, KV persistence, sandboxed execution, async task patterns, and an MCP Apps UI example (`fetch-website-info`). Use them as reference, then swap in your domain logic.
+These cover prompts with arguments, static and dynamic resources, subscriptions, sampling, form and URL elicitation, notifications, list-changed events, KV persistence, sandboxed execution, and an MCP Apps UI example (`fetch-website-info`). Use them as reference, then swap in your domain logic.
 
 ## Make It Yours
 
@@ -125,7 +124,7 @@ Run `deno task setup` first -- it rewrites package names, scopes, and metadata a
 4. **`mcp-ui/`** -- Vite bundle for MCP App HTML (run `deno task build:mcp-ui`; Deno installs npm deps and runs Vite — see `mcp-ui/README.md`)
 5. **`src/mcp/resources/`** -- add your resources
 6. **`src/mcp/prompts/`** -- add your prompts
-7. **`src/mcp/serverDefinition.ts`** -- feature lists, capability flags, and derived `SERVER_CAPABILITIES` (re-exported from `src/shared/constants/mcp.ts`)
+7. **`src/mcp/serverDefinition.ts`** -- feature lists and capability flags
 8. **`src/mcp/mod.ts`** -- server construction (registration follows the definition)
 9. **`src/app/http/hono.ts`** -- adjust CORS, middleware, routes
 
@@ -140,7 +139,7 @@ Delete the example files you don't need from `src/mcp/tools/`, `src/mcp/resource
 - **Exposure:** Binding to a non-loopback hostname without a token logs a warning: anyone who can reach the port can use MCP. Use a token or terminate TLS and auth at a reverse proxy.
 - **All interfaces:** Listening on `0.0.0.0` or `::` requires `--dnsRebinding` plus `--host` / `MCP_ALLOWED_HOSTS` (validated at startup).
 - **CORS:** Wildcard `*` origins are not allowed; list explicit origins (e.g. `MCP_ALLOWED_ORIGINS`).
-- **Rate limits:** With `MCP_TRUST_PROXY=true`, limits follow proxy client IP headers (only safe behind a real proxy). Requests with no socket IP and no session use a lower cap (`RATE_LIMIT_UNKNOWN_CLIENT` in `src/shared/constants/http.ts`). Toggle the limiter with `MCP_HTTP_RATE_LIMIT_ENABLED` or `--http-rate-limit` / `--no-http-rate-limit` (default on). The MCP conformance script turns it off so long active-suite runs are not throttled with HTTP 429.
+- **Rate limits:** With `MCP_TRUST_PROXY=true`, limits follow proxy client IP headers (only safe behind a real proxy). Requests with no socket IP use a lower cap (`RATE_LIMIT_UNKNOWN_CLIENT` in `src/shared/constants/http.ts`). Toggle the limiter with `MCP_HTTP_RATE_LIMIT_ENABLED` or `--http-rate-limit` / `--no-http-rate-limit` (default on). The MCP conformance script turns it off so long active-suite runs are not throttled with HTTP 429.
 - **`fetch-website-info`:** Only public HTTPS URLs are allowed by default (blocks private IPs, localhost, link-local, `.internal`, etc.). Redirects are followed manually with the same checks. Set `MCP_DOMAIN_TOOL_ALLOW_HTTP=1` to allow `http://` for demos. MCP Apps-capable hosts may load `ui://deno-mcp-template/fetch-website-info.html` for an inline UI; others still get JSON text in the tool result. **DNS / SSRF depth:** URL checks use the request URL string (and redirect targets), not post-resolution addresses; hostnames that resolve to private or unstable targets can still be risky in hostile networks—tighten with egress controls or disable the tool if that matters for your deployment (see `src/shared/validation/safeToolFetchUrl.ts`).
 
 See [`.env.example`](.env.example) for copy-paste variables.
@@ -155,16 +154,18 @@ See [`.env.example`](.env.example) for copy-paste variables.
 | Serve over HTTP | `deno task start` | `localhost:3001/mcp` |
 | Publish as JSR package | `deno publish` | `jsr:@scope/package` |
 | Compile native binary | `deno task compile:all` | `dist/server/` |
-| Package as DXT | `deno task dxt:all` | `dist/server.dxt` |
+| Package as MCP Bundle | `deno task mcpb:all` | `dist/server.mcpb` |
 | Deploy to cloud | `deno deploy --prod` | Deno Deploy URL |
 
-Platform-specific compile/DXT tasks are also available: `compile:win`, `compile:mac:arm64`, `compile:mac:x64`, `compile:linux:x64`, `compile:linux:arm64` (and matching `dxt:*` variants).
+Platform-specific compile/MCPB tasks are also available: `compile:win`, `compile:mac:arm64`, `compile:mac:x64`, `compile:linux:x64`, `compile:linux:arm64` (and matching `mcpb:*` variants).
 
 Compile tasks bundle the `static/` directory, so binaries serve static routes without depending on the working directory.
 
-**DXT prerequisite:** install the DXT CLI once with `npm install -g @anthropic-ai/dxt`. Update `static/dxt-manifest.json` before packaging.
+**MCPB prerequisite:** install the MCPB CLI once with `npm install -g @anthropic-ai/mcpb`. Update `static/mcpb-manifest.json` before packaging. The script self-signs the bundle.
 
 **JSR prerequisite:** you need a [JSR.io](https://jsr.io) account. If you don't plan to publish on JSR, remove `.github/workflows/publish.yml`.
+
+**Client compatibility:** the server only accepts 2026-07-28 clients, and a 2025-era client gets an unsupported-version error. To accept both, change `legacy: "reject"` in `src/app/http/mod.ts` and `src/app/stdio.ts`.
 
 ### Client configuration examples
 
@@ -263,9 +264,10 @@ Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Acti
 
 - [ ] Run `deno task setup` and verify all placeholder names are replaced
 - [ ] Remove or replace demo tools/resources/prompts you won't ship
-- [ ] Update `static/.well-known/openapi.yaml` and `static/dxt-manifest.json`
+- [ ] Update `static/.well-known/openapi.yaml` and `static/mcpb-manifest.json`
 - [ ] Configure `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` for your environments
-- [ ] Replace `src/app/http/kvEventStore.ts` with a production-grade event store (the included one is a demo)
+- [ ] Set `MCP_REQUEST_STATE_KEY` (32+ bytes, same on every instance) so multi-round calls survive restarts and load balancing
+- [ ] Running more than one instance? `InMemoryServerEventBus` is per process: supply a shared `ServerEventBus` in `src/app/app.ts` so `subscriptions/listen` streams see every change
 - [ ] Switch from `deno run -A` to [explicit permissions](https://docs.deno.com/runtime/fundamentals/security/) for production
 - [ ] Review `--allow-net` scope for any outbound tool calls
 - [ ] Set environment variables in CI and hosting provider
@@ -288,8 +290,8 @@ Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Acti
 | `MCP_ALLOWED_ORIGINS` | `--origin` | | Allowed CORS origins (collection) |
 | `MCP_ALLOWED_HOSTS` | `--host` | | Allowed hostnames (collection) |
 | `MCP_KV_PATH` | `--kv-path` | | Custom Deno KV database path |
-| `MCP_MAX_TASK_TTL_MS` | `--max-task-ttl-ms` | `86400000` (24h) | Max client-requested TTL (ms) for experimental MCP tasks; clamped in `KvTaskStore` (min 60s, max 1y — see `src/shared/validation/config.ts`) |
-| `MCP_HTTP_RATE_LIMIT_ENABLED` | `--http-rate-limit` / `--no-http-rate-limit` | `true` | Enable per-IP/session HTTP rate limiting (`MCP_HTTP_RATE_LIMIT_*` for window and caps — see `.env.example`) |
+| `MCP_REQUEST_STATE_KEY` | | random per process | Secret (32+ bytes) that signs `requestState`; env only, share it across instances |
+| `MCP_HTTP_RATE_LIMIT_ENABLED` | `--http-rate-limit` / `--no-http-rate-limit` | `true` | Enable per-IP HTTP rate limiting (`MCP_HTTP_RATE_LIMIT_*` for window and caps — see `.env.example`) |
 | `DENO_DEPLOY_TOKEN` | | | Deploy token (required by `execute-code` sandbox tool) |
 
 CLI flags override env vars. Collection values (`-H`, `--origin`, `--host`) are merged from both sources.
@@ -370,11 +372,12 @@ This template tracks `deno.lock` for deterministic dependency resolution.
 ```text
 main.ts                     # Entry point
 src/
-  app/                      # Runtime shell: transports, HTTP, KV, cron, signals
-  mcp/                      # MCP server: tools, resources, prompts, tasks, apps
+  app/                      # Runtime shell: transports, HTTP, signals
+  mcp/                      # MCP server: tools, resources, prompts, apps
+  kv/                       # Deno KV runtime and watches
   shared/                   # Constants, types, validation, utilities
 mcp-ui/                     # Vite + ext-apps front-end for MCP App HTML bundles
-static/                     # Static files, OpenAPI spec, DXT manifest, mcp-apps/*.html
+static/                     # Static files, OpenAPI spec, MCPB manifest, mcp-apps/*.html
 scripts/                    # Setup, build, and packaging helpers
 __test__                    # Tests
 __bench__                   # Benchmarks
@@ -393,8 +396,7 @@ Included quality-of-life files:
 - `.cursorignore` -- tells Cursor to exclude files in addition to `.gitignore`
 - `.vscode/` -- recommended extensions, Deno as default formatter
 - `.github/` -- CI/CD workflows, sponsors config, issue templates
-- `CLAUDE.md` -- optional Claude Code project context
-- `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, etc. -- community management files for GitHub
+- `CONTRIBUTING.md`, `SECURITY.md`, etc. -- community management files for GitHub
 
 ### Skills
 
@@ -410,7 +412,7 @@ These skills are picked up automatically by Cursor when relevant. Ask the agent 
 
 ## References
 
-- [MCP Specification](https://modelcontextprotocol.io/specification/2025-06-18)
+- [MCP Specification](https://modelcontextprotocol.io/specification/2026-07-28)
 - [MCP Apps / `@modelcontextprotocol/ext-apps`](https://www.npmjs.com/package/@modelcontextprotocol/ext-apps) (interactive tool UIs)
 - [MCP Concepts](https://modelcontextprotocol.io/docs/concepts/)
 - [Deno Docs](https://docs.deno.com/)

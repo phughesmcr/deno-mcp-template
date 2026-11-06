@@ -1,6 +1,6 @@
 {
   "name": "@phughesmcr/deno-mcp-template",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "license": "MIT",
   "exports": {
     ".": "./main.ts",
@@ -17,7 +17,7 @@
     "ai",
     "agent",
     "llm",
-    "dxt"
+    "mcpb"
   ],
   "homepage": "https://github.com/phughesmcr/deno-mcp-template",
   "bugs": {
@@ -30,18 +30,21 @@
   },
   "imports": {
     "$/": "./src/",
-    "@cliffy/command": "jsr:@cliffy/command@^1.0.0",
-    "@cliffy/flags": "jsr:@cliffy/flags@^1.0.0",
-    "@modelcontextprotocol/ext-apps/server": "npm:@modelcontextprotocol/ext-apps@^1.5.0/server",
-    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.29.0",
-    "@std/async": "jsr:@std/async@^1.2.0",
-    "@std/cli": "jsr:@std/cli@^1.0.28",
-    "@std/path": "jsr:@std/path@^1.1.4",
-    "@deno/sandbox": "jsr:@deno/sandbox@^0.13.2",
+    "@cliffy/command": "jsr:@cliffy/command@^1.3.1",
+    "@cliffy/flags": "jsr:@cliffy/flags@^1.3.1",
+    "@modelcontextprotocol/client": "npm:@modelcontextprotocol/client@^2.4.0",
+    "@modelcontextprotocol/client/stdio": "npm:@modelcontextprotocol/client@^2.4.0/stdio",
+    "@modelcontextprotocol/ext-apps/server": "npm:@modelcontextprotocol/ext-apps@^2.0.4/server",
+    "@modelcontextprotocol/server": "npm:@modelcontextprotocol/server@^2.4.0",
+    "@modelcontextprotocol/server/stdio": "npm:@modelcontextprotocol/server@^2.4.0/stdio",
+    "@std/async": "jsr:@std/async@^1.5.1",
+    "@std/cli": "jsr:@std/cli@^1.0.32",
+    "@std/path": "jsr:@std/path@^1.1.6",
+    "@deno/sandbox": "npm:@deno/sandbox@^0.13.2",
     "@std/ulid": "jsr:@std/ulid@^1.0.0",
-    "hono": "jsr:@hono/hono@^4.12.12",
-    "hono-rate-limiter": "npm:hono-rate-limiter@^0.5.3",
-    "zod": "npm:zod@^4.3.6",
+    "hono": "jsr:@hono/hono@^4.13.16",
+    "hono-rate-limiter": "npm:hono-rate-limiter@^0.5.4",
+    "zod": "npm:zod@^4.6.7",
     "zod-validation-error": "npm:zod-validation-error@^5.0.0"
   },
   "tasks": {
@@ -49,10 +52,10 @@
     "labels:github": "bash scripts/setup-sep1730-labels.sh",
     "start": "deno run --env-file=.env -A main.ts",
     "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env -A --watch main.ts",
-    "test:integration": "deno test --frozen -P --ignore=__test__/cli-env-prefix.integration.test.ts && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts",
-    "test:coverage": "deno test --frozen -P --ignore=__test__/cli-env-prefix.integration.test.ts --coverage=coverage && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
+    "test:integration": "deno test --frozen -P --ignore=__test__/cli-env-prefix.integration.test.ts,__test__/mcp-protocol.integration.test.ts && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts __test__/mcp-protocol.integration.test.ts",
+    "test:coverage": "deno test --frozen -P --ignore=__test__/cli-env-prefix.integration.test.ts,__test__/mcp-protocol.integration.test.ts --coverage=coverage && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts __test__/mcp-protocol.integration.test.ts --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
     "bench": "deno bench --frozen -P",
-    "conformance:list": "npx --yes @modelcontextprotocol/conformance@0.1.16 list --server",
+    "conformance:list": "npx --yes @modelcontextprotocol/conformance@0.2.0-alpha.12 list --server",
     "conformance:server": "bash scripts/run-mcp-conformance.sh",
     "build:mcp-ui": "deno task --cwd mcp-ui install-deps && deno task --cwd mcp-ui build",
     "ci": {
@@ -63,27 +66,27 @@
     "compile:win": {
       "description": "Create a binary for Windows",
       "dependencies": ["clean:dist"],
-      "command": "deno compile -A --include ./static -o ./dist/server/server.exe main.ts --target x86_64-pc-windows-msvc --icon=./static/icon.ico"
+      "command": "deno compile -A --include ./static -o ./dist/server/server.exe --target x86_64-pc-windows-msvc --icon=./static/icon.ico main.ts"
     },
     "compile:mac:arm64": {
       "description": "Create a binary for Apple silicon macs (M1, M2, etc.)",
       "dependencies": ["clean:dist"],
-      "command": "deno compile -A --include ./static -o ./dist/server/server_mac_arm64 main.ts --target aarch64-apple-darwin"
+      "command": "deno compile -A --include ./static -o ./dist/server/server_mac_arm64 --target aarch64-apple-darwin main.ts"
     },
     "compile:mac:x64": {
       "description": "Create a binary for Intel macs",
       "dependencies": ["clean:dist"],
-      "command": "deno compile -A --include ./static -o ./dist/server/server_mac_x64 main.ts --target x86_64-apple-darwin"
+      "command": "deno compile -A --include ./static -o ./dist/server/server_mac_x64 --target x86_64-apple-darwin main.ts"
     },
     "compile:linux:x64": {
       "description": "Create a binary for Linux (x64)",
       "dependencies": ["clean:dist"],
-      "command": "deno compile -A --include ./static -o ./dist/server/server_linux_x64 main.ts --target x86_64-unknown-linux-gnu"
+      "command": "deno compile -A --include ./static -o ./dist/server/server_linux_x64 --target x86_64-unknown-linux-gnu main.ts"
     },
     "compile:linux:arm64": {
       "description": "Create a binary for Linux (arm64)",
       "dependencies": ["clean:dist"],
-      "command": "deno compile -A --include ./static -o ./dist/server/server_linux_arm64 main.ts --target aarch64-unknown-linux-gnu"
+      "command": "deno compile -A --include ./static -o ./dist/server/server_linux_arm64 --target aarch64-unknown-linux-gnu main.ts"
     },
     "compile:all": {
       "description": "Create binaries for all available platforms",
@@ -96,30 +99,30 @@
         "compile:linux:arm64"
       ]
     },
-    "dxt:pack": "deno run -A scripts/dxt.ts",
-    "dxt:win": {
-      "description": "Create a DXT package for windows",
-      "dependencies": ["compile:win", "dxt:pack"]
+    "mcpb:pack": "deno run -A scripts/mcpb.ts",
+    "mcpb:win": {
+      "description": "Create an MCP Bundle for windows",
+      "dependencies": ["compile:win", "mcpb:pack"]
     },
-    "dxt:mac:arm64": {
-      "description": "Create a DXT package for mac (arm64)",
-      "dependencies": ["compile:mac:arm64", "dxt:pack"]
+    "mcpb:mac:arm64": {
+      "description": "Create an MCP Bundle for mac (arm64)",
+      "dependencies": ["compile:mac:arm64", "mcpb:pack"]
     },
-    "dxt:mac:x64": {
-      "description": "Create a DXT package for mac (x64)",
-      "dependencies": ["compile:mac:x64", "dxt:pack"]
+    "mcpb:mac:x64": {
+      "description": "Create an MCP Bundle for mac (x64)",
+      "dependencies": ["compile:mac:x64", "mcpb:pack"]
     },
-    "dxt:linux:x64": {
-      "description": "Create a DXT package for linux (x64)",
-      "dependencies": ["compile:linux:x64", "dxt:pack"]
+    "mcpb:linux:x64": {
+      "description": "Create an MCP Bundle for linux (x64)",
+      "dependencies": ["compile:linux:x64", "mcpb:pack"]
     },
-    "dxt:linux:arm64": {
-      "description": "Create a DXT package for linux (arm64)",
-      "dependencies": ["compile:linux:arm64", "dxt:pack"]
+    "mcpb:linux:arm64": {
+      "description": "Create an MCP Bundle for linux (arm64)",
+      "dependencies": ["compile:linux:arm64", "mcpb:pack"]
     },
-    "dxt:all": {
-      "description": "Create a DXT package for all platforms",
-      "dependencies": ["compile:all", "dxt:pack"]
+    "mcpb:all": {
+      "description": "Create an MCP Bundle for all platforms",
+      "dependencies": ["compile:all", "mcpb:pack"]
     }
   },
   "compilerOptions": {
@@ -214,6 +217,6 @@
   },
   "unstable": [
     "kv",
-    "cron"
+    "no-legacy-abort"
   ]
 }

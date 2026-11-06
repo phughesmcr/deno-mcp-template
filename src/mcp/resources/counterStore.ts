@@ -1,9 +1,4 @@
-import { getProcessKvRuntime } from "$/kv/mod.ts";
 import type { KvRuntime } from "$/kv/runtime.ts";
-
-async function openKv(kv?: KvRuntime): Promise<Deno.Kv> {
-  return await (kv ?? getProcessKvRuntime()).get();
-}
 
 export const COUNTER_KEY: Deno.KvKey = ["resource", "counter", "value"];
 
@@ -19,21 +14,21 @@ function ensureNumber(value: unknown): number {
   throw new Error("Counter value in KV is not a number");
 }
 
-export async function getPersistedCounterValue(kv?: KvRuntime): Promise<number> {
-  const store = await openKv(kv);
+export async function getPersistedCounterValue(kv: KvRuntime): Promise<number> {
+  const store = await kv.get();
   const entry = await store.get<unknown>(COUNTER_KEY);
   return ensureNumber(entry.value);
 }
 
 export async function incrementPersistedCounterValue(
   delta: number,
-  kv?: KvRuntime,
+  kv: KvRuntime,
 ): Promise<number> {
   if (!Number.isSafeInteger(delta) || delta < 0) {
     throw new Error("Counter delta must be a non-negative safe integer");
   }
 
-  const store = await openKv(kv);
+  const store = await kv.get();
   const result = await store.atomic().sum(COUNTER_KEY, BigInt(delta)).commit();
   if (!result.ok) {
     throw new Error("Failed to increment counter atomically");

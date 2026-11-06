@@ -1,6 +1,12 @@
 import { delay } from "@std/async/delay";
 
-import { closeKvStore, configureKvPath, createKvWatcher, openKvStore } from "$/kv/mod.ts";
+import {
+  closeKvStore,
+  configureKvPath,
+  createKvWatcher,
+  getProcessKvRuntime,
+  openKvStore,
+} from "$/kv/mod.ts";
 import { COUNTER_KEY } from "$/mcp/resources/counterStore.ts";
 import { assert, assertEquals, waitFor } from "./helpers.ts";
 
@@ -10,7 +16,7 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
-    const watcher = createKvWatcher();
+    const watcher = createKvWatcher(getProcessKvRuntime());
     try {
       configureKvPath(kvPath);
       const kv = await openKvStore(kvPath);
@@ -45,7 +51,7 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
-    const watcher = createKvWatcher();
+    const watcher = createKvWatcher(getProcessKvRuntime());
     try {
       configureKvPath(kvPath);
       const kv = await openKvStore(kvPath);
