@@ -27,15 +27,6 @@ jobs:
         with:
           deno-version: v2.9.8
 
-      - name: Set Host allowlist (temporary, one-off)
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
-          DENO_DEPLOY_APP: ${{ vars.DENO_DEPLOY_APP }}
-        run: |
-          deno deploy env add MCP_DNS_REBINDING true --non-interactive --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP"
-          deno deploy env add MCP_ALLOWED_HOSTS deno-mcp-template.acaciaservices.deno.net --non-interactive --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP"
-
       - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
@@ -48,12 +39,3 @@ jobs:
             exit 1
           fi
           deno deploy --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" $DEPLOY_TARGET
-
-      - name: Read revision logs (temporary)
-        if: failure()
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
-          DENO_DEPLOY_APP: ${{ vars.DENO_DEPLOY_APP }}
-        run: |
-          deno deploy logs --once --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" 2>&1 | grep -v Download | cut -c1-300 | tail -25 || true
