@@ -55,3 +55,42 @@ Deno.test("checkDeployment gives up after repeated 5xx", async () => {
   assert((await failure(checkDeployment("https://x.test", "t", fake))).includes("boom"));
   assertEquals(fake.calls(), 5);
 });
+
+Deno.test("checkDeployment names no host, which would put the org slug in the log", async () => {
+  const url = "https://app.secret-org.deno.net";
+  const ok = await checkDeployment(url, "t", stub([200, DISCOVER]));
+  assert(!ok.includes("secret-org"), ok);
+  const denied = stub([403, `{"error":{"message":"Invalid Host: app.secret-org.deno.net"}}`]);
+  const refused = await failure(checkDeployment(url, "t", denied));
+  assert(!refused.includes("secret-org"), refused);
+  const cut = stub([403, `${"x".repeat(190)}app.secret-org.deno.net`]);
+  const partial = await failure(checkDeployment(url, "t", cut));
+  assert(!partial.includes("app.secret"), partial);
+  const down = stub(new Error("error sending request for url (https://app.secret-org.deno.net/)"));
+  const unreachable = await failure(checkDeployment(url, "t", down));
+  assert(!unreachable.includes("secret-org"), unreachable);
+});
+
+/** Never answers, but stops when the caller's signal fires, as `fetch` does. */
+const hangingFetch = ((_url: URL, init: RequestInit) =>
+  new Promise((_resolve, reject) => {
+    init.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+  })) as typeof fetch;
+
+/** Sends headers, then keeps the body open until the caller's signal fires. */
+const hangingBodyFetch = ((_url: URL, init: RequestInit) => {
+  const body = new ReadableStream({
+    start(controller) {
+      init.signal?.addEventListener("abort", () => controller.error(init.signal?.reason));
+    },
+  });
+  return Promise.resolve(new Response(body, { status: 200 }));
+}) as typeof fetch;
+
+for (const [name, fetchFn] of [["request", hangingFetch], ["body", hangingBodyFetch]] as const) {
+  Deno.test(`checkDeployment gives up on a stalled ${name}`, async () => {
+    const options = { fetchFn, retryDelayMs: 0, timeoutMs: 5 };
+    const message = await failure(checkDeployment("https://x.test", "t", options));
+    assert(message.includes("No answer after 5 attempts"), message);
+  });
+}

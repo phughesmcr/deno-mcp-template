@@ -6,12 +6,13 @@ Deno version: 2.9.8 (pinned in CI)
 
 Start: `deno task start`
 Dev mode: `deno task dev`
-Check formatting, lint, types and tests: `deno task ci` (it only checks, so run `deno fmt` first)
+Check formatting, lint, types and tests: `deno task ci` (it rebuilds `static/mcp-apps/` first, then only checks, so run `deno fmt` first)
 Rebuild MCP App HTML (after editing `mcp-ui/`): `deno task build:mcp-ui` (formats, lints, type-checks and tests `mcp-ui` first; Deno installs npm deps from `mcp-ui/deno.json` `imports` into `mcp-ui/node_modules` using `mcp-ui/deno.lock`; no Node.js)
 Tests with coverage: `deno task test:coverage`
 Benchmarks: `deno task bench`
 MCPB bundle (compile all platforms + pack to `dist/server.mcpb`): `deno task mcpb:all`; `deno task mcpb:pack` repacks existing binaries; manifest in `static/mcpb-manifest.json`
 Strip the example features: `deno task strip` (`--dry-run` to preview), checked by `.github/workflows/strip.yml`. A new demo file outside `src/mcp/{tools,resources,prompts}/`, or a test that uses a demo, must be added to `DELETE` in `scripts/strip-demo.ts`
+Rename the template: `deno task setup`, checked by `.github/workflows/setup.yml`. A new file with a template name must be added to `FILES_TO_UPDATE` in `scripts/setup-template.ts`
 
 ## Architecture
 
@@ -62,7 +63,7 @@ Runs untrusted TS/JS in [Deno Sandbox](https://docs.deno.com/sandbox/) (isolated
 ### Caveats
 
 - Without `MCP_REQUEST_STATE_KEY`, each process signs `requestState` with a random key; in-flight multi-round calls end at restart and do not cross instances.
-- `start`, `dev`, the compile tasks and the `main.ts` shebang grant `--allow-env --allow-net --allow-read --allow-write`; one-off `scripts/*` tasks keep `-A`. `src/app/permissions.ts` accepts read and write scoped to the paths it needs, so scope them before production ([Deno security](https://docs.deno.com/runtime/fundamentals/security/)).
+- `start`, `dev`, the compile tasks and the `main.ts` shebang grant `--allow-env --allow-net --allow-read --allow-write`; `scripts/*` tasks use scoped flags, except `deploy:setup`, which keeps `-A`. `src/app/permissions.ts` accepts read and write scoped to the paths it needs, so scope them before production ([Deno security](https://docs.deno.com/runtime/fundamentals/security/)).
 - `ServerEventBus` is in-memory, so list-changed events reach only streams on the same instance. `resource_updated` crosses instances through KV watches. On a multi-instance deployment such as Deno Deploy, implement `ServerEventBus` over shared pub/sub if clients rely on list-changed events.
 - With `--dnsRebinding`, configure origins/hosts via env/CLI or `src/shared/constants/http.ts`.
 - Before shipping, review `static/.well-known/openapi.yaml`, `static/.well-known/llms.txt`, and `static/mcpb-manifest.json`; set secrets in GitHub and Deno Deploy as needed.
@@ -79,6 +80,7 @@ scripts/
 ├── clean-dist.ts                   # Cleans dist/ build output
 ├── conformance-baseline.yml        # Expected conformance failures
 ├── deploy-setup.ts                 # `deno task deploy:setup` creates a Deno Deploy app
+├── discover.ts                     # The server/discover request shared by the smoke tests
 ├── mcpb.ts                         # Packs a compiled binary into dist/server.mcpb (`deno task mcpb:*`)
 ├── run-mcp-conformance.sh          # Runs the MCP conformance suite against a local server
 ├── setup-sep1730-labels.sh         # GitHub label setup
@@ -86,6 +88,9 @@ scripts/
 ├── smoke-binary.ts                 # Smoke test for compiled binaries
 ├── smoke-deploy.ts                 # Checks a deployed server answers MCP
 └── strip-demo.ts                   # `deno task strip` removes the example features
+mcp-ui/
+├── fetch-website-info.html         # MCP App page, built into static/mcp-apps/
+└── src/                            # App modules and tests, see mcp-ui/README.md
 src/
 ├── app/
 │   ├── http/
@@ -189,7 +194,7 @@ Naming: PascalCase for classes/types, camelCase for functions/variables
 Files: camelCase in `src/` and lowercase with hyphens in `__test__/`, with a `.test.ts` suffix
 Error Handling: Use TypeScript's strict mode, explicit error checking in tests
 Formatting: 2-space indentation, semicolons required, double quotes preferred
-Testing: Locate tests in `__test__/`, use descriptive test names. We use `deno test` for testing.
+Testing: Locate tests in `__test__/`, use descriptive test names. We use `deno test` for testing. A test that spawns a process goes in the `--ignore` list and the `--allow-run` second pass of `test:integration` and `test:coverage` in `deno.json`.
 Comments: JSDoc for public APIs, inline comments for complex logic
 
 ## Best Practices

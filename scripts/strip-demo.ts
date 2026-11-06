@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run -A
+#!/usr/bin/env -S deno run --allow-read=. --allow-write=. --allow-run=git,deno
 
 /**
  * @description Turns the template into a minimal server: one tool (`echo`), one resource
@@ -18,8 +18,9 @@ const KEEP: Readonly<Record<string, readonly string[]>> = {
   "src/mcp/prompts": ["codeReview.ts", "mod.ts"],
 };
 
-const DELETE: readonly string[] = [
+export const DELETE: readonly string[] = [
   ".github/workflows/mcp-conformance.yml",
+  ".github/workflows/setup.yml",
   ".github/workflows/strip.yml",
   "__bench__/kv-performance.bench.ts",
   "__test__/conformance-showcase-default.test.ts",
@@ -27,12 +28,15 @@ const DELETE: readonly string[] = [
   "__test__/execute-code-sandbox.integration.test.ts",
   "__test__/mcp-fetch-website-info-app.integration.test.ts",
   "__test__/mcp-protocol-demos.integration.test.ts",
+  "__test__/safe-tool-fetch-url.test.ts",
+  "__test__/strip-demo.test.ts",
   "mcp-ui",
   "scripts/conformance-baseline.yml",
   "scripts/run-mcp-conformance.sh",
   "scripts/strip-demo.ts",
   "src/mcp/apps/fetchWebsiteInfoApp.ts",
   "src/mcp/showcase",
+  "src/shared/validation/safeToolFetchUrl.ts",
   "static/mcp-apps",
 ];
 
@@ -91,17 +95,24 @@ export const apps: readonly AppPlugin[] = [];
 
 const MANUAL_STEPS: readonly string[] = [
   "README.md, AGENTS.md and static/.well-known/llms.txt still describe the removed features.",
+  "`static/.well-known/openapi.yaml` still gives `increment-counter` as an example tool.",
   "`.env.example` still lists DENO_DEPLOY_TOKEN for the sandbox and MCP_DOMAIN_TOOL_ALLOW_HTTP.",
+  "The rate-limit section of `.env.example` still mentions scripts/run-mcp-conformance.sh.",
+  "`.github/CONTRIBUTING.md` still mentions the MCP conformance CLI.",
   "The examples in .agents/skills/ point at removed files.",
   "`src/mcp/urlElicitation/` is kept but off: set `urlElicitation: true` to use it.",
+  "`src/mcp/inputResponses.ts` is kept for multi-round tools, though nothing uses it yet.",
 ];
 
-/** Replaces `pattern` in the file, failing if it no longer matches. */
-async function patched(path: string, pattern: RegExp, replacement: string): Promise<string> {
-  const before = await Deno.readTextFile(path);
-  const after = before.replace(pattern, replacement);
-  if (after === before) throw new Error(`Nothing to change in ${path}: expected ${pattern}`);
-  return after;
+/** Applies each `[pattern, replacement]` to the file, failing if one no longer matches. */
+async function patched(path: string, ...edits: Array<[RegExp, string]>): Promise<string> {
+  let content = await Deno.readTextFile(path);
+  for (const [pattern, replacement] of edits) {
+    const before = content;
+    content = before.replace(pattern, replacement);
+    if (content === before) throw new Error(`Nothing to change in ${path}: expected ${pattern}`);
+  }
+  return content;
 }
 
 async function patchedDenoJson(): Promise<string> {
@@ -120,31 +131,40 @@ async function patchedDenoJson(): Promise<string> {
 }
 
 /** Every file's new content. Built first, so a failed patch leaves the project untouched. */
-async function prepareWrites(): Promise<Record<string, string>> {
+export async function prepareWrites(): Promise<Record<string, string>> {
   return {
     ...REWRITE,
     "src/mcp/serverDefinition.ts": await patched(
       "src/mcp/serverDefinition.ts",
-      /urlElicitation: true/,
-      "urlElicitation: false",
+      [/urlElicitation: true/, "urlElicitation: false"],
+    ),
+    "src/shared/validation.ts": await patched(
+      "src/shared/validation.ts",
+      [/^export \* from "\.\/validation\/safeToolFetchUrl\.ts";\n/m, ""],
     ),
     "static/.well-known/openapi.yaml": await patched(
       "static/.well-known/openapi.yaml",
-      /^ {2}\/mcp-elicitation\/[\s\S]*?(?=^ {2}\/|^\S)/m,
-      "",
+      [/^ {2}\/mcp-elicitation\/[\s\S]*?(?=^ {2}\/|^\S)/m, ""],
     ),
     ".github/workflows/ci.yml": await patched(
       ".github/workflows/ci.yml",
-      /^ +env:\n +# Enables the real sandbox test.*\n +DENO_DEPLOY_TOKEN:.*\n/m,
-      "",
+      [/^ +env:\n +# Enables the real sandbox test.*\n +DENO_DEPLOY_TOKEN:.*\n/m, ""],
+      [/^ +- name: Check static\/mcp-apps[^\n]*\n +run: .*\n\n/m, ""],
     ),
     "deno.json": await patchedDenoJson(),
   };
 }
 
-async function run(command: string, ...args: string[]): Promise<void> {
-  const { success } = await new Deno.Command(command, { args }).output();
-  if (!success) throw new Error(`\`${command} ${args.join(" ")}\` failed`);
+/** Runs the Deno that runs this script, with its errors on the terminal. */
+async function deno(...args: string[]): Promise<void> {
+  const { success } = await new Deno.Command(Deno.execPath(), { args }).spawn().status;
+  if (!success) {
+    throw new Error(
+      `\`deno ${args.join(" ")}\` failed. The demos are gone, and this script with them. ` +
+        `Fix the error above, then run \`deno install --frozen=false --entrypoint main.ts\` and ` +
+        "`deno fmt` yourself.",
+    );
+  }
 }
 
 async function isCleanGitTree(): Promise<boolean> {
@@ -177,12 +197,23 @@ async function strip(deletions: readonly string[]): Promise<void> {
   for (const [path, content] of Object.entries(writes)) {
     await Deno.writeTextFile(path, content);
   }
-  await run("deno", "install", "--frozen=false", "--entrypoint", "main.ts");
-  await run("deno", "fmt", "--quiet");
+  await deno("install", "--frozen=false", "--entrypoint", "main.ts");
+  await deno("fmt", "--quiet");
+}
+
+export function parseStripArgs(
+  args: string[],
+): { help: boolean; "allow-dirty": boolean; "dry-run": boolean } {
+  return parseArgs(args, {
+    boolean: ["allow-dirty", "dry-run", "help"],
+    unknown: (arg) => {
+      throw new Error(`Unknown option: ${arg}. Usage: deno task strip [--dry-run] [--allow-dirty]`);
+    },
+  });
 }
 
 async function main(): Promise<void> {
-  const args = parseArgs(Deno.args, { boolean: ["allow-dirty", "dry-run", "help"] });
+  const args = parseStripArgs(Deno.args);
   if (args.help) {
     console.log("Usage: deno task strip [--dry-run] [--allow-dirty]");
     return;
@@ -194,7 +225,9 @@ async function main(): Promise<void> {
     console.log("Would delete:");
     for (const path of deletions) console.log(`  ${path}`);
     console.log("Would rewrite:");
-    for (const path of Object.keys(REWRITE)) console.log(`  ${path}`);
+    for (const path of [...Object.keys(await prepareWrites()), "deno.lock"].sort()) {
+      console.log(`  ${path}`);
+    }
     return;
   }
 

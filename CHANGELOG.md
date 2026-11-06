@@ -43,7 +43,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `AbortSignal.timeout` and `AbortSignal.any`, so client cancellation stops a running fetch, and
   `execute-code` stops code with SIGKILL.
 - `getRejected` returns an `AggregateError` when several promises rejected.
-- `deno task ci` also checks `mcp-ui`, which moves to TypeScript 7 and `lib: ESNext`.
+- `deno task ci` also checks `mcp-ui`, which moves to `lib: ESNext`, Vite 6.4.5 and modules split out
+  of `mcp-app.ts`, and drops `typescript` and `skipLibCheck`. Its tests run on the real page with
+  linkedom.
+- MCP App: tool results are validated with zod, text from a non-error result is no longer shown as
+  an error, status messages are announced to screen readers, and the host border is turned off.
+- **BREAKING:** `deno task setup` no longer accepts `--deno-deploy-app`. It needs a clean tree or
+  `--allow-dirty`, and resets the version and changelog.
+- Unknown flags are errors in `setup`, `strip` and `deploy:setup`.
+- `scripts/*` tasks use scoped permissions, except `deploy:setup`.
 
 ### Deprecated
 
@@ -88,6 +96,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   will start and accept requests, and all clients there share the unknown-client rate limit.
 - `compile:all` and `mcpb:all` run in sequence: parallel task dependencies raced clean, compile and
   pack.
+- `MCP_NO_HTTP` and `MCP_NO_STDIO` now disable their transports.
+- MCP App: errors are readable on dark hosts, hosts that send only a theme get dark defaults, and
+  the view shrinks again when content closes and follows `containerDimensions`.
+- MCP App: connection, download and malformed-result failures are shown instead of being silent.
+- MCP App: refreshing the resource list no longer duplicates entries, stale reads are dropped and all
+  pages load.
+- `deno task setup` no longer writes unescaped values, reports success after a failure, or ignores
+  `--url`.
+- `deno task deploy:setup` keeps secrets off the command line, prints a generated token as soon as
+  it is stored, sets `MCP_PUBLIC_BASE_URL`, and can be rerun.
+- `smoke-deploy.ts` has a request timeout, and it and `deploy.yml` no longer log the org slug.
+- `deno task strip` removes `safeToolFetchUrl.ts`, and shows why a failed `deno install` failed.
+- `run-mcp-conformance.sh --scenario` works, and runs with `start`'s permissions and its own KV store.
 
 ### Added
 
@@ -107,6 +128,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `MCP_ALLOWED_HOSTS` accepts `*.example.com`, matching one subdomain label.
 - `.github/workflows/binaries.yml` and `scripts/smoke-binary.ts`: smoke test on all five binary
   targets.
+- CI checks that `static/mcp-apps` matches a fresh build, that setup still works, and that the
+  version in `deno.json`, `mcpb-manifest.json` and `openapi.yaml` agree.
 
 ## [0.7.0](https://github.com/phughesmcr/deno-mcp-template/releases/tag/v0.7.0) - 2026-04-12
 

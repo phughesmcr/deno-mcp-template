@@ -1,7 +1,6 @@
 # Deno MCP Server Template
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/ci.yml?label=CI)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/release.yml?label=release)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/deploy.yml?label=deploy)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/phughesmcr/deno-mcp-template/publish.yml?label=publish)
 
@@ -48,7 +47,7 @@ curl -fsSL https://deno.land/install.sh | sh
 gh repo create my-mcp-server --template phughesmcr/deno-mcp-template
 cd my-mcp-server
 
-# One-time setup -- renames placeholders, then self-destructs
+# One-time setup on a committed tree -- renames placeholders, then self-destructs
 deno task setup
 
 # Start the server (STDIO + HTTP on localhost:3001)
@@ -258,7 +257,7 @@ Set up a new app once, after logging in with `deno deploy` or setting `DENO_DEPL
 deno task deploy:setup --org <YOUR_ORG> --app <YOUR_APP>
 ```
 
-This creates the app, attaches a KV database, sets the variables below, and deploys to production. It prints a generated bearer token once at the end, so save it. Add `--dry-run` to see the commands first, `--host <domain>` for a custom domain, and `--region` to change from `us`. It only works for a new app, and it stops at the first failed step.
+This creates the app, attaches a KV database, sets the variables below, and deploys to production. It prints a generated bearer token as soon as it's stored, so save it. Add `--dry-run` to see the commands first, `--host <domain>` for a custom domain, and `--region` to change from `us`. Without a terminal it needs `--yes`. If a step fails it lists the remaining commands. You can also rerun it: that keeps the app and replaces the variables, which rotates a generated token.
 
 | Setting | Why Deploy needs it |
 | --- | --- |
@@ -266,15 +265,16 @@ This creates the app, attaches a KV database, sets the variables below, and depl
 | `MCP_DNS_REBINDING`, `MCP_ALLOWED_HOSTS` | Without them every request gets a 403 `Invalid Host`. `*.<YOUR_ORG>.deno.net` also covers preview URLs, whose hostnames change with each revision. |
 | `MCP_HTTP_BEARER_TOKEN` | The app is public, so `/mcp` needs a token. |
 | `MCP_REQUEST_STATE_KEY` | Multi-round calls must survive restarts and work across instances. |
+| `MCP_PUBLIC_BASE_URL` | URL elicitation links would otherwise point at localhost. Setup uses the first `--host`, or `https://<YOUR_APP>.<YOUR_ORG>.deno.net`. |
 | `MCP_HTTP_RATE_LIMIT_UNKNOWN_MAX` | The server sees no client IP on Deploy, so all clients share this limit. The default of 20 requests per 15 minutes is too low, so setup sets 1000. Requests to `/mcp` without a valid token don't count, but failed token guesses aren't rate limited. |
 
 For automatic deploys, set the `DENO_DEPLOY_TOKEN` secret and the `DENO_DEPLOY_ORG` and `DENO_DEPLOY_APP` variables in GitHub Actions. Remove `.github/workflows/deploy.yml` if not using Deploy.
 
-`deploy.yml` deploys to production on pushes to `main`. A manual run makes a preview unless you tick `prod`. It first checks the token can reach the org and app, and afterwards smoke-tests the deployed URL with `scripts/smoke-deploy.ts`. Add the deployed token as an `MCP_HTTP_BEARER_TOKEN` repository secret for a full check rather than stopping at the 401. If a run fails, it prints recent app logs, which are public on public repositories.
+`deploy.yml` deploys to production on pushes to `main`. A manual run makes a preview unless you tick `prod`. It first masks your org slugs in the log and checks the token can reach the org and app, and afterwards smoke-tests the deployed URL with `scripts/smoke-deploy.ts`. Add the deployed token as an `MCP_HTTP_BEARER_TOKEN` repository secret for a full check rather than stopping at the 401. If a run fails, it prints recent app logs, which are public on public repositories.
 
 ## Production Checklist
 
-- [ ] Run `deno task setup` and verify all placeholder names are replaced
+- [ ] Run `deno task setup` (it also resets the version to 0.1.0 and `CHANGELOG.md`) and verify all placeholder names are replaced
 - [ ] Remove or replace demo tools/resources/prompts you won't ship
 - [ ] Update `static/.well-known/openapi.yaml` and `static/mcpb-manifest.json`
 - [ ] Configure `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` for your environments

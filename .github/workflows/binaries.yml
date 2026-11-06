@@ -37,4 +37,4 @@ jobs:
       - name: Compile
         run: deno task ${{ matrix.task }}
       - name: Smoke test
-        run: deno run -A scripts/smoke-binary.ts ${{ matrix.binary }}
+        run: deno run --allow-read --allow-write --allow-net=localhost --allow-run=${{ matrix.binary }} scripts/smoke-binary.ts ${{ matrix.binary }}

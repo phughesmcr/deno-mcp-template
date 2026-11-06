@@ -32,5 +32,8 @@ jobs:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: deno task ci
 
+      - name: Check static/mcp-apps matches the fresh build from `deno task build:mcp-ui`
+        run: git diff --exit-code --stat -- static/mcp-apps
+
       - name: Check the package can be published
         run: deno publish --dry-run

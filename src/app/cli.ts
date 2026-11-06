@@ -235,8 +235,8 @@ export function mapCommandOptionsToConfigInput(rawOptions: CliRawOptions): McpCo
     header,
     host,
     origin,
-    noHttp: _noHttp,
-    noStdio: _noStdio,
+    noHttp,
+    noStdio,
     headers: rawHeaders,
     allowedOrigins: rawAllowedOrigins,
     allowedHosts: rawAllowedHosts,
@@ -253,6 +253,9 @@ export function mapCommandOptionsToConfigInput(rawOptions: CliRawOptions): McpCo
 
   return {
     ...cleanOptions,
+    // `--no-http` clears `http`; `MCP_NO_HTTP` sets `noHttp` instead. Likewise for STDIO.
+    http: cleanOptions.http && !noHttp,
+    stdio: cleanOptions.stdio && !noStdio,
     trustProxy: rawTrustProxy ?? false,
     requireHttpAuth: rawRequireHttpAuth ?? false,
     httpBearerToken: rawHttpBearerToken,

@@ -62,8 +62,8 @@ deno outdated
 deno install --entrypoint main.ts --frozen=false
 ```
 
-The MCP conformance CLI version is pinned in `deno.json` and `scripts/run-mcp-conformance.sh`, so
-bump it on purpose.
+The MCP conformance CLI version is pinned in `scripts/run-mcp-conformance.sh`, so bump it on
+purpose.
 
 ## Issue labels (SEP-1730)
 

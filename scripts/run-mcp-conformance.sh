@@ -3,13 +3,14 @@ set -euo pipefail
 
 # Runs the 2026-07-28 requirements of @modelcontextprotocol/conformance against this
 # repo's HTTP MCP endpoint.
-# Requires Node.js (npx). Start from the repository root.
+# Requires Node.js (npx).
 #
 # Use http://localhost (not 127.0.0.1): the HTTP hostname defaults to localhost
 # and may listen only on IPv6 (::1) on some systems, so 127.0.0.1 can fail.
 #
 # Usage:
 #   ./scripts/run-mcp-conformance.sh [--verbose] [--scenario NAME] ...
+#   ./scripts/run-mcp-conformance.sh --list    (lists the scenarios, no server needed)
 # With baseline (scripts/conformance-baseline.yml present):
 #   expected failures are ignored for CI stability. Scenarios the 2026-07-28 requirement set
 #   does not score (such as tasks-*) are reported but cannot fail the run, baseline or not.
@@ -25,6 +26,11 @@ PORT="${MCP_PORT:-3001}"
 URL="http://localhost:${PORT}/mcp"
 BASELINE="$ROOT/scripts/conformance-baseline.yml"
 CONFORMANCE_CLI_VERSION="${MCP_CONFORMANCE_CLI_VERSION:-0.2.0-alpha.12}"
+CONFORMANCE_CLI="@modelcontextprotocol/conformance@${CONFORMANCE_CLI_VERSION}"
+
+if [[ "${1:-}" == "--list" ]]; then
+  exec npx --yes "$CONFORMANCE_CLI" list --server
+fi
 
 export MCP_PORT="$PORT"
 # The suite sends this Origin, and the default allowlist is empty.
@@ -36,12 +42,19 @@ if (exec 3<>"/dev/tcp/localhost/${PORT}") 2>/dev/null; then
   exit 1
 fi
 
-deno run -A main.ts --no-stdio --no-http-rate-limit &
+# A store of its own, so the run neither reads nor changes the default one.
+KV_DIR="$(mktemp -d)"
+export MCP_KV_PATH="$KV_DIR/conformance.kv"
+
+# The same permissions as `deno task start`, so a permission regression fails here.
+deno run --allow-env --allow-net --allow-read --allow-write main.ts --no-stdio --no-http-rate-limit &
 PID=$!
 
 cleanup() {
   kill "$PID" 2>/dev/null || true
   wait "$PID" 2>/dev/null || true
+  rm -f "$KV_DIR"/conformance.kv*
+  rmdir "$KV_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -66,9 +79,16 @@ if [[ -f "$BASELINE" ]]; then
   extra+=(--expected-failures "$BASELINE")
 fi
 
+# The CLI refuses --requirements together with --scenario.
+requirements=(--requirements 2026-07-28)
+for arg in "$@"; do
+  if [[ "$arg" == "--scenario" || "$arg" == --scenario=* ]]; then
+    requirements=()
+  fi
+done
+
 set +e
-# shellcheck disable=SC2068
-npx --yes "@modelcontextprotocol/conformance@${CONFORMANCE_CLI_VERSION}" server --url "$URL" --requirements 2026-07-28 ${extra[@]+"${extra[@]}"} "$@"
+npx --yes "$CONFORMANCE_CLI" server --url "$URL" ${requirements[@]+"${requirements[@]}"} ${extra[@]+"${extra[@]}"} "$@"
 ec=$?
 set -e
 exit "$ec"

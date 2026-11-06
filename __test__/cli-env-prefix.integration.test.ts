@@ -2,7 +2,7 @@
  * Spawns `deno eval` via {@link Deno.Command}; needs `--allow-run` when run outside
  * `deno task test:integration` / `test:coverage` (those run this file in a second pass).
  */
-import { assert } from "./helpers.ts";
+import { assert, assertEquals } from "./helpers.ts";
 
 async function getAllowedOriginsFromEnv(env: Record<string, string>): Promise<string[]> {
   const command = new Deno.Command(Deno.execPath(), {
@@ -48,4 +48,54 @@ Deno.test("CLI ignores unprefixed ALLOWED_ORIGINS env var", async () => {
   });
   assert(origins.includes(expected), "Expected prefixed MCP_ALLOWED_ORIGINS to remain applied");
   assert(!origins.includes(legacy), "Expected unprefixed ALLOWED_ORIGINS to be ignored");
+});
+
+/** Loads the config and never starts a server. `code` is 0 when the config is valid. */
+async function getTransportsFromEnv(
+  env: Record<string, string>,
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  const { code, stdout, stderr } = await new Deno.Command(Deno.execPath(), {
+    args: [
+      "eval",
+      "import { handleCliArgs } from './src/app/cli.ts'; const { http, stdio } = await handleCliArgs(); console.log(JSON.stringify({ http: http.enabled, stdio: stdio.enabled }));",
+    ],
+    env,
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  const decoder = new TextDecoder();
+  return {
+    code,
+    stdout: decoder.decode(stdout).trim().split("\n").at(-1) ?? "",
+    stderr: decoder.decode(stderr),
+  };
+}
+
+Deno.test("CLI enables both transports by default", async () => {
+  const { stdout } = await getTransportsFromEnv({});
+  assertEquals(stdout, `{"http":true,"stdio":true}`);
+});
+
+Deno.test("CLI disables HTTP with MCP_NO_HTTP", async () => {
+  const { stdout } = await getTransportsFromEnv({ MCP_NO_HTTP: "true" });
+  assertEquals(stdout, `{"http":false,"stdio":true}`);
+});
+
+Deno.test("CLI disables STDIO with MCP_NO_STDIO", async () => {
+  const { stdout } = await getTransportsFromEnv({ MCP_NO_STDIO: "true" });
+  assertEquals(stdout, `{"http":true,"stdio":false}`);
+});
+
+Deno.test("CLI keeps a transport when its MCP_NO_* var is false", async () => {
+  const { stdout } = await getTransportsFromEnv({ MCP_NO_HTTP: "false", MCP_NO_STDIO: "false" });
+  assertEquals(stdout, `{"http":true,"stdio":true}`);
+});
+
+Deno.test("CLI refuses to disable both transports through env vars", async () => {
+  const { code, stderr } = await getTransportsFromEnv({
+    MCP_NO_HTTP: "true",
+    MCP_NO_STDIO: "true",
+  });
+  assert(code !== 0, "Expected a config error");
+  assert(stderr.includes("Both the HTTP and STDIO servers are disabled"), stderr);
 });

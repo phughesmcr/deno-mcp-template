@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run -A
+#!/usr/bin/env -S deno run --allow-read=dist --allow-write=dist
 
 /**
  * @description Clean the dist directory

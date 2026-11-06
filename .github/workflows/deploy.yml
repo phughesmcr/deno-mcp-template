@@ -32,17 +32,37 @@ jobs:
         with:
           deno-version: v2.9.8
 
+      # Org slugs stay out of the log: it's public on public repositories. GitHub prints each
+      # step's env, and repository variables aren't masked, so this has to run before any step
+      # sets DENO_DEPLOY_ORG. The slugs come from the token, as printing the variable would leak it.
+      - name: Mask org slugs
+        id: mask
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$DENO_DEPLOY_TOKEN" ]; then
+            echo "::error::Missing DENO_DEPLOY_TOKEN secret."
+            exit 1
+          fi
+          slugs=$(deno deploy whoami --json | jq -r '.orgs[].slug')
+          if [ -z "$slugs" ]; then
+            echo "::error::DENO_DEPLOY_TOKEN reaches no org, so the org slug can't be masked."
+            exit 1
+          fi
+          for slug in $slugs; do
+            echo "::add-mask::$slug"
+          done
+
       - name: Check Deno Deploy access
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
           DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
           DENO_DEPLOY_APP: ${{ vars.DENO_DEPLOY_APP }}
         run: |
-          if [ -z "$DENO_DEPLOY_TOKEN" ] || [ -z "$DENO_DEPLOY_ORG" ] || [ -z "$DENO_DEPLOY_APP" ]; then
-            echo "::error::Missing DENO_DEPLOY_TOKEN secret or DENO_DEPLOY_ORG / DENO_DEPLOY_APP repository variables."
+          if [ -z "$DENO_DEPLOY_ORG" ] || [ -z "$DENO_DEPLOY_APP" ]; then
+            echo "::error::Missing DENO_DEPLOY_ORG / DENO_DEPLOY_APP repository variables."
             exit 1
           fi
-          # Org slugs stay out of the log: it's public on public repositories.
           if ! deno deploy whoami --json | jq -e --arg org "$DENO_DEPLOY_ORG" '[.orgs[].slug] | index($org)' > /dev/null; then
             echo "::error::DENO_DEPLOY_TOKEN can't reach the org in DENO_DEPLOY_ORG. Check the slug, or use a token from that org."
             exit 1
@@ -52,6 +72,8 @@ jobs:
             exit 1
           fi
 
+      # No build step: `static/mcp-apps` is committed, and ci.yml fails if it differs from a fresh
+      # build. `deno deploy` uploads this checkout as it is, and the server reads the file at runtime.
       - name: Deploy to Deno Deploy
         id: deploy
         env:
@@ -70,11 +92,12 @@ jobs:
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
           MCP_HTTP_BEARER_TOKEN: ${{ secrets.MCP_HTTP_BEARER_TOKEN }}
-        run: deno run -A scripts/smoke-deploy.ts "$DEPLOY_URL"
+        run: deno run --allow-net --allow-env=MCP_HTTP_BEARER_TOKEN scripts/smoke-deploy.ts "$DEPLOY_URL"
 
       # App logs land in the workflow log, which is public on public repositories.
+      # Not if masking failed: this step's env would then print the org slug.
       - name: Show app logs
-        if: failure()
+        if: failure() && steps.mask.outcome == 'success'
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
           DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}

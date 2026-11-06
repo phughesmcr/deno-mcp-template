@@ -49,23 +49,23 @@
     "zod-validation-error": "npm:zod-validation-error@^5.0.0"
   },
   "tasks": {
-    "setup": "deno run -A scripts/setup-template.ts",
-    "strip": "deno run -A scripts/strip-demo.ts",
+    "setup": "deno run --allow-read=. --allow-write=. --allow-run=git,deno --allow-env=MCP_SETUP_NON_INTERACTIVE,SETUP_AUTHOR_NAME,SETUP_AUTHOR_EMAIL,SETUP_GITHUB_USERNAME,SETUP_PROJECT_NAME,SETUP_DISPLAY_NAME,SETUP_DESCRIPTION,SETUP_JSR_SCOPE,SETUP_URL scripts/setup-template.ts",
+    "strip": "deno run --allow-read=. --allow-write=. --allow-run=git,deno scripts/strip-demo.ts",
     "labels:github": "bash scripts/setup-sep1730-labels.sh",
     "deploy:setup": "deno run -A scripts/deploy-setup.ts",
     "start": "deno run --env-file=.env --allow-env --allow-net --allow-read --allow-write main.ts",
     "dev": "MCP_ALLOWED_ORIGINS=http://localhost:6274,http://localhost:3001 dx @modelcontextprotocol/inspector deno run --env-file=.env --allow-env --allow-net --allow-read --allow-write --watch main.ts",
-    "test:integration": "deno test --frozen -P --ignore='__test__/cli-env-prefix.integration.test.ts,__test__/mcp-protocol*.integration.test.ts' && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts __test__/mcp-protocol*.integration.test.ts",
-    "test:coverage": "deno test --frozen -P --ignore='__test__/cli-env-prefix.integration.test.ts,__test__/mcp-protocol*.integration.test.ts' --coverage=coverage && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts __test__/mcp-protocol*.integration.test.ts --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
+    "test:integration": "deno test --frozen -P --ignore='__test__/cli-env-prefix.integration.test.ts,__test__/mcp-protocol*.integration.test.ts,__test__/smoke-binary.integration.test.ts' && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts __test__/mcp-protocol*.integration.test.ts __test__/smoke-binary.integration.test.ts",
+    "test:coverage": "deno test --frozen -P --ignore='__test__/cli-env-prefix.integration.test.ts,__test__/mcp-protocol*.integration.test.ts,__test__/smoke-binary.integration.test.ts' --coverage=coverage && deno test --frozen -P --allow-run __test__/cli-env-prefix.integration.test.ts __test__/mcp-protocol*.integration.test.ts __test__/smoke-binary.integration.test.ts --coverage=coverage && deno coverage coverage --lcov --output=coverage/lcov.info",
     "bench": "deno bench --frozen -P",
-    "conformance:list": "npx --yes @modelcontextprotocol/conformance@0.2.0-alpha.12 list --server",
+    "conformance:list": "bash scripts/run-mcp-conformance.sh --list",
     "conformance:server": "bash scripts/run-mcp-conformance.sh",
     "build:mcp-ui": "deno task --cwd mcp-ui install-deps && deno task --cwd mcp-ui build",
     "ci": {
       "dependencies": ["build:mcp-ui"],
       "command": "CI=1 deno fmt --check && deno lint && deno check --frozen main.ts src/**/*.ts scripts/**/*.ts __test__/**/*.ts __bench__/**/*.ts && deno task test:integration"
     },
-    "clean:dist": "deno run -A scripts/clean-dist.ts",
+    "clean:dist": "deno run --allow-read=dist --allow-write=dist scripts/clean-dist.ts",
     "compile:win": {
       "description": "Create a binary for Windows",
       "command": "deno compile --allow-env --allow-net --allow-read --allow-write --include ./static -o ./dist/server/server.exe --target x86_64-pc-windows-msvc --icon=./static/icon.ico main.ts"
@@ -91,7 +91,7 @@
       "dependencies": ["clean:dist"],
       "command": "deno task compile:win && deno task compile:mac:arm64 && deno task compile:mac:x64 && deno task compile:linux:x64 && deno task compile:linux:arm64"
     },
-    "mcpb:pack": "deno run -A scripts/mcpb.ts",
+    "mcpb:pack": "deno run --allow-read=. --allow-write=dist --allow-run=mcpb scripts/mcpb.ts",
     "mcpb:all": {
       "description": "Create one MCP Bundle containing every platform binary",
       "command": "deno task compile:all && deno task mcpb:pack"
