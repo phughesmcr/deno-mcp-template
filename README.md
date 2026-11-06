@@ -271,13 +271,17 @@ deno deploy database assign <YOUR_DB> --org <YOUR_ORG> --app <YOUR_APP>
 deno deploy env add MCP_DNS_REBINDING true --org <YOUR_ORG> --app <YOUR_APP>
 deno deploy env add MCP_ALLOWED_HOSTS <YOUR_HOSTNAME> --org <YOUR_ORG> --app <YOUR_APP>
 
+# Require a token on /mcp, and sign requestState with a key shared by every instance.
+deno deploy env add --secret MCP_HTTP_BEARER_TOKEN <YOUR_TOKEN> --org <YOUR_ORG> --app <YOUR_APP>
+deno deploy env add --secret MCP_REQUEST_STATE_KEY <32_PLUS_BYTES> --org <YOUR_ORG> --app <YOUR_APP>
+
 # Deploy
 deno deploy --prod
 ```
 
 Preview URLs include the revision ID, so an exact allowlist can't cover them.
 
-On Deploy the server sees no client IP, so all clients share the unknown-client rate limit: 20 requests per 15 minutes per instance. A single client session can use that up. Raise it with `MCP_HTTP_RATE_LIMIT_UNKNOWN_MAX`.
+On Deploy the server sees no client IP, so all clients share the unknown-client rate limit: 20 requests per 15 minutes per instance. A single client session can use that up. Raise it with `MCP_HTTP_RATE_LIMIT_UNKNOWN_MAX`. The limiter runs before the token check, so unauthenticated requests count against the same shared limit.
 
 Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Actions secrets for automatic deploys. Remove `.github/workflows/deploy.yml` if not using Deploy.
 
