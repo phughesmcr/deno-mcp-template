@@ -44,6 +44,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `scripts/run-mcp-conformance.sh` stops if its port is in use instead of killing what is listening
+  there, and reads the port from `MCP_PORT`, the variable the server uses.
 - **Security:** the server-side fetch filter let through IPv4 addresses embedded in IPv6
   (`[::ffff:127.0.0.1]`, NAT64, 6to4), `[::]`, blocked hostnames with a trailing dot, and several
   reserved IPv4 ranges. IPv6 is now parsed, and only global unicast is allowed.

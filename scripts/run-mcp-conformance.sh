@@ -11,7 +11,8 @@ set -euo pipefail
 # Usage:
 #   ./scripts/run-mcp-conformance.sh [--verbose] [--scenario NAME] ...
 # With baseline (scripts/conformance-baseline.yml present):
-#   expected failures are ignored for CI stability.
+#   expected failures are ignored for CI stability. Scenarios the 2026-07-28 requirement set
+#   does not score (such as tasks-*) are reported but cannot fail the run, baseline or not.
 #
 # Conformance server env (set automatically below):
 #   MCP_HTTP_RATE_LIMIT_ENABLED=false — avoid 429 during the full active suite
@@ -20,16 +21,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-PORT="${MCP_HTTP_PORT:-3001}"
+PORT="${MCP_PORT:-3001}"
 URL="http://localhost:${PORT}/mcp"
 BASELINE="$ROOT/scripts/conformance-baseline.yml"
 CONFORMANCE_CLI_VERSION="${MCP_CONFORMANCE_CLI_VERSION:-0.2.0-alpha.12}"
 
+export MCP_PORT="$PORT"
 export MCP_HTTP_RATE_LIMIT_ENABLED=false
 
-if command -v lsof >/dev/null 2>&1; then
-  lsof -ti ":${PORT}" 2>/dev/null | xargs kill -9 2>/dev/null || true
-  sleep 0.2
+if (exec 3<>"/dev/tcp/localhost/${PORT}") 2>/dev/null; then
+  echo "Port ${PORT} is in use. Stop what is using it, or set MCP_PORT to a free port." >&2
+  exit 1
 fi
 
 deno run -A main.ts --no-stdio --no-http-rate-limit &

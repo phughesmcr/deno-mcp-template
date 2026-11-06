@@ -1,4 +1,5 @@
-# Known failing MCP conformance scenarios (ids). Empty lists = fail CI on any failure.
+# Known failing MCP conformance scenarios (ids). Empty lists = fail CI on any scored failure.
+# Scenarios the requirement set does not score are reported but never fail the run.
 # See https://github.com/modelcontextprotocol/conformance/blob/main/SDK_INTEGRATION.md
 server: []
 client: []
