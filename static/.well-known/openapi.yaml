@@ -90,8 +90,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JSONRPCError"
+        "403":
+          description: "Host header rejected by DNS-rebinding protection (JSON-RPC error with `id: null`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
         "413":
-          description: Request body too large.
+          description: "Request body too large (JSON-RPC error with `id: null`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JSONRPCError"
         "415":
           description: Content-Type is not `application/json`.
           content:
@@ -101,13 +111,11 @@ paths:
         "429":
           description: Rate limit exceeded (only when rate limiting is enabled).
         "500":
-          description: Internal error (JSON-RPC or generic error body).
+          description: "Internal error (JSON-RPC error with `id: null`)."
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: "#/components/schemas/JSONRPCError"
-                  - $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/JSONRPCError"
 
   /.well-known/llms.txt:
     get:
@@ -384,11 +392,3 @@ components:
       required:
         - error
         - message
-
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-      required:
-        - error

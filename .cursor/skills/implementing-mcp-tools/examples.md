@@ -4,7 +4,7 @@ Complete, working examples from the codebase for each tool category.
 
 ## Standard Tool - HTTP Request
 
-`src/mcp/tools/fetchWebsiteInfoShared.ts` implements the `fetch-website-info` tool logic (HEAD request); the tool and `ui://` resource are registered in `src/mcp/apps/fetchWebsiteInfoApp.ts` via `@modelcontextprotocol/ext-apps/server`. The snippet below shows the `defineTool` shape used by the other tools in this repo:
+`src/mcp/tools/fetchWebsiteInfoShared.ts` implements the `fetch-website-info` tool logic (HEAD request); the tool and `ui://` resource are registered in `src/mcp/apps/fetchWebsiteInfoApp.ts` via `@modelcontextprotocol/ext-apps/server`. The snippet below is a simplified sketch of the `defineTool` shape, not the real code: the real tool sends the request through `headUrlWithSafeRedirects` (`src/shared/validation/safeToolFetchUrl.ts`), which enforces the SSRF policy (see `MCP_DOMAIN_TOOL_ALLOW_HTTP`) and re-checks each redirect, whereas the plain `fetch(..., { redirect: "follow" })` below does neither. Do not copy it for untrusted URLs.
 
 ```typescript
 import { z } from "zod";

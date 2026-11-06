@@ -13,26 +13,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as describ
 - **BREAKING:** Rewritten on `@modelcontextprotocol/server` 2.4 for Deno 2.9.8. The server is
   stateless and speaks protocol revision 2026-07-28 only (`legacy: "reject"` on both transports), so
   2025-era clients are refused.
-- **BREAKING:** `/mcp` is POST-only. HTTP uses `createMcpHandler`, stdio uses `serveStdio`.
+- **BREAKING:** `/mcp` is POST-only (other methods get 405) and CORS allows only `POST`. HTTP uses `createMcpHandler`, stdio uses `serveStdio`.
 - **BREAKING:** `defineTool`, `definePrompt` and `registerResource` handlers now receive
   `(args, ctx, deps)`; `createMcpServer` takes the factory context directly.
 - Elicitation and sampling use `inputRequired` results with signed `requestState`
   (`MCP_REQUEST_STATE_KEY`), and URL elicitation state lives in KV.
 - Change notifications go through `subscriptions/listen`, fed by a `ServerEventBus` and KV watches.
-- DXT packaging replaced by MCP Bundles (`deno task mcpb:*`, `static/mcpb-manifest.json`).
+- DXT packaging replaced by MCP Bundles (`deno task mcpb:all`, `static/mcpb-manifest.json`): one
+  bundle holds all five binaries, and `static/mcpb-launcher.sh` picks one by platform.
+- HTTP logs requests the SDK refuses as one line instead of a stack trace.
+- CI runs on `dev` and passes `DENO_DEPLOY_TOKEN`, so the real sandbox test runs.
+- `deploy.yml` has a `prod` dispatch input (default true). `prod=false` makes a preview deployment.
 - Conformance runs `--requirements 2026-07-28` on `@modelcontextprotocol/conformance`
   0.2.0-alpha.12, and CI pins Deno 2.9.8.
 
 ### Removed
 
 - **BREAKING:** MCP sessions, the KV event store, experimental MCP tasks, `Deno.cron` maintenance,
-  `MCP_MAX_TASK_TTL_MS`, and the `delayed-echo` and `guided-poem` tools.
+  `MCP_MAX_TASK_TTL_MS` / `--max-task-ttl-ms`, and the `delayed-echo` and `guided-poem` tools.
 
 ### Fixed
 
 - `compile:*` tasks passed `--target` and `--icon` after `main.ts`, baking them into the binary as
   script arguments: the target was ignored and the binary exited with a usage error.
 - `clean:dist` no longer fails when `dist/` does not exist.
+- `compile:all` and `mcpb:all` run in sequence: parallel task dependencies raced clean, compile and
+  pack.
 
 ### Added
 
@@ -40,6 +46,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as describ
   issue labels (`deno task labels:github` / `scripts/setup-sep1730-labels.sh`), issue templates, and
   maintainer triage expectations in `CONTRIBUTING.md`.
 - `.github/dependabot.yml` for automated dependency update PRs where supported.
+- `.github/workflows/binaries.yml` and `scripts/smoke-binary.ts`: smoke test on all five binary
+  targets.
 
 ## [0.7.0](https://github.com/phughesmcr/deno-mcp-template/releases/tag/v0.7.0) - 2026-04-12
 

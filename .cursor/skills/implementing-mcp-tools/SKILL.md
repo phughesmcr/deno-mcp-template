@@ -154,7 +154,7 @@ return inputRequired({
 const state = wizardState.safeParse(ctx.mcpReq.requestState());
 ```
 
-Always put a `tool` discriminator in the minted state and check it on read, so state from another tool cannot be replayed. State is signed with `MCP_REQUEST_STATE_KEY` (32+ bytes; random per process when unset, so set it for multi-instance deployments) and bound to the method and client. See `src/mcp/tools/elicitFormWizard.ts`.
+Always put a `tool` discriminator in the minted state and check it on read, so state from another tool cannot be replayed. State is signed with `MCP_REQUEST_STATE_KEY` (32+ bytes; random per process when unset, so set it for multi-instance deployments) and bound to the method only: the shared bearer token identifies no client, so anyone holding state can replay it until it expires (see `src/mcp/requestState.ts`). See `src/mcp/tools/elicitFormWizard.ts`.
 
 #### URL mode
 

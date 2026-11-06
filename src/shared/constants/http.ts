@@ -68,10 +68,10 @@ export const EXPOSED_HEADERS = [
 // You should not need to change anything below this line.
 // ********************************************************
 
-/** @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/400b020c854d31112c8f29a2e280072731ed3d5f/src/server/streamableHttp.ts#L9C7-L9C27} */
+/** Maximum request body size. Enforced by Hono `bodyLimit` and passed to `createMcpHandler` as `maxRequestBodySize`. */
 export const BODY_LIMIT = 1024 * 1024 * 4; // 4MB
 
-/** @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/0d545176f9ba852c97a18a40037abff40cd086c2/src/shared/protocol.ts#L60} */
+/** Request timeout in ms for every HTTP route except `/mcp` (whose `subscriptions/listen` streams are long-lived). */
 export const TIMEOUT = 60000; // 60 seconds
 
 /** The rate limit window for the MCP server. */

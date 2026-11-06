@@ -4,7 +4,7 @@ alwaysApply: true
 ---
 # Deno MCP Template Development Guide
 
-Deno version: ^2.6.0
+Deno version: 2.9.8 (pinned in CI)
 
 ## Build/Development Commands
 
@@ -162,7 +162,6 @@ src/
 │   ├── config-types.ts             # AppConfig, HTTP/STDIO/KV (host shell)
 │   ├── httpSecurityPolicy.ts       # HTTP listen safety policy derived from config
 │   ├── type-utils.ts               # Prettify and small TS utilities
-│   ├── types.ts                    # Re-exports config + utils (not plugin types)
 │   ├── utils.ts                    # Shared utility functions (call-tool response helpers)
 │   └── validation.ts               # Single point of export for all shared validation functions
 static/

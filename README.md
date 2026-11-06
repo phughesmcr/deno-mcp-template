@@ -81,7 +81,7 @@ When this package is published to JSR, you can import the full program (`main.ts
 - **`jsr:@scope/name/mcp`** — `createMcpServer`, `mcpServerDefinition`, the factory context type, and related exports. The host must still open Deno KV (and any other shared services) before handling requests, same as `createApp` does.
 - **`jsr:@scope/name/app`** — `createApp` for embedding the STDIO + HTTP host without copying `main.ts`.
 
-See [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc) (Architecture) for transport-scoped `McpServer` instances and shared context.
+See [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc) (Architecture) for the per-request `McpServer` instances and the shared factory context.
 
 ## What's Included
 
@@ -157,7 +157,11 @@ See [`.env.example`](.env.example) for copy-paste variables.
 | Package as MCP Bundle | `deno task mcpb:all` | `dist/server.mcpb` |
 | Deploy to cloud | `deno deploy --prod` | Deno Deploy URL |
 
-Platform-specific compile/MCPB tasks are also available: `compile:win`, `compile:mac:arm64`, `compile:mac:x64`, `compile:linux:x64`, `compile:linux:arm64` (and matching `mcpb:*` variants).
+`compile:all` cleans `dist/` once, then builds all five targets. Single-target tasks are also available: `compile:win`, `compile:mac:arm64`, `compile:mac:x64`, `compile:linux:x64`, `compile:linux:arm64`.
+
+`mcpb:all` runs `compile:all`, then packs one bundle holding all five binaries. A launcher picks the right binary at startup, so there are no per-platform bundles. `mcpb:pack` repackages existing binaries and fails if any is missing.
+
+The `binaries` workflow (`.github/workflows/binaries.yml`) smoke-tests each target on its own platform.
 
 Compile tasks bundle the `static/` directory, so binaries serve static routes without depending on the working directory.
 
