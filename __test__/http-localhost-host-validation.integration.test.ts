@@ -68,8 +68,6 @@ Deno.test({
 
 Deno.test({
   name: "loopback bind rejects forged Host header before MCP handler",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const app = createHonoApp({
       config: baseHttp({ hostname: "127.0.0.1" }),
@@ -100,8 +98,6 @@ Deno.test({
 
 Deno.test({
   name: "loopback bind allows localhost Host with port",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const app = createHonoApp({
       config: baseHttp({ hostname: "127.0.0.1" }),

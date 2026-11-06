@@ -22,7 +22,7 @@ export function isAllInterfacesBindHostname(hostname: string): boolean {
 }
 
 /**
- * The expected origins for the MCP server's DNS rebinding protection to accept.
+ * The origins allowed by CORS and by the `/mcp` Origin check, which answers 403 to any other.
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Origin}
  * @note Wildcard origins are not supported; list each origin explicitly.
  * @note This is ignored if env.MCP_ALLOWED_ORIGINS is set or CLI --origin is provided.
@@ -46,7 +46,6 @@ export const ALLOWED_HEADERS = [
   "Content-Type",
   "Accept",
   "Authorization",
-  "x-api-key",
   "X-Requested-With",
   "x-forwarded-for",
   "x-real-ip",
@@ -60,8 +59,7 @@ export const ALLOWED_HEADERS = [
  */
 export const EXPOSED_HEADERS = [
   "Content-Type",
-  "Authorization",
-  "x-api-key",
+  "WWW-Authenticate",
 ];
 
 // ********************************************************

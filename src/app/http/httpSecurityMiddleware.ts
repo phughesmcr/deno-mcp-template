@@ -1,5 +1,5 @@
 /**
- * Applies Host + CORS middleware from {@link HttpSecurityPolicy} (ordered security block).
+ * Applies Host, Origin and CORS middleware from {@link HttpSecurityPolicy} (ordered security block).
  * @module
  */
 
@@ -17,6 +17,8 @@ import {
   CORS_MAX_AGE,
   EXPOSED_HEADERS,
   HEADER_KEYS,
+  HTTP_STATUS,
+  RPC_ERROR_CODES,
 } from "$/shared/constants.ts";
 import type { HttpSecurityPolicy } from "$/shared/httpSecurityPolicy.ts";
 
@@ -34,7 +36,22 @@ export function applyHttpHostProtectionMiddleware(
   }
 }
 
-/** CORS allowlist (after rate limiter in the stack). */
+/**
+ * Answers 403 on `/mcp` when `Origin` is present and not allowed, as the MCP Streamable HTTP
+ * transport requires. CORS alone only stops a browser reading the response, not the request.
+ */
+export function applyHttpOriginMiddleware(app: Hono<HonoEnv>, policy: HttpSecurityPolicy): void {
+  app.use("/mcp", async (c, next) => {
+    const origin = c.req.header("origin");
+    if (origin === undefined || policy.corsAllowedOrigins.includes(origin)) return await next();
+    return c.json({
+      jsonrpc: "2.0",
+      error: { code: RPC_ERROR_CODES.INVALID_REQUEST, message: "Origin not allowed" },
+    }, HTTP_STATUS.FORBIDDEN);
+  });
+}
+
+/** CORS allowlist. */
 export function applyHttpCorsMiddleware(
   app: Hono<HonoEnv>,
   http: AppConfig["http"],

@@ -45,8 +45,8 @@ paths:
         `method`), and `Mcp-Name` for methods that name a target (`tools/call` and `prompts/get`:
         `params.name`; `resources/read`: `params.uri`).
 
-        When HTTP bearer auth is configured, send `Authorization: Bearer <token>` or header `x-api-key`
-        with the same secret (see `components.securitySchemes`).
+        When HTTP bearer auth is configured, send `Authorization: Bearer <token>` (see
+        `components.securitySchemes`).
       tags:
         - MCP
       parameters:
@@ -79,7 +79,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/JSONRPCError"
         "401":
-          description: Invalid or missing credentials (only when HTTP bearer auth is configured).
+          description: |
+            Invalid or missing credentials (only when HTTP bearer auth is configured). The response
+            carries `WWW-Authenticate: Bearer`.
           content:
             application/json:
               schema:
@@ -91,7 +93,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/JSONRPCError"
         "403":
-          description: "Host header rejected by DNS-rebinding protection (JSON-RPC error with `id: null`)."
+          description: |
+            Host header rejected by DNS-rebinding protection (JSON-RPC error with `id: null`), or an
+            `Origin` header that is not on the allowlist (JSON-RPC error without `id`).
           content:
             application/json:
               schema:
@@ -266,15 +270,8 @@ components:
       scheme: bearer
       description: |
         Applies only when the server is configured with an HTTP bearer token. Then `/mcp` requests
-        must send `Authorization: Bearer <token>` (or use `x-api-key` with the same secret). If no
-        token is configured, these routes do not require authentication.
-    apiKeyHeader:
-      type: apiKey
-      in: header
-      name: x-api-key
-      description: |
-        Same as bearer auth when enabled: header value must match the configured token. Not checked
-        when no bearer token is configured.
+        must send `Authorization: Bearer <token>`. If no token is configured, these routes do not
+        require authentication.
 
   parameters:
     McpProtocolVersion:
@@ -372,7 +369,6 @@ components:
               description: Additional error data
       required:
         - jsonrpc
-        - id
         - error
 
     JSONRPCEnvelope:

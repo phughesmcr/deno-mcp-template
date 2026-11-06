@@ -27,9 +27,41 @@ function confirmRequest(elicitation: string, action: string): Request {
 }
 
 Deno.test({
+  name: "POST /mcp-elicitation/confirm is not subject to the /mcp Origin check",
+  fn: () =>
+    withMemoryKv(async (kv, runtime) => {
+      const id = await createUrlElicitation(kv, "Same-origin form post");
+      const request = confirmRequest(id, "confirm");
+      request.headers.set("origin", "http://localhost");
+
+      const res = await createApp(runtime).fetch(request, { clientIp: "127.0.0.1" });
+
+      assertEquals(res.status, 200);
+      await res.body?.cancel();
+    }),
+});
+
+Deno.test({
+  name: "POST /mcp-elicitation/confirm refuses a file where text is expected",
+  fn: () =>
+    withMemoryKv(async (_kv, runtime) => {
+      const body = new FormData();
+      body.set("elicitation", "00000000-0000-4000-8000-000000000001");
+      body.set("action", new File(["confirm"], "action.txt"));
+      const request = new Request("http://localhost/mcp-elicitation/confirm", {
+        method: "POST",
+        body,
+      });
+
+      const res = await createApp(runtime).fetch(request, { clientIp: "127.0.0.1" });
+
+      assertEquals(res.status, 400);
+      assert((await res.text()).includes("Invalid action."));
+    }),
+});
+
+Deno.test({
   name: "/mcp-elicitation/* is not served unless URL elicitation is on",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: () =>
     withMemoryKv(async (_kv, runtime) => {
       const app = createHonoApp({
@@ -52,8 +84,6 @@ for (
 ) {
   Deno.test({
     name: `POST /mcp-elicitation/confirm records the outcome once (${action})`,
-    sanitizeOps: false,
-    sanitizeResources: false,
     fn: () =>
       withMemoryKv(async (kv, runtime) => {
         const id = await createUrlElicitation(kv, "demo");
@@ -77,8 +107,6 @@ for (
 
 Deno.test({
   name: "GET /mcp-elicitation/confirm renders pending label and rejects unknown ids",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: () =>
     withMemoryKv(async (kv, runtime) => {
       const id = await createUrlElicitation(kv, "<b>demo</b>");
@@ -104,8 +132,6 @@ Deno.test({
 
 Deno.test({
   name: "URL elicitation store: resolves once and treats expired records as unknown",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: () =>
     withMemoryKv(async (kv) => {
       const id = await createUrlElicitation(kv, "once");

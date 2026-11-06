@@ -18,8 +18,6 @@ function createAppWithAllowedOrigin(origin: string) {
 
 Deno.test({
   name: "validateOrigin canonicalizes scheme-less origins",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: () => {
     assertEquals(validateOrigin("localhost:3000"), "http://localhost:3000");
   },
@@ -27,8 +25,6 @@ Deno.test({
 
 Deno.test({
   name: "validateOrigin rejects wildcard *",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: () => {
     let threw = false;
     try {
@@ -42,8 +38,6 @@ Deno.test({
 
 Deno.test({
   name: "CORS matches canonicalized configured origins against browser Origin header",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const normalized = validateOrigin("localhost:3000");
     const app = createAppWithAllowedOrigin(normalized);

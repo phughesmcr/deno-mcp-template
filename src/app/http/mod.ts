@@ -117,17 +117,18 @@ export function createHttpServer(
 
   const disconnect = async () => {
     if (!enabled || server === null) return;
+    // Stop accepting first. Not awaited yet: it waits for open responses, and `subscriptions/listen`
+    // streams only end when the handler closes.
+    const shutdown = server.shutdown();
     try {
       await handler?.close();
     } catch (error) {
       console.error(`${APP_NAME}: MCP handler cleanup failed`, error);
-    } finally {
-      handler = null;
-      hono = null;
-      server?.unref();
-      await server?.shutdown();
-      server = null;
     }
+    await shutdown;
+    handler = null;
+    hono = null;
+    server = null;
   };
 
   const isRunning = () => !!server;
