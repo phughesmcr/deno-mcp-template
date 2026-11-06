@@ -35,15 +35,42 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `SECURITY.md` moved to `.github/`.
 - Conformance runs `--requirements 2026-07-28` on `@modelcontextprotocol/conformance`
   0.2.0-alpha.12, and CI pins Deno 2.9.8.
+- **BREAKING:** `/mcp` answers 403 to an `Origin` not in `MCP_ALLOWED_ORIGINS`, including preflights.
+- `deno task start`, `dev`, the compile tasks and the `main.ts` shebang use explicit `--allow-*` flags
+  instead of `-A`. The startup check accepts read, write and net scoped to what the server needs, and
+  no longer asks for `--allow-sys`.
+- `execute-code` is no longer marked read-only. `fetch-website-info` and `execute-code` use
+  `AbortSignal.timeout` and `AbortSignal.any`, so client cancellation stops a running fetch, and
+  `execute-code` stops code with SIGKILL.
+- `getRejected` returns an `AggregateError` when several promises rejected.
+- `deno task ci` also checks `mcp-ui`, which moves to TypeScript 7 and `lib: ESNext`.
+
+### Deprecated
+
+- Sampling, roots and logging are deprecated by SEP-2577, still in the spec for at least twelve
+  months. Their demos stay and are now marked.
 
 ### Removed
 
+- **BREAKING:** `x-api-key` as a credential. Use `Authorization: Bearer`.
+- `src/kv/store.ts` (`openKvStore`, `closeKvStore`, `configureKvPath`). Use `getProcessKvRuntime()`.
 - **BREAKING:** MCP sessions, the KV event store, experimental MCP tasks, `Deno.cron` maintenance,
   `MCP_MAX_TASK_TTL_MS` / `--max-task-ttl-ms`, and the `delayed-echo` and `guided-poem` tools.
 - `AUTHORS.md`, `CONTRIBUTORS.md`, `SUPPORT.md` and `.cursorignore`.
 
 ### Fixed
 
+- STDIO-only servers exit when stdin closes.
+- 401 responses send `WWW-Authenticate: Bearer`, and CORS exposes it.
+- `/favicon.ico` and `/static/*` no longer return 404 for files that exist.
+- The MCP App bundle was built from an incomplete page and failed before connecting to the host.
+- Unhandled rejections and `beforeunload` let shutdown finish, and shutdown failures are logged.
+- HTTP stop refuses late requests instead of answering 500.
+- Malformed IPv6 addresses no longer count as rate-limit identities.
+- `increment-counter` returns the value it wrote, not one that may include a concurrent increment.
+- A throwing KV watch callback no longer ends the watch. `KvWatcher.watch()` resolves after the
+  initial snapshot, and `stop()` also ends watches still being set up.
+- `greetings://` reports a bad name as `InvalidParams` instead of an internal error.
 - `scripts/run-mcp-conformance.sh` stops if its port is in use instead of killing what is listening
   there, and reads the port from `MCP_PORT`, the variable the server uses.
 - **Security:** the server-side fetch filter let through IPv4 addresses embedded in IPv6
@@ -64,6 +91,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Example tools declare accurate `annotations`. `fetch-website-info` and `increment-counter` declare
+  an `outputSchema` and return matching `structuredContent`.
+- The server sends `instructions` and `websiteUrl`. `hello://world` and the MCP App HTML carry cache
+  hints, and `ResourceConfig` in `plugin-types.ts` adds `cacheHint` to resource config.
 - `deno task strip` reduces the template to a minimal server (`echo`, `hello://world`, `review-code`)
   that still passes `deno task ci`, and `strip.yml` checks it on every push.
 - MCP Apps are listed in `src/mcp/apps/mod.ts`, and a `urlElicitation` flag in the server definition

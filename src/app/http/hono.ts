@@ -38,7 +38,7 @@ export interface HonoAppSpec {
   urlElicitation?: boolean;
 }
 
-const STATIC_ROOT = fromFileUrl(new URL("../../../static/", import.meta.url));
+export const STATIC_ROOT = fromFileUrl(new URL("../../../static/", import.meta.url));
 
 function loadNotFoundPageHtml(): string {
   try {
@@ -126,9 +126,15 @@ function createRoutes(
   if (urlElicitation) registerUrlElicitationRoutes(app, kv);
 
   // Static Routes
-  app.use("/static/*", serveStatic({ root: STATIC_ROOT }));
+  app.use(
+    "/static/*",
+    serveStatic({
+      root: STATIC_ROOT,
+      rewriteRequestPath: (path) => path.replace(/^\/static/, ""),
+    }),
+  );
   app.use("/.well-known/*", serveStatic({ root: STATIC_ROOT }));
-  app.use("/favicon.ico", serveStatic({ path: join(STATIC_ROOT, "favicon.ico") }));
+  app.use("/favicon.ico", serveStatic({ root: STATIC_ROOT, path: "favicon.ico" }));
   app.get("/llms.txt", (c) => c.redirect("/.well-known/llms.txt"));
   app.get("/openapi.yaml", (c) => c.redirect("/.well-known/openapi.yaml"));
   // ... add more static routes here

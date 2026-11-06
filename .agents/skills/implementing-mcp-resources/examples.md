@@ -111,6 +111,7 @@ Key patterns:
 import type { KvRuntime } from "$/kv/runtime.ts";
 
 export const COUNTER_KEY: Deno.KvKey = ["resource", "counter", "value"];
+const MAX_INCREMENT_ATTEMPTS = 64;
 
 function ensureNumber(value: unknown): number {
   if (value === null || value === undefined) return 0;
@@ -139,17 +140,21 @@ export async function incrementPersistedCounterValue(
   }
 
   const store = await kv.get();
-  const result = await store.atomic().sum(COUNTER_KEY, BigInt(delta)).commit();
-  if (!result.ok) {
-    throw new Error("Failed to increment counter atomically");
+  for (let attempt = 0; attempt < MAX_INCREMENT_ATTEMPTS; attempt++) {
+    const entry = await store.get<unknown>(COUNTER_KEY);
+    const value = ensureNumber(entry.value) + delta;
+    const result = await store.atomic()
+      .check(entry)
+      .set(COUNTER_KEY, new Deno.KvU64(BigInt(value)))
+      .commit();
+    if (result.ok) return value;
   }
-  const entry = await store.get<unknown>(COUNTER_KEY);
-  return ensureNumber(entry.value);
+  throw new Error(`Failed to increment counter after ${MAX_INCREMENT_ATTEMPTS} attempts`);
 }
 ```
 
 Key patterns:
-- `kv.atomic().sum()` for atomic counter increments
+- `atomic().check(entry)` retries on conflict, so the returned value is the one this call wrote. `atomic().sum()` then `get` could return another caller's total
 - `Deno.KvU64` handling for large integers
 - Store functions take a `KvRuntime`; there is no global KV accessor to import
 - Separate store file keeps persistence logic isolated

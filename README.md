@@ -106,11 +106,11 @@ See [`AGENTS.md`](AGENTS.md) (Architecture) for the per-request `McpServer` inst
 
 **Resources:** `hello://world`, `greetings://{name}`, `counter://value` (KV-backed, updates via `subscriptions/listen`)
 
-**Tools:** `echo`, `elicit-input`, `elicit-form-wizard` (two-step form elicitation), `url-elicitation-demo` (URL-mode elicitation; HTTP only), `fetch-website-info` (text + optional MCP Apps UI in supporting clients), `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
+**Tools:** `echo`, `elicit-input`, `elicit-form-wizard` (two-step form elicitation), `url-elicitation-demo` (URL-mode elicitation; HTTP only), `fetch-website-info` (structured output + optional MCP Apps UI in supporting clients), `increment-counter`, `log-message`, `notify-list-changed`, `poem` (sampling), `execute-code` (sandboxed)
 
 **Conformance fixtures:** the `test_*` tools, prompts and `test://` resources exist for the MCP conformance suite. Delete them with the examples if you drop the suite from CI.
 
-These cover prompts with arguments, static and dynamic resources, subscriptions, sampling, form and URL elicitation, notifications, list-changed events, KV persistence, sandboxed execution, and an MCP Apps UI example (`fetch-website-info`). Use them as reference, then swap in your domain logic.
+These cover prompts with arguments, static and dynamic resources, subscriptions, sampling, form and URL elicitation, notifications, list-changed events, KV persistence, sandboxed execution, and an MCP Apps UI example (`fetch-website-info`). Sampling and logging are deprecated by SEP-2577, still in the spec for at least twelve months. Use the examples as reference, then swap in your domain logic.
 
 ## Make It Yours
 
@@ -136,11 +136,11 @@ To keep some examples, delete what you don't need yourself: remove the files fro
 
 ## HTTP security
 
-- **Authentication:** Set `MCP_HTTP_BEARER_TOKEN` (or `--http-bearer-token`) so clients must send `Authorization: Bearer …` or `x-api-key: …` on `/mcp`. For CI or production templates, `MCP_REQUIRE_HTTP_AUTH=true` fails startup if no token is set. Paths under `/mcp-elicitation/` intentionally skip bearer auth so normal browser tabs can open URL-mode elicitation pages without the MCP token.
+- **Authentication:** Set `MCP_HTTP_BEARER_TOKEN` (or `--http-bearer-token`) so clients must send `Authorization: Bearer …` on `/mcp`. For CI or production templates, `MCP_REQUIRE_HTTP_AUTH=true` fails startup if no token is set. Paths under `/mcp-elicitation/` intentionally skip bearer auth so normal browser tabs can open URL-mode elicitation pages without the MCP token.
 - **Public URL for links:** Behind a reverse proxy, set `MCP_PUBLIC_BASE_URL` (or `--public-base-url`) to the `https://` origin users open in a browser so URL elicitation links match your deployment. If unset, the server derives a URL from the bind address (see `src/shared/publicBaseUrl.ts`).
 - **Exposure:** Binding to a non-loopback hostname without a token logs a warning: anyone who can reach the port can use MCP. Use a token or terminate TLS and auth at a reverse proxy.
 - **All interfaces:** Listening on `0.0.0.0` or `::` requires `--dnsRebinding` plus `--host` / `MCP_ALLOWED_HOSTS` (validated at startup).
-- **CORS:** Wildcard `*` origins are not allowed; list explicit origins (e.g. `MCP_ALLOWED_ORIGINS`).
+- **Origin and CORS:** `/mcp` answers 403 to any `Origin` not in `MCP_ALLOWED_ORIGINS`; requests with no `Origin` pass. Wildcard `*` origins are not allowed, so list explicit origins.
 - **Rate limits:** With `MCP_TRUST_PROXY=true`, limits follow proxy client IP headers (only safe behind a real proxy). Requests with no socket IP use a lower cap (`RATE_LIMIT_UNKNOWN_CLIENT` in `src/shared/constants/http.ts`). Toggle the limiter with `MCP_HTTP_RATE_LIMIT_ENABLED` or `--http-rate-limit` / `--no-http-rate-limit` (default on). The MCP conformance script turns it off so long active-suite runs are not throttled with HTTP 429.
 - **`fetch-website-info`:** Only public HTTPS URLs are allowed by default (blocks private IPs, localhost, link-local, `.internal`, etc.). Redirects are followed manually with the same checks. Set `MCP_DOMAIN_TOOL_ALLOW_HTTP=1` to allow `http://` for demos. MCP Apps-capable hosts may load `ui://deno-mcp-template/fetch-website-info.html` for an inline UI; others still get JSON text in the tool result. **DNS / SSRF depth:** URL checks use the request URL string (and redirect targets), not post-resolution addresses; hostnames that resolve to private or unstable targets can still be risky in hostile networks—tighten with egress controls or disable the tool if that matters for your deployment (see `src/shared/validation/safeToolFetchUrl.ts`).
 
@@ -211,8 +211,7 @@ Claude Code 2.1.318 connects with `claude mcp add --transport http my-mcp-server
 {
   "mcpServers": {
     "my-mcp-server": {
-      "url": "http://localhost:3001/mcp",
-      "headers": { "origin": "http://localhost:3001" }
+      "url": "http://localhost:3001/mcp"
     }
   }
 }
@@ -281,7 +280,7 @@ For automatic deploys, set the `DENO_DEPLOY_TOKEN` secret and the `DENO_DEPLOY_O
 - [ ] Configure `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` for your environments
 - [ ] Set `MCP_REQUEST_STATE_KEY` (32+ bytes, same on every instance) so multi-round calls survive restarts and load balancing
 - [ ] Running more than one instance? `InMemoryServerEventBus` is per process: supply a shared `ServerEventBus` in `src/app/app.ts` so `subscriptions/listen` streams see every change
-- [ ] Switch from `deno run -A` to [explicit permissions](https://docs.deno.com/runtime/fundamentals/security/) for production
+- [ ] Scope the `--allow-*` flags in `deno.json` for your deployment ([Deno security](https://docs.deno.com/runtime/fundamentals/security/))
 - [ ] Review `--allow-net` scope for any outbound tool calls
 - [ ] Set environment variables in CI and hosting provider
 - [ ] Run `deno task ci` (format, lint, type-check, test)
@@ -299,8 +298,8 @@ For automatic deploys, set the `DENO_DEPLOY_TOKEN` secret and the `DENO_DEPLOY_O
 | `MCP_TLS_KEY` | `--tls-key` | | PEM private key path (requires `--tls-cert`) |
 | `MCP_HEADERS` | `-H` | | Response headers (collection) |
 | `MCP_JSON_RESPONSE` | `--json-response` | `false` | JSON-only responses (disable SSE) |
-| `MCP_DNS_REBINDING` | `--dnsRebinding` | `false` | Enable transport-level Origin/Host checks (loopback binds already get Host validation) |
-| `MCP_ALLOWED_ORIGINS` | `--origin` | | Allowed CORS origins (collection) |
+| `MCP_DNS_REBINDING` | `--dnsRebinding` | `false` | Enable Host checks for `MCP_ALLOWED_HOSTS` (loopback binds already get Host validation; the Origin check on `/mcp` is always on) |
+| `MCP_ALLOWED_ORIGINS` | `--origin` | | Allowed origins for CORS and the `/mcp` Origin check (collection) |
 | `MCP_ALLOWED_HOSTS` | `--host` | | Allowed hostnames (collection). `*.example.com` matches one subdomain label |
 | `MCP_KV_PATH` | `--kv-path` | | Custom Deno KV database path |
 | `MCP_REQUEST_STATE_KEY` | | random per process | Secret (32+ bytes) that signs `requestState`; env only, share it across instances |
@@ -314,7 +313,7 @@ CLI flags override env vars. Collection values (`-H`, `--origin`, `--host`) are 
 Collection-style values can be set as comma-separated strings in `.env`:
 
 ```env
-MCP_HEADERS=x-api-key:demo,cache-control:no-store
+MCP_HEADERS=x-custom-header:demo,cache-control:no-store
 MCP_ALLOWED_ORIGINS=http://localhost:6274,https://app.example.com
 MCP_ALLOWED_HOSTS=localhost,127.0.0.1,app.example.com
 ```
@@ -323,7 +322,7 @@ Or repeated CLI flags:
 
 ```bash
 deno task start -- \
-  -H "x-api-key:demo" \
+  -H "x-custom-header:demo" \
   -H "cache-control:no-store" \
   --origin "http://localhost:6274" \
   --origin "https://app.example.com" \
@@ -340,7 +339,7 @@ Use `--origin` for full origins (e.g. `https://example.com`) and `--host` for ho
 | `deno task start` | Start server |
 | `deno task dev` | Start with MCP Inspector + watch mode |
 | `deno task strip` | Remove the example features (`--dry-run` to preview) |
-| `deno task build:mcp-ui` | Build MCP App HTML into `static/mcp-apps/` (Deno + `mcp-ui/deno.lock`; no Node.js) |
+| `deno task build:mcp-ui` | Check `mcp-ui`, then build MCP App HTML into `static/mcp-apps/` (Deno + `mcp-ui/deno.lock`; no Node.js) |
 | `deno task ci` | Runs `build:mcp-ui`, then format, lint, type-check, and test |
 | `deno task test:integration` | Run integration tests |
 | `deno task test:coverage` | Tests with coverage report |
@@ -356,22 +355,17 @@ This template ships **built-in showcase** features named like the upstream refer
 
 ### Runtime permissions
 
-The app validates required permissions at startup and fails fast with actionable guidance. For production, prefer explicit permissions over `-A`:
+The app checks its permissions at startup and fails fast, naming the flag it needs. `deno task start` grants `--allow-env --allow-net --allow-read --allow-write`. Scope read and write to your paths for production:
 
 ```bash
-# HTTP + STDIO (local defaults)
 deno run --env-file=.env \
-  --allow-env --allow-read --allow-write --allow-sys \
-  --allow-net=localhost:3001 \
+  --allow-env --allow-net \
+  --allow-read=static,/var/lib/my-server \
+  --allow-write=/var/lib/my-server \
   main.ts
-
-# STDIO only (no HTTP listener)
-deno run --env-file=.env \
-  --allow-env --allow-read --allow-write --allow-sys \
-  main.ts --no-http
 ```
 
-If you keep networked tools (such as `fetch-website-info`), include their destinations in `--allow-net`.
+Set `MCP_KV_PATH` inside that folder, and add any TLS files to `--allow-read`. KV's default location needs neither flag. `--allow-net` stays unscoped while a tool declares `runtime.requiresNet`, because tools choose their destinations at run time. Without such tools, `--allow-net=localhost:3001` is enough, and STDIO alone needs none.
 
 ### Lockfile and reproducibility
 

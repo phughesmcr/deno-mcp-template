@@ -27,6 +27,8 @@ BASELINE="$ROOT/scripts/conformance-baseline.yml"
 CONFORMANCE_CLI_VERSION="${MCP_CONFORMANCE_CLI_VERSION:-0.2.0-alpha.12}"
 
 export MCP_PORT="$PORT"
+# The suite sends this Origin, and the default allowlist is empty.
+export MCP_ALLOWED_ORIGINS="http://localhost:${PORT}"
 export MCP_HTTP_RATE_LIMIT_ENABLED=false
 
 if (exec 3<>"/dev/tcp/localhost/${PORT}") 2>/dev/null; then

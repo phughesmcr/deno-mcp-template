@@ -19,7 +19,7 @@ Deno.test({
     read: true,
     write: true,
     net: true,
-    sys: true,
+    sys: false,
   },
   fn: async () => {
     await verifyRuntimePermissions(baseConfig);
@@ -33,7 +33,7 @@ Deno.test({
     read: true,
     write: true,
     net: false,
-    sys: true,
+    sys: false,
   },
   fn: async () => {
     let error: unknown;
@@ -75,7 +75,7 @@ Deno.test({
     read: true,
     write: true,
     net: false,
-    sys: true,
+    sys: false,
   },
   fn: async () => {
     let error: unknown;
@@ -101,9 +101,39 @@ Deno.test({
     read: true,
     write: true,
     net: false,
-    sys: true,
+    sys: false,
   },
   fn: async () => {
     await verifyRuntimePermissions(stdioOnlyConfig, definitionWithTool(false));
+  },
+});
+
+Deno.test({
+  name: "permission preflight accepts scoped flags on a server with no networked tools",
+  permissions: {
+    env: true,
+    read: ["static", "/tmp/kv"],
+    write: ["/tmp/kv"],
+    net: ["localhost:3001"],
+    sys: false,
+  },
+  fn: async () => {
+    const config: AppConfig = {
+      ...baseConfig,
+      http: { ...baseConfig.http, hostname: "localhost", port: 3001 },
+      kv: { path: "/tmp/kv/test.kv" },
+    };
+    await verifyRuntimePermissions(config, definitionWithTool(false));
+  },
+});
+
+Deno.test({
+  name: "permission preflight names the configured KV path when writes to it are refused",
+  permissions: { env: true, read: true, write: false, net: true, sys: false },
+  fn: async () => {
+    const config: AppConfig = { ...baseConfig, kv: { path: "/tmp/kv/test.kv" } };
+    const error = await verifyRuntimePermissions(config).then(() => null, (err) => err);
+    assert(error instanceof Error, "expected permission preflight to throw");
+    assert(error.message.includes("--allow-write=/tmp/kv/test.kv"), error.message);
   },
 });

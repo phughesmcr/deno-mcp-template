@@ -7,7 +7,7 @@ Deno version: 2.9.8 (pinned in CI)
 Start: `deno task start`
 Dev mode: `deno task dev`
 Check formatting, lint, types and tests: `deno task ci` (it only checks, so run `deno fmt` first)
-Rebuild MCP App HTML (after editing `mcp-ui/`): `deno task build:mcp-ui` (Deno installs npm deps from `mcp-ui/deno.json` `imports` into `mcp-ui/node_modules` using `mcp-ui/deno.lock`; no Node.js)
+Rebuild MCP App HTML (after editing `mcp-ui/`): `deno task build:mcp-ui` (formats, lints, type-checks and tests `mcp-ui` first; Deno installs npm deps from `mcp-ui/deno.json` `imports` into `mcp-ui/node_modules` using `mcp-ui/deno.lock`; no Node.js)
 Tests with coverage: `deno task test:coverage`
 Benchmarks: `deno task bench`
 MCPB bundle (compile all platforms + pack to `dist/server.mcpb`): `deno task mcpb:all`; `deno task mcpb:pack` repacks existing binaries; manifest in `static/mcpb-manifest.json`
@@ -26,7 +26,7 @@ The server speaks MCP protocol revision **2026-07-28 only** (`@modelcontextproto
 
 ### HTTP stack
 
-`POST /mcp` is served by `createMcpHandler` (`src/app/http/mod.ts`) mounted on Hono (`src/app/http/hono.ts`); other methods on `/mcp` get a 405 from the SDK. Middleware includes rate limiting, CORS, optional bearer auth, host validation, security headers, and request timeouts (skipped for `/mcp`, whose `subscriptions/listen` streams are long-lived). Also served: `/mcp-elicitation/confirm` (URL-mode elicitation pages), `/.well-known/*`, `/static/*`, `/llms.txt`, `/openapi.yaml`.
+`POST /mcp` is served by `createMcpHandler` (`src/app/http/mod.ts`) mounted on Hono (`src/app/http/hono.ts`); other methods on `/mcp` get a 405 from the SDK. Middleware includes rate limiting, the `/mcp` Origin check, CORS, optional bearer auth, host validation, security headers, and request timeouts (skipped for `/mcp`, whose `subscriptions/listen` streams are long-lived). Also served: `/mcp-elicitation/confirm` (URL-mode elicitation pages), `/.well-known/*`, `/static/*`, `/llms.txt`, `/openapi.yaml`.
 
 ### One `McpServer` per request
 
@@ -40,13 +40,14 @@ List-changed and resource-updated notifications are published on the shared `Ser
 
 ### Multi-round interaction (`input_required`)
 
-Tools, prompts and resources cannot call `elicitInput` / `createMessage`. They return `inputRequired({ inputRequests, requestState? })`; the client fulfils the requests and retries with `ctx.mcpReq.inputResponses`. State that must survive between rounds goes in signed `requestState` (`deps.requestState.mint(...)`), keyed by env `MCP_REQUEST_STATE_KEY` (32+ bytes; random per process when unset, so set it for multi-instance deployments). See `src/mcp/tools/elicitInput.ts`, `elicitFormWizard.ts`, `poem.ts`.
+Tools, prompts and resources cannot call `elicitInput` / `createMessage`. They return `inputRequired({ inputRequests, requestState? })`; the client fulfils the requests and retries with `ctx.mcpReq.inputResponses`. State that must survive between rounds goes in signed `requestState` (`deps.requestState.mint(...)`), keyed by env `MCP_REQUEST_STATE_KEY` (32+ bytes; random per process when unset, so set it for multi-instance deployments). See `src/mcp/tools/elicitInput.ts`, `elicitFormWizard.ts`, `poem.ts`. Sampling, roots and logging are deprecated by SEP-2577, still in the spec for at least twelve months. The demos stay, but do not build new features on them.
 
 ### Security and transport toggles
 
 - **Host header validation** (see `src/app/http/hostHeaderMiddleware.ts`): on loopback listen addresses, `Host` must be `localhost`, `127.0.0.1`, or `[::1]` (port ignored). With `--dnsRebinding` and configured allowed hosts, that list applies instead. Binding to all interfaces without DNS rebinding allowlists logs a one-time startup warning.
 - **DNS rebinding protection** on the HTTP transport is opt-in: `MCP_DNS_REBINDING=true` or `--dnsRebinding` (with `--origin` / `--host` per CLI rules). Use `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` for Origin and Host checks.
-- CORS allowed origins default to **empty**; browser clients need `MCP_ALLOWED_ORIGINS` or `--origin`.
+- CORS allowed origins default to **empty**; browser clients need `MCP_ALLOWED_ORIGINS` or `--origin`. `/mcp` answers 403 to a present `Origin` not on that list, whatever `--dnsRebinding` says.
+- When stdin closes, the app stops if HTTP is off; with HTTP on, only STDIO disconnects.
 - HTTP: on by default; disable with `MCP_NO_HTTP=true` or `--no-http`.
 - STDIO: on by default; disable with `MCP_NO_STDIO=true` or `--no-stdio`.
 
@@ -56,12 +57,13 @@ KV is built into Deno (`Deno.Kv`): file-backed locally, managed service on [Deno
 
 ### Sandboxed `execute-code`
 
-Runs untrusted TS/JS in [Deno Sandbox](https://docs.deno.com/sandbox/) (isolated VM, no net/fs/env). Set `DENO_DEPLOY_TOKEN` in `.env` (Deploy dashboard → Organization Tokens). Implementation: `src/mcp/tools/sandbox.ts`.
+Runs untrusted TS/JS in [Deno Sandbox](https://docs.deno.com/sandbox/) (isolated VM, no net/fs/env). Set `DENO_DEPLOY_TOKEN` in `.env` (Deploy dashboard → Organization Tokens). Implementation: `src/mcp/tools/sandbox.ts`. A timeout or cancellation kills the code with SIGKILL, as it could trap SIGTERM.
 
 ### Caveats
 
 - Without `MCP_REQUEST_STATE_KEY`, each process signs `requestState` with a random key; in-flight multi-round calls end at restart and do not cross instances.
-- Local tasks often use `deno run -A`; tighten permissions before production ([Deno security](https://docs.deno.com/runtime/fundamentals/security/)).
+- `start`, `dev`, the compile tasks and the `main.ts` shebang grant `--allow-env --allow-net --allow-read --allow-write`; one-off `scripts/*` tasks keep `-A`. `src/app/permissions.ts` accepts read and write scoped to the paths it needs, so scope them before production ([Deno security](https://docs.deno.com/runtime/fundamentals/security/)).
+- `ServerEventBus` is in-memory, so list-changed events reach only streams on the same instance. `resource_updated` crosses instances through KV watches. On a multi-instance deployment such as Deno Deploy, implement `ServerEventBus` over shared pub/sub if clients rely on list-changed events.
 - With `--dnsRebinding`, configure origins/hosts via env/CLI or `src/shared/constants/http.ts`.
 - Before shipping, review `static/.well-known/openapi.yaml`, `static/.well-known/llms.txt`, and `static/mcpb-manifest.json`; set secrets in GitHub and Deno Deploy as needed.
 - After `deno task setup`, do a final pass for template names and identifiers.
@@ -90,8 +92,8 @@ src/
 │   │   ├── honoEnv.ts              # Hono bindings/variables types
 │   │   ├── hono.ts                 # Hono app: middleware, POST /mcp (SDK handler), static and browser routes
 │   │   ├── hostHeaderMiddleware.ts # Host allowlist (localhost + explicit DNS rebinding hosts)
-│   │   ├── httpBearerAuthMiddleware.ts # Optional bearer auth for HTTP routes
-│   │   ├── httpSecurityMiddleware.ts # CORS + host protection wiring
+│   │   ├── httpBearerAuthMiddleware.ts # Optional bearer auth for `/mcp`
+│   │   ├── httpSecurityMiddleware.ts # Origin check + CORS + host protection wiring
 │   │   ├── mod.ts                  # Deno.serve + createMcpHandler (legacy: "reject")
 │   │   ├── rateLimitIdentity.ts    # Rate-limit client identity (IP / unknown)
 │   │   └── urlElicitationRoutes.ts # Browser pages for URL-mode elicitation
@@ -105,12 +107,11 @@ src/
 ├── kv/
 │   ├── mod.ts                      # Exports Deno KV runtime and watcher helpers
 │   ├── runtime.ts                  # KvRuntime: lazy process-scoped Deno.Kv handle
-│   ├── store.ts                    # Deno KV open/close lifecycle and config
 │   └── watch.ts                    # KV key watcher (drives resource_updated events)
 ├── mcp/
 │   ├── context.ts                  # McpServerFactoryContext (kv, events, requestState, publicBaseUrl)
 │   ├── inputResponses.ts           # Helpers for reading input_required answers (wasDeclined, samplingText)
-│   ├── plugin-types.ts             # defineTool / definePrompt / registerResource for new MCP features
+│   ├── plugin-types.ts             # defineTool / definePrompt / registerResource and ResourceConfig for new MCP features
 │   ├── requestState.ts             # HMAC codec for signed requestState
 │   ├── prompts/
 │   │   ├── codeReview.ts           # A code-review prompt example
@@ -145,7 +146,7 @@ src/
 │   │   └── mod.ts                  # Provides a single point of export for all MCP tools
 │   ├── urlElicitation/
 │   │   └── store.ts                # Pending URL elicitations in KV
-│   ├── serverDefinition.ts         # Feature registry + derived server capabilities
+│   ├── serverDefinition.ts         # Feature registry, derived server capabilities, SERVER_INFO and SERVER_INSTRUCTIONS
 │   └── mod.ts                      # createMcpServer: builds and configures the McpServer
 ├── shared/
 │   ├── constants/
@@ -199,7 +200,7 @@ Data Validation: Use `zod` schemas for data validation
 HTTP Responses: Return proper status codes and structured JSON responses, including JSONRPC when necessary.
 Transactions: Use `kv.atomic()` for Deno KV transactions when updating multiple records
 Error Handling: Provide detailed error messages but avoid exposing sensitive information
-Tool Implementation: Use `defineTool` / `definePrompt` / `registerResource` from `src/mcp/plugin-types.ts` (handlers get `(args, ctx, deps)`); see `.agents/skills/`
+Tool Implementation: Use `defineTool` / `definePrompt` / `registerResource` from `src/mcp/plugin-types.ts` (handlers get `(args, ctx, deps)`); see `.agents/skills/`. Declare `annotations` on every tool, and an `outputSchema` with matching `structuredContent` when the result has a fixed shape.
 
 ## Docs
 
