@@ -28,7 +28,12 @@ async function removeIfPresent(path: string): Promise<void> {
   });
 }
 
-/** Leaves `dist/server.mcpb` only if it was packed and signed, and no staged files either way. */
+/**
+ * Leaves `dist/server.mcpb` only if it was packed, and no staged files either way.
+ *
+ * Not signed: `mcpb sign` appends the signature after the zip without updating the end of central
+ * directory record, and Claude Desktop then refuses the file.
+ */
 export async function packBundle(root = ".", run: RunMcpb = mcpb): Promise<string> {
   const dist = `${root}/dist`;
   const bundle = `${dist}/server.mcpb`;
@@ -56,7 +61,6 @@ export async function packBundle(root = ".", run: RunMcpb = mcpb): Promise<strin
     await Deno.copyFile(`${root}/static/mcpb-launcher.sh`, launcher);
     await run("validate", manifest);
     await run("pack", dist, bundle);
-    await run("sign", bundle, "--self-signed");
   } catch (error) {
     await removeIfPresent(bundle);
     throw error;

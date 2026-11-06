@@ -166,7 +166,7 @@ The `binaries` workflow (`.github/workflows/binaries.yml`) smoke-tests each targ
 
 Compile tasks bundle the `static/` directory, so binaries serve static routes without depending on the working directory.
 
-**MCPB prerequisite:** install the MCPB CLI once with `npm install -g @anthropic-ai/mcpb`. Update `static/mcpb-manifest.json` before packaging. The script self-signs the bundle.
+**MCPB prerequisite:** install the MCPB CLI once with `npm install -g @anthropic-ai/mcpb`. Update `static/mcpb-manifest.json` before packaging. The bundle is not signed, as `mcpb sign` produces a file Claude Desktop refuses.
 
 **JSR prerequisite:** you need a [JSR.io](https://jsr.io) account. If you don't plan to publish on JSR, remove `.github/workflows/publish.yml`.
 

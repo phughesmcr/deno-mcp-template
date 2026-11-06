@@ -51,12 +51,12 @@ async function failure(run: Promise<unknown>): Promise<string> {
   throw new Error("expected a failure");
 }
 
-Deno.test("packBundle validates, packs and signs, then clears the staged files", async () => {
+Deno.test("packBundle validates and packs, then clears the staged files", async () => {
   const root = await project();
   try {
     const { calls, run } = fakeMcpb();
     assertEquals(await packBundle(root, run), `${root}/dist/server.mcpb`);
-    assertEquals(calls.join(), "--version,validate,pack,sign");
+    assertEquals(calls.join(), "--version,validate,pack");
     assert(await exists(`${root}/dist/server.mcpb`), "no bundle");
     await assertNothingStaged(root);
   } finally {
@@ -64,12 +64,12 @@ Deno.test("packBundle validates, packs and signs, then clears the staged files",
   }
 });
 
-Deno.test("packBundle leaves no unsigned bundle when signing fails", async () => {
+Deno.test("packBundle leaves no partial bundle when packing fails", async () => {
   const root = await project();
   try {
-    const message = await failure(packBundle(root, fakeMcpb("sign").run));
-    assert(message.includes("sign failed"), message);
-    assert(!await exists(`${root}/dist/server.mcpb`), "unsigned bundle left behind");
+    const message = await failure(packBundle(root, fakeMcpb("pack").run));
+    assert(message.includes("pack failed"), message);
+    assert(!await exists(`${root}/dist/server.mcpb`), "partial bundle left behind");
     await assertNothingStaged(root);
   } finally {
     await Deno.remove(root, { recursive: true });

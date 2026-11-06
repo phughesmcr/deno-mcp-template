@@ -100,6 +100,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pages load.
 - `deno task setup` no longer writes unescaped values, reports success after a failure, or ignores
   `--url`.
+- `deno task mcpb:pack` no longer signs the bundle: `mcpb sign` left a zip that Claude Desktop
+  refused with "Invalid comment length".
 
 ### Added
 
