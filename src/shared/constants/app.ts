@@ -17,9 +17,7 @@ export const APP_DESCRIPTION = "A template for building MCP servers with Deno.";
 export const APP_VERSION = DenoJson.version;
 
 /** The app's usage string. */
-export const APP_USAGE = Deno.build.standalone ?
-  (import.meta.filename || APP_NAME) :
-  "deno task start";
+export const APP_USAGE = Deno.build.standalone ? APP_NAME : "deno task start";
 
 /** The MCP protocol revision this server speaks. `--legacy-stdio` adds 2025-era STDIO clients. */
 export const MCP_PROTOCOL_VERSION = "2026-07-28";

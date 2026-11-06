@@ -104,6 +104,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `--url`.
 - `deno task mcpb:pack` no longer signs the bundle: `mcpb sign` left a zip that Claude Desktop
   refused with "Invalid comment length".
+- `--help` in a compiled binary shows the app name instead of a temp path.
 
 ### Added
 
