@@ -1,5 +1,5 @@
-#!/usr/bin/env -S deno run -A
-/** @warning ^ You should narrow the allowed permissions in production. */
+#!/usr/bin/env -S deno run --allow-env --allow-net --allow-read --allow-write --allow-sys
+/** @see src/app/permissions.ts for why each permission is needed. */
 
 /**
  * @description An example MCP server using Deno
@@ -9,7 +9,7 @@
  * {
  *   "mcpServers": {
  *     "my-published-mcp-server": {
- *       "command": "deno run -A jsr:@your-scope/your-package --no-http"
+ *       "command": "deno run --allow-env --allow-net --allow-read --allow-write --allow-sys jsr:@your-scope/your-package --no-http"
  *     },
  *   }
  * }
@@ -34,7 +34,7 @@
  * {
  *   "mcpServers": {
  *     "my-local-mcp-server": {
- *       "command": "deno run -A absolute/path/to/main.ts --no-http"
+ *       "command": "deno run --allow-env --allow-net --allow-read --allow-write --allow-sys absolute/path/to/main.ts --no-http"
  *     },
  *   }
  * }
