@@ -65,7 +65,7 @@ Connect from any MCP client:
   "mcpServers": {
     "my-mcp-server": {
       "command": "deno",
-      "args": ["run", "-A", "/absolute/path/to/main.ts"]
+      "args": ["run", "-A", "/absolute/path/to/main.ts", "--no-http"]
     }
   }
 }
@@ -173,14 +173,14 @@ Compile tasks bundle the `static/` directory, so binaries serve static routes wi
 
 ### Client configuration examples
 
-**STDIO** (Cursor, Claude Desktop, etc.):
+**STDIO** (Cursor, Claude Desktop, etc.). `--no-http` stops each client's copy of the server binding the HTTP port, so two can run at once:
 
 ```json
 {
   "mcpServers": {
     "my-mcp-server": {
       "command": "deno",
-      "args": ["run", "-A", "/absolute/path/to/main.ts"]
+      "args": ["run", "-A", "/absolute/path/to/main.ts", "--no-http"]
     }
   }
 }
@@ -223,7 +223,7 @@ Claude Code 2.1.318 connects with `claude mcp add --transport http my-mcp-server
   "mcpServers": {
     "my-mcp-server": {
       "command": "deno",
-      "args": ["run", "-A", "jsr:@your-scope/your-package"]
+      "args": ["run", "-A", "jsr:@your-scope/your-package", "--no-http"]
     }
   }
 }
@@ -235,7 +235,8 @@ Claude Code 2.1.318 connects with `claude mcp add --transport http my-mcp-server
 {
   "mcpServers": {
     "my-mcp-server": {
-      "command": "/absolute/path/to/binary"
+      "command": "/absolute/path/to/binary",
+      "args": ["--no-http"]
     }
   }
 }
@@ -244,7 +245,7 @@ Claude Code 2.1.318 connects with `claude mcp add --transport http my-mcp-server
 **Claude Code:**
 
 ```bash
-claude mcp add my-mcp-server /absolute/path/to/binary
+claude mcp add my-mcp-server -- /absolute/path/to/binary --no-http
 claude mcp add --transport http my-mcp-server http://localhost:3001/mcp
 ```
 
@@ -403,12 +404,13 @@ Included quality-of-life files:
 
 - `AGENTS.md` -- Agent rules for this project
 - `.agents/skills/` -- Agent skills for implementing tools, resources, and prompts (see below)
+- `.claude/skills` -- Symlink to `.agents/skills/`, which is where Claude Code looks for them
 - `.vscode/` -- recommended extensions, Deno as default formatter
 - `.github/` -- CI/CD workflows, sponsors config, issue templates, contributing and security policies
 
 ### Skills
 
-The `.agents/skills/` directory contains agent skills that guide Cursor through implementing MCP features in this template. Each skill provides file templates, registration steps, type signatures, and working examples.
+The `.agents/skills/` directory contains agent skills that guide coding agents through implementing MCP features in this template. Each skill provides file templates, registration steps, type signatures, and working examples.
 
 | Skill | What it covers |
 | --- | --- |
@@ -416,7 +418,7 @@ The `.agents/skills/` directory contains agent skills that guide Cursor through 
 | [`implementing-mcp-resources`](.agents/skills/implementing-mcp-resources/SKILL.md) | Static resources, KV-backed resources, resource templates, subscriptions |
 | [`implementing-mcp-prompts`](.agents/skills/implementing-mcp-prompts/SKILL.md) | Prompts with static arguments or dynamic completions |
 
-These skills are picked up automatically by Cursor when relevant. Ask the agent to "add a new tool" or "create a resource" and it will follow the project's patterns.
+These skills are picked up automatically by Cursor and Claude Code when relevant. On Windows, Claude Code needs Git symlinks enabled (`core.symlinks`). Ask the agent to "add a new tool" or "create a resource" and it will follow the project's patterns.
 
 ## References
 

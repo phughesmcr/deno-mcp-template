@@ -14,7 +14,7 @@ Task Progress:
 - [ ] Step 3: Export as default ResourcePlugin or ResourceTemplatePlugin
 - [ ] Step 4: Register in src/mcp/resources/mod.ts
 - [ ] Step 5: (If KV-backed) Add URI-to-key mapping in kvKeys.ts
-- [ ] Step 6: Run `deno task ci` to verify
+- [ ] Step 6: Run `deno fmt`, then `deno task ci` to verify
 ```
 
 ## Resource Types

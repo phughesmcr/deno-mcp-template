@@ -353,6 +353,11 @@ async function main(): Promise<boolean> {
 
     await updateAllFiles(info);
 
+    // New names can change line lengths, which `deno task ci` would otherwise reject.
+    const { success: formatted } = await new Deno.Command("deno", { args: ["fmt", "--quiet"] })
+      .output();
+    if (!formatted) console.error("⚠️ `deno fmt` failed. Run it before `deno task ci`.");
+
     console.log("\n🎉 Template setup complete!");
     console.log("\nNext steps:");
     console.log("1. Review the updated files and the rest of the repo.");
@@ -363,7 +368,7 @@ async function main(): Promise<boolean> {
     if (info.denoDeployApp) {
       console.log(`   Set DENO_DEPLOY_APP to "${info.denoDeployApp}" if not already.`);
     }
-    console.log("4. Run `deno task ci` to format and check the code");
+    console.log("4. Run `deno task ci` to check the code");
     console.log("5. Start coding your MCP server!");
     return true;
   } catch (error) {

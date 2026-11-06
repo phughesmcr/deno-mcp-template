@@ -43,36 +43,60 @@ function parseIpv4Octets(host: string): [number, number, number, number] | null 
 }
 
 function isBlockedIpv4(octets: [number, number, number, number]): boolean {
-  const [a, b] = octets;
+  const [a, b, c] = octets;
   if (a === 0 || a === 127) return true;
   if (a === 10) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
   if (a === 169 && b === 254) return true;
   if (a === 100 && b >= 64 && b <= 127) return true;
-  return false;
+  if (a === 192 && b === 0 && (c === 0 || c === 2)) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
+  if (a === 198 && b === 51 && c === 100) return true;
+  if (a === 203 && b === 0 && c === 113) return true;
+  return a >= 224; // Multicast, reserved and broadcast.
+}
+
+/** Expands a hostname from `URL`, which is always hex with no zone, into its eight groups. */
+function parseIpv6Groups(host: string): number[] | null {
+  const [head = "", tail, ...rest] = host.split("::");
+  if (rest.length > 0) return null;
+  const parse = (part: string) => part ? part.split(":").map((x) => parseInt(x, 16)) : [];
+  const left = parse(head);
+  const right = parse(tail ?? "");
+  const missing = 8 - left.length - right.length;
+  if (missing < 0 || (tail === undefined && missing !== 0)) return null;
+  const groups = [...left, ...new Array<number>(missing).fill(0), ...right];
+  return groups.every((n) => n >= 0 && n <= 0xffff) ? groups : null;
+}
+
+function toOctets(high: number, low: number): [number, number, number, number] {
+  return [high >> 8, high & 0xff, low >> 8, low & 0xff];
+}
+
+/** Returns the IPv4 address an IPv6 address carries, however it is embedded. */
+function embeddedIpv4(groups: number[]): [number, number, number, number] | null {
+  const [a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0, h = 0] = groups;
+  if (a === 0x2002) return toOctets(b, c); // 6to4
+  const isNat64 = a === 0x64 && b === 0xff9b && !c && !d && !e && !f;
+  const isZeroPrefix = !a && !b && !c && !d;
+  const isCompatible = isZeroPrefix && !e && !f; // Includes :: and ::1.
+  const isMapped = isZeroPrefix && !e && f === 0xffff;
+  const isTranslated = isZeroPrefix && e === 0xffff && !f;
+  return isNat64 || isCompatible || isMapped || isTranslated ? toOctets(g, h) : null;
 }
 
 function isBlockedIpv6Hostname(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  if (h === "::1") return true;
+  const groups = parseIpv6Groups(hostname);
+  if (!groups) return true;
 
-  const v4mapped = /::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(h);
-  if (v4mapped) {
-    const parsed = parseIpv4Octets(v4mapped[1] ?? "");
-    if (parsed && isBlockedIpv4(parsed)) return true;
-  }
+  const ipv4 = embeddedIpv4(groups);
+  if (ipv4) return isBlockedIpv4(ipv4);
 
-  const first = h.split(":")[0] ?? "";
-  if (first.startsWith("ff")) return true;
-  if (first.startsWith("fc") || first.startsWith("fd")) return true;
-  if (
-    first.startsWith("fe8") || first.startsWith("fe9") || first.startsWith("fea") ||
-    first.startsWith("feb")
-  ) {
-    return true;
-  }
-  return false;
+  // Only 2000::/3 is global unicast, less Teredo (2001::/32) and documentation (2001:db8::/32).
+  const [first = 0, second = 0] = groups;
+  if ((first & 0xe000) !== 0x2000) return true;
+  return first === 0x2001 && (second === 0 || second === 0xdb8);
 }
 
 /**
@@ -92,7 +116,7 @@ export function isUrlAllowedForServerSideFetch(
     return false;
   }
 
-  let hostname = url.hostname.toLowerCase();
+  let hostname = url.hostname.toLowerCase().replace(/\.+$/, "");
   if (hostname.startsWith("[") && hostname.endsWith("]")) {
     hostname = hostname.slice(1, -1);
   }

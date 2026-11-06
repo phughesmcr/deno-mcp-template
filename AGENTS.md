@@ -6,7 +6,7 @@ Deno version: 2.9.8 (pinned in CI)
 
 Start: `deno task start`
 Dev mode: `deno task dev`
-Format, lint, and type-check code: `deno task ci`
+Check formatting, lint, types and tests: `deno task ci` (it only checks, so run `deno fmt` first)
 Rebuild MCP App HTML (after editing `mcp-ui/`): `deno task build:mcp-ui` (Deno installs npm deps from `mcp-ui/deno.json` `imports` into `mcp-ui/node_modules` using `mcp-ui/deno.lock`; no Node.js)
 Tests with coverage: `deno task test:coverage`
 Benchmarks: `deno task bench`
@@ -181,7 +181,7 @@ Imports: Use JSR imports (`jsr:`) or npm imports (`npm:`) with explicit paths. E
 Structure: The entrypoint is `main.ts`. Core functionality is in `src/`. `src/app` wraps the MCP server from `src/mcp` in some convenience functions for serving HTTP, etc.
 TypeScript: Strict type checking, ES modules, explicit return types
 Naming: PascalCase for classes/types, camelCase for functions/variables
-Files: Lowercase with hyphens, test files with .test.ts suffix
+Files: camelCase in `src/` and lowercase with hyphens in `__test__/`, with a `.test.ts` suffix
 Error Handling: Use TypeScript's strict mode, explicit error checking in tests
 Formatting: 2-space indentation, semicolons required, double quotes preferred
 Testing: Locate tests in `__test__/`, use descriptive test names. We use `deno test` for testing.

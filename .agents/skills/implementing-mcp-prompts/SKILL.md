@@ -13,7 +13,7 @@ Task Progress:
 - [ ] Step 2: Define a Zod args schema and call definePrompt({ name, argsSchema, handler })
 - [ ] Step 3: Export the result as the default export
 - [ ] Step 4: Register in src/mcp/prompts/mod.ts
-- [ ] Step 5: Run `deno task ci` to verify
+- [ ] Step 5: Run `deno fmt`, then `deno task ci` to verify
 ```
 
 ## Prompt File Template

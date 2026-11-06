@@ -9,7 +9,7 @@
  * {
  *   "mcpServers": {
  *     "my-published-mcp-server": {
- *       "command": "deno run -A jsr:@your-scope/your-package"
+ *       "command": "deno run -A jsr:@your-scope/your-package --no-http"
  *     },
  *   }
  * }
@@ -34,7 +34,7 @@
  * {
  *   "mcpServers": {
  *     "my-local-mcp-server": {
- *       "command": "deno run -A absolute/path/to/main.ts"
+ *       "command": "deno run -A absolute/path/to/main.ts --no-http"
  *     },
  *   }
  * }
@@ -43,7 +43,7 @@
  * @example Claude Code
  * ```bash
  * # Compiled binary:
- * claude mcp add my-mcp-server "absolute/path/to/binary"
+ * claude mcp add my-mcp-server -- "absolute/path/to/binary" --no-http
  *
  * # or with HTTP (use `deno task start` first)
  * claude mcp add --transport http my-mcp-server http://localhost:3001/mcp

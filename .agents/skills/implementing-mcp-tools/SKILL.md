@@ -15,7 +15,7 @@ Task Progress:
 - [ ] Step 2: Define a Zod schema and call defineTool({ name, inputSchema, handler })
 - [ ] Step 3: Export the result as the default export
 - [ ] Step 4: Register in src/mcp/tools/mod.ts
-- [ ] Step 5: Run `deno task ci` to verify
+- [ ] Step 5: Run `deno fmt`, then `deno task ci` to verify
 ```
 
 ## Tool File Template

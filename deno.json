@@ -204,6 +204,7 @@
   "publish": {
     "exclude": [
       ".agents/",
+      ".claude/",
       ".gitattributes",
       ".github/",
       ".vscode/",

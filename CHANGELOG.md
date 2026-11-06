@@ -44,6 +44,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Security:** the server-side fetch filter let through IPv4 addresses embedded in IPv6
+  (`[::ffff:127.0.0.1]`, NAT64, 6to4), `[::]`, blocked hostnames with a trailing dot, and several
+  reserved IPv4 ranges. IPv6 is now parsed, and only global unicast is allowed.
+- Stdio examples pass `--no-http`, so a second client no longer crashes on `AddrInUse`.
+- `deno task setup` formats the code afterwards, so `deno task ci` passes straight after it.
+- Claude Code finds the agent skills through a `.claude/skills` symlink.
 - `compile:*` tasks passed `--target` and `--icon` after `main.ts`, baking them into the binary as
   script arguments: the target was ignored and the binary exited with a usage error.
 - `clean:dist` no longer fails when `dist/` does not exist.
