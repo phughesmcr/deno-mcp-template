@@ -55,6 +55,7 @@ function buildReplacements(info: ProjectInfo): Array<{ find: string; replace: st
 }
 
 const FILES_TO_UPDATE = [
+  ".env.example",
   ".github/workflows/deploy.yml",
   ".github/CODEOWNERS",
   ".github/FUNDING.yml",
