@@ -195,7 +195,7 @@ Data Validation: Use `zod` schemas for data validation
 HTTP Responses: Return proper status codes and structured JSON responses, including JSONRPC when necessary.
 Transactions: Use `kv.atomic()` for Deno KV transactions when updating multiple records
 Error Handling: Provide detailed error messages but avoid exposing sensitive information
-Tool Implementation: Use `defineTool` / `definePrompt` / `registerResource` from `src/mcp/plugin-types.ts` (handlers get `(args, ctx, deps)`); see `.cursor/skills/`
+Tool Implementation: Use `defineTool` / `definePrompt` / `registerResource` from `src/mcp/plugin-types.ts` (handlers get `(args, ctx, deps)`); see `.agents/skills/`
 
 ## Docs
 

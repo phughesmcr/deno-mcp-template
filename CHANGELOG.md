@@ -27,6 +27,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as describ
 - CI runs on `dev` and passes `DENO_DEPLOY_TOKEN`, so the real sandbox test runs.
 - `deploy.yml` has a `prod` dispatch input (default false), so a manual run makes a preview. It checks
   org and app access first, smoke-tests the deployed URL, and prints app logs on failure.
+- Agent rules and skills moved from `.cursor/` to `.agents/`.
 - Conformance runs `--requirements 2026-07-28` on `@modelcontextprotocol/conformance`
   0.2.0-alpha.12, and CI pins Deno 2.9.8.
 

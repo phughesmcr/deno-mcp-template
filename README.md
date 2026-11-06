@@ -81,7 +81,7 @@ When this package is published to JSR, you can import the full program (`main.ts
 - **`jsr:@scope/name/mcp`** — `createMcpServer`, `mcpServerDefinition`, the factory context type, and related exports. The host must still open Deno KV (and any other shared services) before handling requests, same as `createApp` does.
 - **`jsr:@scope/name/app`** — `createApp` for embedding the STDIO + HTTP host without copying `main.ts`.
 
-See [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc) (Architecture) for the per-request `McpServer` instances and the shared factory context.
+See [`.agents/rules/project.mdc`](.agents/rules/project.mdc) (Architecture) for the per-request `McpServer` instances and the shared factory context.
 
 ## What's Included
 
@@ -395,14 +395,14 @@ __bench__                   # Benchmarks
 ```
 
 For the annotated source tree, transport internals, and development caveats, see
-[`.cursor/rules/project.mdc`](.cursor/rules/project.mdc).
+[`.agents/rules/project.mdc`](.agents/rules/project.mdc).
 
 ## Extras
 
 Included quality-of-life files:
 
-- `.cursor/rules/` -- Cursor agent rules for this project
-- `.cursor/skills/` -- Agent skills for implementing tools, resources, and prompts (see below)
+- `.agents/rules/` -- Agent rules for this project
+- `.agents/skills/` -- Agent skills for implementing tools, resources, and prompts (see below)
 - `.cursorignore` -- tells Cursor to exclude files in addition to `.gitignore`
 - `.vscode/` -- recommended extensions, Deno as default formatter
 - `.github/` -- CI/CD workflows, sponsors config, issue templates
@@ -410,13 +410,13 @@ Included quality-of-life files:
 
 ### Skills
 
-The `.cursor/skills/` directory contains agent skills that guide Cursor through implementing MCP features in this template. Each skill provides file templates, registration steps, type signatures, and working examples.
+The `.agents/skills/` directory contains agent skills that guide Cursor through implementing MCP features in this template. Each skill provides file templates, registration steps, type signatures, and working examples.
 
 | Skill | What it covers |
 | --- | --- |
-| [`implementing-mcp-tools`](.cursor/skills/implementing-mcp-tools/SKILL.md) | Standard tools, sampling, form and URL elicitation, resource-backed tools, notifications |
-| [`implementing-mcp-resources`](.cursor/skills/implementing-mcp-resources/SKILL.md) | Static resources, KV-backed resources, resource templates, subscriptions |
-| [`implementing-mcp-prompts`](.cursor/skills/implementing-mcp-prompts/SKILL.md) | Prompts with static arguments or dynamic completions |
+| [`implementing-mcp-tools`](.agents/skills/implementing-mcp-tools/SKILL.md) | Standard tools, sampling, form and URL elicitation, resource-backed tools, notifications |
+| [`implementing-mcp-resources`](.agents/skills/implementing-mcp-resources/SKILL.md) | Static resources, KV-backed resources, resource templates, subscriptions |
+| [`implementing-mcp-prompts`](.agents/skills/implementing-mcp-prompts/SKILL.md) | Prompts with static arguments or dynamic completions |
 
 These skills are picked up automatically by Cursor when relevant. Ask the agent to "add a new tool" or "create a resource" and it will follow the project's patterns.
 
