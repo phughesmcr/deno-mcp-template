@@ -7,6 +7,7 @@ import {
   FETCH_WEBSITE_INFO_TOOL_NAME,
   type FetchWebsiteInfoSuccess,
 } from "$/mcp/tools/fetchWebsiteInfoShared.ts";
+import { parseToolResult } from "../mcp-ui/src/toolResult.ts";
 import { assert, assertEquals } from "./helpers.ts";
 import { createTestMcpHandler, mcpRequest } from "./mcpHttp.ts";
 
@@ -33,9 +34,7 @@ function contextWith(signal: AbortSignal): ServerContext {
   return { mcpReq: { signal } } as unknown as ServerContext;
 }
 
-type FetchToolResult = Omit<CallToolResult, "structuredContent"> & {
-  structuredContent?: FetchWebsiteInfoSuccess;
-};
+type FetchToolResult = CallToolResult & { structuredContent?: FetchWebsiteInfoSuccess };
 
 function callFetchTool(url: string): Promise<{ result: FetchToolResult }> {
   const params = { name: FETCH_WEBSITE_INFO_TOOL_NAME, arguments: { url } };
@@ -55,7 +54,11 @@ Deno.test({
     );
     const payload = await response.json() as {
       result?: {
-        contents: Array<{ mimeType?: string; text?: string }>;
+        contents: Array<{
+          mimeType?: string;
+          text?: string;
+          _meta?: { ui?: { prefersBorder?: boolean } };
+        }>;
         ttlMs?: number;
         cacheScope?: string;
       };
@@ -79,9 +82,27 @@ Deno.test({
       content.text.includes("<!DOCTYPE html>") || content.text.includes("<!doctype html>"),
       "expected HTML doctype in bundled app",
     );
+    assertEquals(content._meta?.ui?.prefersBorder, false);
     assertEquals(payload.result.ttlMs, 3_600_000);
     assertEquals(payload.result.cacheScope, "public");
   },
+});
+
+Deno.test("the bundle is self-contained and has every element of the page", async () => {
+  const bundle = await Deno.readTextFile(
+    new URL("../static/mcp-apps/fetch-website-info.html", import.meta.url),
+  );
+  const page = await Deno.readTextFile(
+    new URL("../mcp-ui/fetch-website-info.html", import.meta.url),
+  );
+  const ids = [...page.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
+  assert(ids.length > 0, "expected the page to have ids");
+  const missing = ids.filter((id) => !bundle.includes(`id="${id}"`));
+  assert(missing.length === 0, `stale bundle, run deno task build:mcp-ui: ${missing.join(", ")}`);
+  assert(/<script\b[^>]*>\s*\S/.test(bundle), "expected an inline script");
+  assert(bundle.includes("<style"), "expected inline styles");
+  assert(!/<(?:script|img|iframe)\b[^>]*\ssrc=/.test(bundle), "expected no external src");
+  assert(!/<link\b[^>]*\shref=/.test(bundle), "expected no external link");
 });
 
 Deno.test("fetch-website-info advertises its output schema", async () => {
@@ -100,6 +121,7 @@ Deno.test("fetch-website-info returns structured content matching its schema", a
   assertEquals(result.isError, undefined);
   assertEquals(result.structuredContent?.status, 200);
   assertEquals(result.structuredContent?.headers.server, "stub");
+  assertEquals(parseToolResult(result).kind, "success");
 });
 
 Deno.test("an error result is not held to the output schema", async () => {
@@ -107,6 +129,9 @@ Deno.test("an error result is not held to the output schema", async () => {
   assertEquals(result.isError, true);
   assertEquals(result.structuredContent, undefined);
   assert(JSON.stringify(result.content).includes("URL not allowed"), "expected a denial");
+  const parsed = parseToolResult(result);
+  assert(parsed.kind === "error", `expected the app to show an error, got ${parsed.kind}`);
+  assert(parsed.message.startsWith("URL not allowed"), `expected plain text: ${parsed.message}`);
 });
 
 Deno.test("fetch-website-info reports a timeout", async () => {

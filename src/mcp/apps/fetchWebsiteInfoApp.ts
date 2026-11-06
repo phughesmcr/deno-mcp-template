@@ -61,6 +61,8 @@ function registerFetchWebsiteInfoApp(server: McpServer): void {
           uri: FETCH_WEBSITE_INFO_RESOURCE_URI,
           mimeType: RESOURCE_MIME_TYPE,
           text: html,
+          // The page draws its own panels, so a host border would only add a second frame.
+          _meta: { ui: { prefersBorder: false } },
         },
       ],
       ttlMs: 60 * 60 * 1000,
