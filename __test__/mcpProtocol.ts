@@ -14,6 +14,11 @@ export function createClient(capabilities: ClientCapabilities = {}): Client {
   });
 }
 
+/** A client that opens with `initialize`, as a 2025-era client does. */
+export function createLegacyClient(capabilities: ClientCapabilities = {}): Client {
+  return new Client({ name: "protocol-test", version: "1.0.0" }, { capabilities });
+}
+
 export function firstText(result: Awaited<ReturnType<Client["callTool"]>>): string {
   const [block] = result.content ?? [];
   return block?.type === "text" ? block.text : "";
@@ -86,12 +91,13 @@ export async function overHttp(
 export async function overStdio(
   client: Client,
   exercise: (client: Client) => Promise<void>,
+  serverArgs: string[] = [],
 ): Promise<void> {
   await withKvPath(async (kvPath) => {
     await client.connect(
       new StdioClientTransport({
         command: Deno.execPath(),
-        args: [...SERVER_ARGS, "--no-http"],
+        args: [...SERVER_ARGS, "--no-http", ...serverArgs],
         env: { ...Deno.env.toObject(), MCP_KV_PATH: kvPath },
         stderr: "ignore",
       }),

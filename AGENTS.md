@@ -23,7 +23,7 @@ Rename the template: `deno task setup`, checked by `.github/workflows/setup.yml`
 
 ### Protocol and statelessness
 
-The server speaks MCP protocol revision **2026-07-28 only** (`@modelcontextprotocol/server` 2.x) and is **stateless**: no sessions, no `initialize`, no MCP tasks. Both transports use `legacy: "reject"`, so 2025-era clients get an unsupported-version error. Every HTTP request carries `MCP-Protocol-Version` and `Mcp-Method` headers (plus `Mcp-Name` for `tools/call`, `prompts/get`, `resources/read`).
+The server speaks MCP protocol revision **2026-07-28** (`@modelcontextprotocol/server` 2.x) and is **stateless**: no sessions, no `initialize`, no MCP tasks. Both transports use `legacy: "reject"` by default, so 2025-era clients get an unsupported-version error. The one exception is `--legacy-stdio` (`MCP_LEGACY_STDIO=true`), which the MCP Bundle passes because Claude Desktop speaks 2025-11-25: `serveStdio` then uses `legacy: "serve"` and pins a 2025-era connection to one instance from the same factory. HTTP always rejects. On such a connection the SDK fulfils `inputRequired` with real server-to-client requests and `src/app/stdio.ts` answers `resources/subscribe`, so handlers need no era checks; do not read `ctx.mcpReq.envelope` for anything a 2025-era client needs. Every HTTP request carries `MCP-Protocol-Version` and `Mcp-Method` headers (plus `Mcp-Name` for `tools/call`, `prompts/get`, `resources/read`).
 
 ### HTTP stack
 
@@ -50,7 +50,7 @@ Tools, prompts and resources cannot call `elicitInput` / `createMessage`. They r
 - CORS allowed origins default to **empty**; browser clients need `MCP_ALLOWED_ORIGINS` or `--origin`. `/mcp` answers 403 to a present `Origin` not on that list, whatever `--dnsRebinding` says.
 - When stdin closes, the app stops if HTTP is off; with HTTP on, only STDIO disconnects.
 - HTTP: on by default; disable with `MCP_NO_HTTP=true` or `--no-http`.
-- STDIO: on by default; disable with `MCP_NO_STDIO=true` or `--no-stdio`.
+- STDIO: on by default; disable with `MCP_NO_STDIO=true` or `--no-stdio`. `--legacy-stdio` also serves 2025-era clients.
 
 ### Deno KV in this template
 

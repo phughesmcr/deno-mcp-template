@@ -21,5 +21,5 @@ export const APP_USAGE = Deno.build.standalone ?
   (import.meta.filename || APP_NAME) :
   "deno task start";
 
-/** The only MCP protocol revision this server speaks (both transports use `legacy: "reject"`). */
+/** The MCP protocol revision this server speaks. `--legacy-stdio` adds 2025-era STDIO clients. */
 export const MCP_PROTOCOL_VERSION = "2026-07-28";

@@ -7,6 +7,7 @@ const baseConfig: AppConfig = {
   http: baseHttpConfig(),
   stdio: {
     enabled: true,
+    legacy: false,
   },
   kv: {},
   mcp: {},

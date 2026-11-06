@@ -10,6 +10,7 @@ import { delay } from "@std/async/delay";
 import { assert, assertEquals } from "./helpers.ts";
 import {
   createClient,
+  createLegacyClient,
   firstText,
   freePort,
   overHttp,
@@ -61,6 +62,60 @@ Deno.test("a 2025-era client is refused over stdio", async () => {
     const refused = await connecting.then(() => false, () => true);
     await client.close();
     assert(refused, "stdio accepted a 2025-era initialize");
+  });
+});
+
+Deno.test("--legacy-stdio serves a 2025-era client over stdio", () =>
+  overStdio(createLegacyClient(), async (client) => {
+    assertEquals(client.getProtocolEra(), "legacy");
+
+    const { tools } = await client.listTools();
+    assert(tools.some((tool) => tool.name === "echo"), "tools/list misses a tool");
+
+    const result = await client.callTool({ name: "echo", arguments: { message: "hello" } });
+    assertEquals(firstText(result), "hello");
+  }, ["--legacy-stdio"]));
+
+Deno.test("--legacy-stdio still serves a 2026-07-28 client over stdio", () =>
+  overStdio(createClient(), exerciseClient, ["--legacy-stdio"]));
+
+Deno.test("--legacy-stdio leaves HTTP refusing 2025-era clients", async () => {
+  await withKvPath(async (kvPath) => {
+    const port = freePort();
+    const server = new Deno.Command(Deno.execPath(), {
+      args: [...SERVER_ARGS, "--legacy-stdio", "--no-http-rate-limit"],
+      env: { MCP_PORT: String(port), MCP_HOSTNAME: "127.0.0.1", MCP_KV_PATH: kvPath },
+      stdin: "null",
+      stdout: "null",
+      stderr: "null",
+    }).spawn();
+    const url = `http://127.0.0.1:${port}/mcp`;
+
+    try {
+      await waitForHttp(url);
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-11-25",
+            capabilities: {},
+            clientInfo: { name: "legacy", version: "1.0.0" },
+          },
+        }),
+      });
+      const body = await response.json();
+      assertEquals(response.status, 400);
+      assertEquals(body.error.code, -32022);
+    } finally {
+      await stopIfRunning(server);
+    }
   });
 });
 

@@ -23,16 +23,16 @@ Clone, run setup, start building. Ships with STDIO + HTTP transports, security m
 
 ## Why This Template?
 
-**You get a working MCP server in under 2 minutes.** Not a toy -- a real server with rate limiting, CORS, TLS support, and structured logging already wired up. It is stateless and speaks MCP protocol revision 2026-07-28 only, on `@modelcontextprotocol/server` 2.x, so any instance can answer any request.
+**You get a working MCP server in under 2 minutes.** Not a toy -- a real server with rate limiting, CORS, TLS support, and structured logging already wired up. It is stateless and speaks MCP protocol revision 2026-07-28, on `@modelcontextprotocol/server` 2.x, so any instance can answer any request. For clients that are not there yet, `--legacy-stdio` also serves 2025-era clients over STDIO.
 
 **Deno gives you superpowers that other runtimes don't.** Built-in KV database (no Postgres/Redis to set up), sandboxed code execution in microVMs, compile-to-binary, and first-class Deploy hosting. This template puts all of them to work.
 
 **Ship anywhere, any way.** One codebase produces:
-- a local STDIO server for Cursor, Claude Desktop, or any MCP client
+- a local STDIO server for any 2026-07-28 MCP client, or 2025-era clients such as Claude Desktop with `--legacy-stdio`
 - a remote, stateless HTTP server
 - a JSR package anyone can `deno run` without cloning
 - a standalone native binary (no runtime needed)
-- an MCP Bundle (`.mcpb`) for one-click Claude Desktop install
+- an MCP Bundle (`.mcpb`) for one-click Claude Desktop install, which passes `--legacy-stdio`
 - a Deno Deploy app for managed cloud hosting
 
 **AI-agent friendly codebase.** Small files (<200 LOC), feature-grouped structure, explicit types. Your coding agent can navigate and extend it without context overload.
@@ -170,11 +170,17 @@ Compile tasks bundle the `static/` directory, so binaries serve static routes wi
 
 **JSR prerequisite:** you need a [JSR.io](https://jsr.io) account. If you don't plan to publish on JSR, remove `.github/workflows/publish.yml`.
 
-**Client compatibility:** the server only accepts 2026-07-28 clients, and a 2025-era client gets an unsupported-version error. To accept both, change `legacy: "reject"` in `src/app/http/mod.ts` and `src/app/stdio.ts`.
+**Client compatibility:** by default the server only accepts 2026-07-28 clients, and a 2025-era client gets an unsupported-version error. Claude Desktop still speaks 2025-11-25, so `--legacy-stdio` (`MCP_LEGACY_STDIO=true`) also serves 2025-era clients over STDIO, and the MCP Bundle passes it. HTTP always refuses them; to change that, edit `legacy: "reject"` in `src/app/http/mod.ts`.
+
+On a 2025-era connection the tools, prompts, resources, logging and change notifications all work. The SDK turns each `inputRequired` result into a real elicitation, sampling or roots request, so handlers need no changes. The differences:
+
+- A feature fails with a capability error if the client did not declare what it needs: an `isError` result from a tool, a JSON-RPC error from a prompt or resource.
+- `url-elicitation-demo` needs the HTTP server, so it returns an error under `--no-http`. With HTTP on it asks again until the browser page is confirmed, then stops after eight rounds, as the SDK does not bridge the completion notification.
+- `test_input_required_result_capabilities` reads the 2026-07-28 request envelope, so it reports no capabilities.
 
 ### Client configuration examples
 
-**STDIO** (Cursor, Claude Desktop, etc.). `--no-http` stops each client's copy of the server binding the HTTP port, so two can run at once:
+**STDIO** (Cursor, Claude Desktop, etc.). `--no-http` stops each client's copy of the server binding the HTTP port, so two can run at once. Add `--legacy-stdio` for a 2025-era client such as Claude Desktop:
 
 ```json
 {
@@ -291,6 +297,7 @@ For automatic deploys, set the `DENO_DEPLOY_TOKEN` secret and the `DENO_DEPLOY_O
 | --- | --- | --- | --- |
 | `MCP_NO_HTTP` | `--no-http` | `false` | Disable HTTP server |
 | `MCP_NO_STDIO` | `--no-stdio` | `false` | Disable STDIO transport |
+| `MCP_LEGACY_STDIO` | `--legacy-stdio` | `false` | Also serve 2025-era clients over STDIO; HTTP always refuses them |
 | `MCP_HOSTNAME` | `-n` | `localhost` | HTTP listen hostname |
 | `MCP_PORT` | `-p` | `3001` | HTTP listen port |
 | `MCP_PUBLIC_BASE_URL` | `--public-base-url` | | Public `http(s)://` origin for browser links (URL elicitation); no trailing slash |

@@ -53,11 +53,12 @@ Deno.test("CLI ignores unprefixed ALLOWED_ORIGINS env var", async () => {
 /** Loads the config and never starts a server. `code` is 0 when the config is valid. */
 async function getTransportsFromEnv(
   env: Record<string, string>,
+  print = "{ http: http.enabled, stdio: stdio.enabled }",
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   const { code, stdout, stderr } = await new Deno.Command(Deno.execPath(), {
     args: [
       "eval",
-      "import { handleCliArgs } from './src/app/cli.ts'; const { http, stdio } = await handleCliArgs(); console.log(JSON.stringify({ http: http.enabled, stdio: stdio.enabled }));",
+      `import { handleCliArgs } from './src/app/cli.ts'; const { http, stdio } = await handleCliArgs(); console.log(JSON.stringify(${print}));`,
     ],
     env,
     stdout: "piped",
@@ -74,6 +75,15 @@ async function getTransportsFromEnv(
 Deno.test("CLI enables both transports by default", async () => {
   const { stdout } = await getTransportsFromEnv({});
   assertEquals(stdout, `{"http":true,"stdio":true}`);
+});
+
+Deno.test("CLI serves 2025-era STDIO clients only with MCP_LEGACY_STDIO", async () => {
+  const print = "{ legacy: stdio.legacy }";
+  assertEquals((await getTransportsFromEnv({}, print)).stdout, `{"legacy":false}`);
+  assertEquals(
+    (await getTransportsFromEnv({ MCP_LEGACY_STDIO: "true" }, print)).stdout,
+    `{"legacy":true}`,
+  );
 });
 
 Deno.test("CLI disables HTTP with MCP_NO_HTTP", async () => {

@@ -39,6 +39,14 @@ function buildCommand() {
       conflicts: ["no-http"],
     })
     .env("MCP_NO_STDIO=<value:boolean>", "Disable the STDIO server.", { prefix: "MCP_" })
+    // 2025-era STDIO clients
+    .option("--legacy-stdio", "Also serve 2025-era clients over STDIO (never over HTTP).", {
+      default: false,
+      conflicts: ["no-stdio"],
+    })
+    .env("MCP_LEGACY_STDIO=<value:boolean>", "Also serve 2025-era clients over STDIO.", {
+      prefix: "MCP_",
+    })
     // HTTP server
     .option("--no-http", "Disable the HTTP server.", {
       conflicts: ["no-stdio"],

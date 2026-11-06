@@ -82,6 +82,9 @@ export type HttpServerConfig = {
 /** The configuration for the STDIO transport */
 export type StdioConfig = {
   enabled: boolean;
+
+  /** Also serve 2025-era clients (`legacy: "serve"`); HTTP always refuses them */
+  legacy: boolean;
 };
 
 /** The configuration for Deno KV */

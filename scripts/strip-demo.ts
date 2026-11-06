@@ -28,6 +28,7 @@ export const DELETE: readonly string[] = [
   "__test__/execute-code-sandbox.integration.test.ts",
   "__test__/mcp-fetch-website-info-app.integration.test.ts",
   "__test__/mcp-protocol-demos.integration.test.ts",
+  "__test__/mcp-protocol-legacy-demos.integration.test.ts",
   "__test__/safe-tool-fetch-url.test.ts",
   "__test__/strip-demo.test.ts",
   "mcp-ui",

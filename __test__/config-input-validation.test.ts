@@ -56,6 +56,14 @@ Deno.test("validateHttpConfig surfaces not_file from FileStatPort", () => {
   assert(bad.error.message.includes("must point to a file"), bad.error.message);
 });
 
+Deno.test("--legacy-stdio is off by default and refuses --no-stdio", async () => {
+  const load = (...argv: string[]) => loadAppConfig({ argv, onFailure: "throw" });
+  assertEquals((await load()).stdio.legacy, false);
+  assertEquals((await load("--legacy-stdio")).stdio.legacy, true);
+  const refused = await load("--legacy-stdio", "--no-stdio").then(() => false, () => true);
+  assert(refused, "expected --legacy-stdio to conflict with --no-stdio");
+});
+
 Deno.test("loadAppConfig onFailure throw surfaces invalid port from argv", async () => {
   let threw = false;
   try {
@@ -85,6 +93,7 @@ Deno.test("mapCommandOptionsToConfigInput merges -H with headers array", () => {
     requireHttpAuth: false,
     http: true,
     stdio: true,
+    legacyStdio: false,
     maxTaskTtlMs: 86_400_000,
     httpRateLimit: true,
   } as Parameters<typeof mapCommandOptionsToConfigInput>[0];

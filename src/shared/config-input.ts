@@ -7,6 +7,8 @@
 export type McpConfigInput = {
   http: boolean;
   stdio: boolean;
+  /** When true, STDIO also serves 2025-era clients. */
+  legacyStdio?: boolean;
   hostname: string;
   port: number;
   headers: string[];

@@ -5,7 +5,7 @@ description: Implement new MCP tools in the deno-mcp-template project. Provides 
 
 # Implementing MCP Tools
 
-The server is stateless and speaks protocol revision 2026-07-28 only (`@modelcontextprotocol/server` 2.x). There are no sessions, no `initialize`, and no server-to-client requests mid-call: a tool that needs user input or an LLM completion **returns `inputRequired(...)`** and is called again with the answers.
+The server is stateless and speaks protocol revision 2026-07-28 (`@modelcontextprotocol/server` 2.x). With `--legacy-stdio` it also serves 2025-era STDIO clients, and the SDK fulfils `inputRequired` for them, so a tool needs no era checks. There are no sessions, no `initialize`, and no server-to-client requests mid-call: a tool that needs user input or an LLM completion **returns `inputRequired(...)`** and is called again with the answers.
 
 ## Workflow
 

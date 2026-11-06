@@ -14,13 +14,15 @@
       "command": "sh",
       "args": [
         "${__dirname}/server/launch.sh",
-        "--no-http"
+        "--no-http",
+        "--legacy-stdio"
       ],
       "platform_overrides": {
         "win32": {
           "command": "${__dirname}/server/server.exe",
           "args": [
-            "--no-http"
+            "--no-http",
+            "--legacy-stdio"
           ]
         }
       }

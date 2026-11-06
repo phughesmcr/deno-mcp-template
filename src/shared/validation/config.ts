@@ -217,11 +217,12 @@ export function validateHttpConfig(
  * @returns The validation result with STDIO config or error
  */
 function validateStdioConfig(config: McpConfigInput): ValidationResult<StdioConfig> {
-  const { stdio } = config;
+  const { stdio, legacyStdio } = config;
   return {
     success: true,
     value: {
       enabled: !!stdio,
+      legacy: !!legacyStdio,
     },
   };
 }

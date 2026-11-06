@@ -11,6 +11,7 @@ function idleAppConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     },
     stdio: {
       enabled: true,
+      legacy: false,
     },
     kv: {},
     mcp: {},
@@ -38,7 +39,7 @@ Deno.test("createApp: start then stop with isolated KV (transports off)", async 
       createMcpServer,
       idleAppConfig({
         kv: { path: kvPath },
-        stdio: { enabled: false },
+        stdio: { enabled: false, legacy: false },
       }),
       {
         kv: rt,

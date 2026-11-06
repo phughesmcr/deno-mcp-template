@@ -9,6 +9,15 @@ const BINARIES = [
   "server_linux_arm64",
 ];
 
+Deno.test("the bundle serves 2025-era clients on every platform", async () => {
+  const manifest = JSON.parse(await Deno.readTextFile("static/mcpb-manifest.json"));
+  const { args, platform_overrides: { win32 } } = manifest.server.mcp_config;
+  for (const platformArgs of [args, win32.args]) {
+    assert(platformArgs.includes("--no-http"), "the bundle must stay STDIO-only");
+    assert(platformArgs.includes("--legacy-stdio"), "Claude Desktop speaks 2025-11-25");
+  }
+});
+
 async function project(): Promise<string> {
   const root = await Deno.makeTempDir({ prefix: "mcpb-test-" });
   await Deno.mkdir(`${root}/dist/server`, { recursive: true });

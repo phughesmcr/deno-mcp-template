@@ -12,8 +12,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - **BREAKING:** Rewritten on `@modelcontextprotocol/server` 2.4 for Deno 2.9.8. The server is
-  stateless and speaks protocol revision 2026-07-28 only (`legacy: "reject"` on both transports), so
-  2025-era clients are refused.
+  stateless and speaks protocol revision 2026-07-28 (`legacy: "reject"` on both transports), so
+  2025-era clients are refused unless `--legacy-stdio` is set.
+- `--legacy-stdio` (`MCP_LEGACY_STDIO`) also serves 2025-era clients over STDIO, and the MCP Bundle
+  passes it so Claude Desktop can connect. It is off by default, and HTTP always refuses them.
 - **BREAKING:** `/mcp` is POST-only (other methods get 405) and CORS allows only `POST`. HTTP uses `createMcpHandler`, stdio uses `serveStdio`.
 - **BREAKING:** `defineTool`, `definePrompt` and `registerResource` handlers now receive
   `(args, ctx, deps)`; `createMcpServer` takes the factory context directly.
