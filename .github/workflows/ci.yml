@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, dev]
   pull_request:
     branches: [main, master]
 
@@ -17,4 +17,7 @@ jobs:
           deno-version: v2.9.8
 
       - name: Format, lint, type-check, tests
+        env:
+          # Enables the real sandbox test; unset on fork PRs, where it is skipped.
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: deno task ci

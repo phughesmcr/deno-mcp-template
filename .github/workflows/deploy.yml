@@ -4,6 +4,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      prod:
+        description: Deploy to production (untick for a preview deployment)
+        type: boolean
+        default: true
 
 jobs:
   deploy:
@@ -22,14 +27,15 @@ jobs:
         with:
           deno-version: v2.9.8
 
-      - name: Deploy to Deno Deploy production
+      - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
           DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
           DENO_DEPLOY_APP: ${{ vars.DENO_DEPLOY_APP }}
+          DEPLOY_TARGET: ${{ (github.event_name != 'workflow_dispatch' || inputs.prod) && '--prod' || '' }}
         run: |
           if [ -z "$DENO_DEPLOY_TOKEN" ] || [ -z "$DENO_DEPLOY_ORG" ] || [ -z "$DENO_DEPLOY_APP" ]; then
             echo "Missing DENO_DEPLOY_TOKEN secret or DENO_DEPLOY_ORG / DENO_DEPLOY_APP repository variables."
             exit 1
           fi
-          deno deploy --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" --prod
+          deno deploy --org "$DENO_DEPLOY_ORG" --app "$DENO_DEPLOY_APP" $DEPLOY_TARGET
