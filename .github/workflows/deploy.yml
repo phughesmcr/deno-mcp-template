@@ -27,6 +27,14 @@ jobs:
         with:
           deno-version: v2.9.8
 
+      - name: Diagnose Deploy access (temporary)
+        continue-on-error: true
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DENO_DEPLOY_ORG: ${{ vars.DENO_DEPLOY_ORG }}
+        run: |
+          deno deploy whoami --json | jq '{authenticated, tokenType, orgCount: (.orgs | length), orgMatches: ([.orgs[].slug] | index(env.DENO_DEPLOY_ORG) != null)}'
+
       - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
