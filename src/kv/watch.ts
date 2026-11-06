@@ -1,8 +1,8 @@
 /**
  * @description Builds a {@link KvWatcher} around Deno KV’s `watch` API so callers can react when a
  * single key changes. Each logical subscription is keyed by a caller-supplied `uri` (one active watch
- * per `uri`); the first event from the stream is treated as the initial snapshot and is skipped so
- * callbacks only run on later updates.
+ * per `uri`). `watch()` resolves once the initial snapshot has been read, so callbacks run only for
+ * later updates, and a callback that throws is logged without ending the watch.
  * @module
  */
 
@@ -36,20 +36,17 @@ export function createKvWatcher(rt: KvRuntime): KvWatcher {
         const kv = await rt.get();
         if (states.has(uri)) return;
 
-        const stream = kv.watch([key]);
-        const reader = stream.getReader();
+        const reader = kv.watch([key]).getReader();
+        // The first event is the current value: only later updates notify.
+        await reader.read();
 
         const runWatchLoop = async (): Promise<void> => {
-          let isFirstEvent = true;
-          while (true) {
-            const { done } = await reader.read();
-            if (done) break;
-            if (isFirstEvent) {
-              // Ignore the initial snapshot event; only notify on subsequent updates.
-              isFirstEvent = false;
-              continue;
+          while (!(await reader.read()).done) {
+            try {
+              await onChange();
+            } catch (error) {
+              console.error(`KV watcher callback for ${uri} failed`, error);
             }
-            await onChange();
           }
         };
 
@@ -86,8 +83,8 @@ export function createKvWatcher(rt: KvRuntime): KvWatcher {
   };
 
   const stop = async (): Promise<void> => {
-    const uris = Array.from(states.keys());
-    await Promise.allSettled(uris.map((uri) => unwatch(uri)));
+    const uris = new Set([...states.keys(), ...inflightSetup.keys()]);
+    await Promise.allSettled([...uris].map((uri) => unwatch(uri)));
   };
 
   return {

@@ -23,7 +23,7 @@ export interface KvRuntime {
 }
 
 /**
- * Default implementation backed by `Deno.openKv` (one in-flight open, same semantics as legacy `store.ts`).
+ * Default implementation backed by `Deno.openKv`, with at most one open in flight.
  */
 export function createProcessKvRuntime(): KvRuntime {
   let kvPromise: Promise<Deno.Kv> | null = null;
@@ -78,7 +78,7 @@ export function createProcessKvRuntime(): KvRuntime {
 
 let processSingleton: KvRuntime | null = null;
 
-/** Shared process KV runtime (same instance `store.ts` delegates to). */
+/** The KV runtime shared across this process. */
 export function getProcessKvRuntime(): KvRuntime {
   if (!processSingleton) processSingleton = createProcessKvRuntime();
   return processSingleton;
