@@ -11,10 +11,7 @@ import type { KvRuntime } from "$/kv/runtime.ts";
 import { mcpServerDefinition } from "$/mcp/serverDefinition.ts";
 import type { HttpServerConfig, Transport } from "$/shared/config-types.ts";
 import { APP_NAME, BODY_LIMIT } from "$/shared/constants.ts";
-import {
-  shouldWarnAllInterfacesBindWithoutHostAllowlist,
-  shouldWarnUnauthenticatedHttp,
-} from "$/shared/httpSecurityPolicy.ts";
+import { shouldWarnUnauthenticatedHttp } from "$/shared/httpSecurityPolicy.ts";
 import { createHonoApp } from "./hono.ts";
 import type { HonoEnv } from "./honoEnv.ts";
 
@@ -79,13 +76,6 @@ export function createHttpServer(
     ensureStack();
     const app = hono;
     if (!app) return;
-    if (shouldWarnAllInterfacesBindWithoutHostAllowlist(config)) {
-      console.error(
-        `${APP_NAME}: HTTP is binding to ${hostname} without Host allowlist middleware. ` +
-          "DNS rebinding protection is disabled. Use --hostname localhost (or 127.0.0.1), " +
-          "or enable --dnsRebinding with --host / MCP_ALLOWED_HOSTS for explicit Host validation.",
-      );
-    }
     if (shouldWarnUnauthenticatedHttp(config)) {
       console.error(
         `${APP_NAME}: HTTP is listening on a non-loopback address (${hostname}) without MCP_HTTP_BEARER_TOKEN. ` +

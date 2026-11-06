@@ -303,7 +303,13 @@ For automatic deploys, set the `DENO_DEPLOY_TOKEN` secret and the `DENO_DEPLOY_O
 | `MCP_ALLOWED_HOSTS` | `--host` | | Allowed hostnames (collection). `*.example.com` matches one subdomain label |
 | `MCP_KV_PATH` | `--kv-path` | | Custom Deno KV database path |
 | `MCP_REQUEST_STATE_KEY` | | random per process | Secret (32+ bytes) that signs `requestState`; env only, share it across instances |
+| `MCP_HTTP_BEARER_TOKEN` | `--http-bearer-token` | | Shared secret for `/mcp`; prefer the env var, as flags show up in process lists |
+| `MCP_REQUIRE_HTTP_AUTH` | `--require-http-auth` | `false` | Fail startup when no bearer token is set |
+| `MCP_TRUST_PROXY` | `--trust-proxy` | `false` | Trust `CF-Connecting-IP`, `X-Forwarded-For` and `X-Real-IP` for rate limiting |
 | `MCP_HTTP_RATE_LIMIT_ENABLED` | `--http-rate-limit` / `--no-http-rate-limit` | `true` | Enable per-IP HTTP rate limiting (`MCP_HTTP_RATE_LIMIT_*` for window and caps — see `.env.example`) |
+| `MCP_HTTP_RATE_LIMIT_WINDOW_MS` | `--http-rate-limit-window-ms` | `900000` | Rate limit window in milliseconds |
+| `MCP_HTTP_RATE_LIMIT_MAX` | `--http-rate-limit-max` | `100` | Requests per window for identified clients |
+| `MCP_HTTP_RATE_LIMIT_UNKNOWN_MAX` | `--http-rate-limit-unknown-max` | `20` | Requests per window for clients with no known IP |
 | `DENO_DEPLOY_TOKEN` | | | Deploy token (required by `execute-code` sandbox tool) |
 
 CLI flags override env vars. Collection values (`-H`, `--origin`, `--host`) are merged from both sources.

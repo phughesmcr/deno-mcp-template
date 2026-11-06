@@ -11,13 +11,19 @@ import { createClient, firstText, overHttp, overStdio } from "./mcpProtocol.ts";
 const COUNTER_URI = "counter://value";
 
 function createElicitingClient(): Client {
-  const client = createClient({ elicitation: { form: {} } });
+  const client = createClient({ elicitation: { form: {} }, sampling: {} });
   client.setRequestHandler("elicitation/create", (request) => {
     const content: Record<string, string> = request.params.message.includes("name") ?
       { name: "Ada" } :
       { color: "teal" };
     return Promise.resolve({ action: "accept", content });
   });
+  client.setRequestHandler("sampling/createMessage", () =>
+    Promise.resolve({
+      role: "assistant",
+      content: { type: "text", text: "Roses are red" },
+      model: "test-model",
+    }));
   return client;
 }
 
@@ -28,6 +34,17 @@ async function exerciseDemos(client: Client): Promise<void> {
     arguments: {},
   });
   assertEquals(firstText(result), "Multi-round complete for Ada who likes teal");
+
+  const sampled = await client.callTool({ name: "poem", arguments: { prompt: "flowers" } });
+  const { poem, prompt } = sampled.structuredContent as { poem: string; prompt: string };
+  assertEquals(poem, "Roses are red");
+  assertEquals(prompt, "flowers");
+
+  const logged = await client.callTool({ name: "log-message", arguments: { message: "hello" } });
+  assertEquals(
+    JSON.stringify(logged.structuredContent),
+    JSON.stringify({ logged: true, level: "info", logger: null, message: "hello" }),
+  );
 
   const received: string[] = [];
   client.setNotificationHandler("notifications/tools/list_changed", () => {
@@ -72,6 +89,17 @@ const EXPECTED_ANNOTATIONS: Record<string, Record<string, boolean>> = {
   "poem": READ_ONLY,
   "url-elicitation-demo": { ...WRITES, idempotentHint: false },
 };
+
+Deno.test("poem and log-message advertise their output schemas", async () => {
+  const response = await createTestMcpHandler().fetch(mcpRequest("tools/list"));
+  const { result } = await response.json() as {
+    result: { tools: { name: string; outputSchema?: { required?: string[] } }[] };
+  };
+  const required = (toolName: string) =>
+    result.tools.find(({ name }) => name === toolName)?.outputSchema?.required?.join();
+  assertEquals(required("poem"), "poem,prompt,timestamp");
+  assertEquals(required("log-message"), "logged,level,logger,message");
+});
 
 Deno.test("every example tool declares its annotations", async () => {
   const response = await createTestMcpHandler().fetch(mcpRequest("tools/list"));

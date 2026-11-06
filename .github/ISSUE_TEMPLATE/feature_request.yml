@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Maintainers:** Set priority (`P0`–`P3`) and workflow labels within **2 business days** (see `.github/CONTRIBUTING.md`). Most ideas start as **P3** unless they unblock critical work.
+        **Maintainers:** Set priority (`P0`–`P3`) and workflow labels within **one month** (stricter target: **2 business days**, see `.github/CONTRIBUTING.md`). Most ideas start as **P3** unless they unblock critical work.
 
   - type: textarea
     id: problem

@@ -7,6 +7,12 @@ import { createCallToolErrorResponse, createCallToolTextResponse } from "$/share
 
 const INPUT_KEY = "poem";
 
+const outputSchema = z.object({
+  poem: z.string().describe("The generated poem"),
+  prompt: z.string().describe("The prompt it was generated for"),
+  timestamp: z.string().describe("When it was generated, as an ISO 8601 string"),
+});
+
 /** Sampling is deprecated by SEP-2577, still in the spec for at least twelve months. */
 export default defineTool({
   name: "poem",
@@ -18,6 +24,7 @@ export default defineTool({
       .max(5000, "Prompt too long (max 5000 characters)")
       .describe("The prompt to generate a poem for"),
   }),
+  outputSchema,
   annotations: { readOnlyHint: true, openWorldHint: false },
   handler: ({ prompt }, ctx) => {
     const view = inputResponse(ctx.mcpReq.inputResponses, INPUT_KEY);
@@ -48,6 +55,11 @@ export default defineTool({
       });
     }
 
-    return createCallToolTextResponse({ poem, prompt, timestamp: new Date().toISOString() });
+    const result: z.infer<typeof outputSchema> = {
+      poem,
+      prompt,
+      timestamp: new Date().toISOString(),
+    };
+    return createCallToolTextResponse(result, result);
   },
 });

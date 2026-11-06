@@ -121,7 +121,7 @@ Ignore `ctx`/`deps`. See the template above.
 Sampling and elicitation are not calls the server makes. The handler returns an `InputRequiredResult`; the client fulfils each request, then **retries the same `tools/call`** with `ctx.mcpReq.inputResponses` populated (keyed by the names you chose) and any `requestState` echoed back. The handler must therefore be re-entrant: check the responses first, ask only for what is missing.
 
 ```typescript
-import { inputRequired, inputResponse } from "@modelcontextprotocol/server";
+import { acceptedContent, inputRequired, inputResponse } from "@modelcontextprotocol/server";
 ```
 
 Helpers in `src/mcp/inputResponses.ts`: `wasDeclined(ctx, key)`, `samplingText(ctx, key)`, `rootCount(ctx, key)`.
@@ -167,7 +167,7 @@ return inputRequired({
 const state = wizardState.safeParse(ctx.mcpReq.requestState());
 ```
 
-Always put a `tool` discriminator in the minted state and check it on read, so state from another tool cannot be replayed. State is signed with `MCP_REQUEST_STATE_KEY` (32+ bytes; random per process when unset, so set it for multi-instance deployments) and bound to the method only: the shared bearer token identifies no client, so anyone holding state can replay it until it expires (see `src/mcp/requestState.ts`). See `src/mcp/tools/elicitFormWizard.ts`.
+Always put a `tool` discriminator in the minted state and check it on read, so state from another tool cannot be replayed. State is signed with `MCP_REQUEST_STATE_KEY` (32+ bytes; random per process when unset, so set it for multi-instance deployments) and bound to the method and the authenticated client ID. The shared bearer token identifies no client, so in practice that's the method only, and anyone holding state can replay it until it expires (see `src/mcp/requestState.ts`). See `src/mcp/tools/elicitFormWizard.ts`.
 
 #### URL mode
 

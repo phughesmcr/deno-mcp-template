@@ -4,7 +4,7 @@
  */
 
 import type { AppConfig } from "$/shared/config-types.ts";
-import { DEFAULT_ALLOWED_ORIGINS, isAllInterfacesBindHostname } from "$/shared/constants.ts";
+import { DEFAULT_ALLOWED_ORIGINS } from "$/shared/constants.ts";
 
 const LOOPBACK_BIND_HOSTNAMES = new Set([
   "localhost",
@@ -114,15 +114,6 @@ export function describeHttpSecuritySurface(policy: HttpSecurityPolicy): HttpSec
   }
 
   return { version: 1, layers, warnings };
-}
-
-export function shouldWarnAllInterfacesBindWithoutHostAllowlist(
-  http: AppConfig["http"],
-): boolean {
-  if (http.enableDnsRebinding && (http.allowedHosts?.length ?? 0) > 0) {
-    return false;
-  }
-  return isAllInterfacesBindHostname(http.hostname);
 }
 
 function isLoopbackBindHostname(hostname: string): boolean {

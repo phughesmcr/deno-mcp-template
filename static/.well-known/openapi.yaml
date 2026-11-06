@@ -182,8 +182,9 @@ paths:
     get:
       summary: URL-mode elicitation — confirmation page (HTML)
       description: |
-        Used by the `url-elicitation-demo` tool. The query parameter must reference a valid pending
-        elicitation; there is no session.
+        Used by the `url-elicitation-demo` tool, and only present when `urlElicitation` is on in
+        `src/mcp/serverDefinition.ts`. The query parameter must reference a valid pending elicitation;
+        there is no session.
       tags:
         - MCP
       parameters:

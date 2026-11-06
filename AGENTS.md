@@ -27,7 +27,7 @@ The server speaks MCP protocol revision **2026-07-28 only** (`@modelcontextproto
 
 ### HTTP stack
 
-`POST /mcp` is served by `createMcpHandler` (`src/app/http/mod.ts`) mounted on Hono (`src/app/http/hono.ts`); other methods on `/mcp` get a 405 from the SDK. Middleware includes rate limiting, the `/mcp` Origin check, CORS, optional bearer auth, host validation, security headers, and request timeouts (skipped for `/mcp`, whose `subscriptions/listen` streams are long-lived). Also served: `/mcp-elicitation/confirm` (URL-mode elicitation pages), `/.well-known/*`, `/static/*`, `/llms.txt`, `/openapi.yaml`.
+`POST /mcp` is served by `createMcpHandler` (`src/app/http/mod.ts`) mounted on Hono (`src/app/http/hono.ts`); other methods on `/mcp` get a 405 from the SDK. Middleware includes rate limiting, the `/mcp` Origin check, CORS, optional bearer auth, host validation, security headers, and request timeouts (skipped for `/mcp`, whose `subscriptions/listen` streams are long-lived). Also served: `/`, `/favicon.ico`, `/mcp-elicitation/confirm` (URL-mode elicitation pages), `/.well-known/*`, `/static/*`, `/llms.txt`, `/openapi.yaml`.
 
 ### One `McpServer` per request
 
@@ -45,7 +45,7 @@ Tools, prompts and resources cannot call `elicitInput` / `createMessage`. They r
 
 ### Security and transport toggles
 
-- **Host header validation** (see `src/app/http/hostHeaderMiddleware.ts`): on loopback listen addresses, `Host` must be `localhost`, `127.0.0.1`, or `[::1]` (port ignored). With `--dnsRebinding` and configured allowed hosts, that list applies instead. Binding to all interfaces without DNS rebinding allowlists logs a one-time startup warning.
+- **Host header validation** (see `src/app/http/hostHeaderMiddleware.ts`): on loopback listen addresses, `Host` must be `localhost`, `127.0.0.1`, or `[::1]` (port ignored). With `--dnsRebinding` and configured allowed hosts, that list applies instead. Binding to all interfaces (`0.0.0.0` or `::`) requires `--dnsRebinding` and at least one allowed host; otherwise startup fails.
 - **DNS rebinding protection** on the HTTP transport is opt-in: `MCP_DNS_REBINDING=true` or `--dnsRebinding` (with `--origin` / `--host` per CLI rules). Use `MCP_ALLOWED_ORIGINS` and `MCP_ALLOWED_HOSTS` for Origin and Host checks.
 - CORS allowed origins default to **empty**; browser clients need `MCP_ALLOWED_ORIGINS` or `--origin`. `/mcp` answers 403 to a present `Origin` not on that list, whatever `--dnsRebinding` says.
 - When stdin closes, the app stops if HTTP is off; with HTTP on, only STDIO disconnects.
@@ -181,6 +181,8 @@ static/
 ├── mcp-apps/
 │   └── fetch-website-info.html     # Built MCP App bundle (run `deno task build:mcp-ui`)
 ├── 404.html                        # Default static 404 page
+├── banner_*.png, favicon.ico, icon.*  # Images
+├── mcpb-launcher.sh                # Picks the right binary for the platform in an MCPB bundle
 └── mcpb-manifest.json              # The manifest for the MCPB package
 ```
 

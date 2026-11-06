@@ -25,16 +25,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - HTTP logs requests the SDK refuses as one line instead of a stack trace.
 - CI runs on `dev` and passes `DENO_DEPLOY_TOKEN`, so the real sandbox test runs.
 - `deploy.yml` has a `prod` dispatch input (default false), so a manual run makes a preview. It checks
-  org and app access first, smoke-tests the deployed URL, and prints app logs on failure.
+  org and app access first, masks org slugs in the log, smoke-tests the deployed URL, and prints app
+  logs on failure.
 - `release.yml` is merged into `publish.yml`: a tag must match `deno.json`, CI runs before publishing,
   and the GitHub release is only created after a successful JSR publish.
-- Workflows pin actions to commit SHAs, and set read-only `permissions` and `concurrency`.
+- Workflows pin actions to commit SHAs and set read-only `permissions`. All except `publish.yml` set
+  `concurrency`.
 - Stricter compiler options and lint rules, a two-day `minimumDependencyAge`, and the JSR package
   no longer ships tests, scripts or repository tooling.
 - Agent rules moved to `AGENTS.md` and skills to `.agents/skills/`. `CONTRIBUTING.md` and
   `SECURITY.md` moved to `.github/`.
-- Conformance runs `--requirements 2026-07-28` on `@modelcontextprotocol/conformance`
-  0.2.0-alpha.12, and CI pins Deno 2.9.8.
+- CI pins Deno 2.9.8.
 - **BREAKING:** `/mcp` answers 403 to an `Origin` not in `MCP_ALLOWED_ORIGINS`, including preflights.
 - `deno task start`, `dev`, the compile tasks and the `main.ts` shebang use explicit `--allow-*` flags
   instead of `-A`. The startup check accepts read, write and net scoped to what the server needs, and
@@ -79,8 +80,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - A throwing KV watch callback no longer ends the watch. `KvWatcher.watch()` resolves after the
   initial snapshot, and `stop()` also ends watches still being set up.
 - `greetings://` reports a bad name as `InvalidParams` instead of an internal error.
-- `scripts/run-mcp-conformance.sh` stops if its port is in use instead of killing what is listening
-  there, and reads the port from `MCP_PORT`, the variable the server uses.
 - **Security:** the server-side fetch filter let through IPv4 addresses embedded in IPv6
   (`[::ffff:127.0.0.1]`, NAT64, 6to4), `[::]`, blocked hostnames with a trailing dot, and several
   reserved IPv4 ranges. IPv6 is now parsed, and only global unicast is allowed.
@@ -92,10 +91,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `clean:dist` no longer fails when `dist/` does not exist.
 - Rate limiting runs after the bearer token check, so unauthenticated `/mcp` requests can't use up a
   limit shared with real clients. Failed token guesses are no longer rate limited.
-- README: Deno Deploy needs a KV database attached and `MCP_ALLOWED_HOSTS` set before the server
-  will start and accept requests, and all clients there share the unknown-client rate limit.
-- `compile:all` and `mcpb:all` run in sequence: parallel task dependencies raced clean, compile and
-  pack.
+- `compile:all` runs in sequence: parallel task dependencies raced clean and compile.
 - `MCP_NO_HTTP` and `MCP_NO_STDIO` now disable their transports.
 - MCP App: errors are readable on dark hosts, hosts that send only a theme get dark defaults, and
   the view shrinks again when content closes and follows `containerDimensions`.
@@ -104,27 +100,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pages load.
 - `deno task setup` no longer writes unescaped values, reports success after a failure, or ignores
   `--url`.
-- `deno task deploy:setup` keeps secrets off the command line, prints a generated token as soon as
-  it is stored, sets `MCP_PUBLIC_BASE_URL`, and can be rerun.
-- `smoke-deploy.ts` has a request timeout, and it and `deploy.yml` no longer log the org slug.
-- `deno task strip` removes `safeToolFetchUrl.ts`, and shows why a failed `deno install` failed.
-- `run-mcp-conformance.sh --scenario` works, and runs with `start`'s permissions and its own KV store.
 
 ### Added
 
-- Example tools declare accurate `annotations`. `fetch-website-info` and `increment-counter` declare
-  an `outputSchema` and return matching `structuredContent`.
+- Example tools declare accurate `annotations`. `fetch-website-info`, `increment-counter`, `poem` and
+  `log-message` declare an `outputSchema` and return matching `structuredContent`.
 - The server sends `instructions` and `websiteUrl`. `hello://world` and the MCP App HTML carry cache
   hints, and `ResourceConfig` in `plugin-types.ts` adds `cacheHint` to resource config.
 - `deno task strip` reduces the template to a minimal server (`echo`, `hello://world`, `review-code`)
-  that still passes `deno task ci`, and `strip.yml` checks it on every push.
+  that still passes `deno task ci`, and `strip.yml` checks it in CI.
 - MCP Apps are listed in `src/mcp/apps/mod.ts`, and a `urlElicitation` flag in the server definition
   controls the `/mcp-elicitation/*` routes.
 - SEP-1730-oriented issue labels (`deno task labels:github` / `scripts/setup-sep1730-labels.sh`), issue templates, and
   maintainer triage expectations in `.github/CONTRIBUTING.md`.
 - `.github/dependabot.yml` for automated dependency update PRs where supported.
-- `deno task deploy:setup` sets up a new Deno Deploy app, and `scripts/smoke-deploy.ts` checks a
-  deployed server answers MCP.
+- `deno task deploy:setup` sets up a new Deno Deploy app with its KV database and variables, keeps
+  secrets off the command line, and can be rerun. `scripts/smoke-deploy.ts` checks a deployed server
+  answers MCP.
+- `deno task conformance:server` runs the pinned `@modelcontextprotocol/conformance` 0.2.0-alpha.12
+  with `--requirements 2026-07-28` against a local server, and CI runs it too.
 - `MCP_ALLOWED_HOSTS` accepts `*.example.com`, matching one subdomain label.
 - `.github/workflows/binaries.yml` and `scripts/smoke-binary.ts`: smoke test on all five binary
   targets.

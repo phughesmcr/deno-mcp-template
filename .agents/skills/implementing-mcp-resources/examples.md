@@ -154,7 +154,7 @@ export async function incrementPersistedCounterValue(
 ```
 
 Key patterns:
-- `atomic().check(entry)` retries on conflict, so the returned value is the one this call wrote. `atomic().sum()` then `get` could return another caller's total
+- `atomic().check(entry)` fails on conflict and the loop in `incrementPersistedCounterValue` retries, so the returned value is the one this call wrote. `atomic().sum()` then `get` could return another caller's total
 - `Deno.KvU64` handling for large integers
 - Store functions take a `KvRuntime`; there is no global KV accessor to import
 - Separate store file keeps persistence logic isolated
