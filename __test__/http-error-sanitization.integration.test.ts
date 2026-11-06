@@ -1,3 +1,4 @@
+import { describeMcpError } from "$/app/http/mod.ts";
 import { getProcessKvRuntime } from "$/kv/mod.ts";
 import { createHonoApp, type McpFetchHandler } from "$/app/http/hono.ts";
 import { assert, assertEquals, baseHttpConfig, noopMcpHandler } from "./helpers.ts";
@@ -85,4 +86,12 @@ Deno.test({
     );
     assert(body.includes("Internal server error"), "expected generic error body");
   },
+});
+
+Deno.test("refused requests log one line, real failures keep their stack", () => {
+  const refused = new Error("Rejected inbound request (envelope-invalid): bad _meta");
+  assertEquals(describeMcpError(refused), refused.message);
+
+  const failure = new Error("database timeout");
+  assertEquals(describeMcpError(failure), failure);
 });

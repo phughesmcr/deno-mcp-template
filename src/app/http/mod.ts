@@ -3,6 +3,7 @@ import {
   type McpHttpHandler,
   type McpServer,
   type ServerEventBus,
+  UnsupportedProtocolVersionError,
 } from "@modelcontextprotocol/server";
 import type { Hono } from "hono";
 
@@ -25,6 +26,16 @@ function resolveClientIp(info: Deno.ServeHandlerInfo<Deno.Addr>): string | undef
     return remoteAddr.path;
   }
   return undefined;
+}
+
+/**
+ * What to log for an error from the MCP handler. The SDK refusing a bad request is the client's
+ * fault and routine on a public endpoint, so it gets one line. Anything else keeps its stack.
+ */
+export function describeMcpError(error: Error): Error | string {
+  const refused = error instanceof UnsupportedProtocolVersionError ||
+    error.message.startsWith("Rejected ");
+  return refused ? error.message : error;
 }
 
 /**
@@ -52,7 +63,7 @@ export function createHttpServer(
       bus: deps.events,
       responseMode: config.jsonResponseMode ? "json" : "auto",
       maxRequestBodySize: BODY_LIMIT,
-      onerror: (error) => console.error(`${APP_NAME}: MCP request error`, error),
+      onerror: (error) => console.error(`${APP_NAME}: MCP request error`, describeMcpError(error)),
     });
     hono ??= createHonoApp({ handler, config, kv: deps.kv });
   };
