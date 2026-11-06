@@ -91,7 +91,7 @@ See [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc) (Architecture) for 
 | --- | --- | --- |
 | Dual transports | STDIO (`serveStdio`) + stateless HTTP (`createMcpHandler`) from a single app | `src/app/` |
 | HTTP middleware | Rate limiting, CORS, optional bearer auth (not applied to `/mcp-elicitation/*` browser pages), security headers, timeouts | `src/app/http/hono.ts` |
-| Persistent state | Deno KV -- zero-config locally, built-in on Deploy | `src/kv/` |
+| Persistent state | Deno KV -- zero-config locally, attach a database on Deploy | `src/kv/` |
 | Multi-round tools | `inputRequired` results with signed `requestState`, so no server-side conversation state | `src/mcp/requestState.ts` |
 | Change notifications | `subscriptions/listen` streams fed by a `ServerEventBus`; KV watches publish resource updates | `src/app/app.ts`, `src/kv/watch.ts` |
 | Sandboxed execution | `@deno/sandbox` microVMs for untrusted code | `src/mcp/tools/sandbox.ts` |
@@ -262,9 +262,22 @@ deno deploy create \
   --build-memory-limit 1024 \
   --region us
 
+# Attach a KV database (one-time). `create` deploys straight away, and that first
+# revision fails because the server can't start without KV.
+deno deploy database provision <YOUR_DB> --kind denokv --org <YOUR_ORG>
+deno deploy database assign <YOUR_DB> --org <YOUR_ORG> --app <YOUR_APP>
+
+# Allow your public hostname. Without this, every request gets a 403 "Invalid Host".
+deno deploy env add MCP_DNS_REBINDING true --org <YOUR_ORG> --app <YOUR_APP>
+deno deploy env add MCP_ALLOWED_HOSTS <YOUR_HOSTNAME> --org <YOUR_ORG> --app <YOUR_APP>
+
 # Deploy
 deno deploy --prod
 ```
+
+Preview URLs include the revision ID, so an exact allowlist can't cover them.
+
+On Deploy the server sees no client IP, so all clients share the unknown-client rate limit: 20 requests per 15 minutes per instance. A single client session can use that up. Raise it with `MCP_HTTP_RATE_LIMIT_UNKNOWN_MAX`.
 
 Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Actions secrets for automatic deploys. Remove `.github/workflows/deploy.yml` if not using Deploy.
 

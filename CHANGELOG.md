@@ -37,6 +37,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as describ
 - `compile:*` tasks passed `--target` and `--icon` after `main.ts`, baking them into the binary as
   script arguments: the target was ignored and the binary exited with a usage error.
 - `clean:dist` no longer fails when `dist/` does not exist.
+- README: Deno Deploy needs a KV database attached and `MCP_ALLOWED_HOSTS` set before the server
+  will start and accept requests, and all clients there share the unknown-client rate limit.
 - `compile:all` and `mcpb:all` run in sequence: parallel task dependencies raced clean, compile and
   pack.
 
