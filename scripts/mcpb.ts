@@ -11,6 +11,14 @@ const DIST = "./dist";
 const BUNDLE = `${DIST}/server.mcpb`;
 const MANIFEST = `${DIST}/manifest.json`;
 const ICON = `${DIST}/icon.png`;
+const LAUNCHER = `${DIST}/server/launch.sh`;
+const BINARIES = [
+  "server.exe",
+  "server_mac_arm64",
+  "server_mac_x64",
+  "server_linux_x64",
+  "server_linux_arm64",
+];
 
 async function mcpb(...args: string[]): Promise<void> {
   const { code } = await new Deno.Command("mcpb", { args }).spawn().status;
@@ -23,16 +31,24 @@ async function main(): Promise<void> {
   });
 
   const dist = await Deno.stat(DIST).catch(() => null);
-  if (!dist?.isDirectory) throw new Error("dist/ not found, run one of the `compile` tasks first");
+  if (!dist?.isDirectory) throw new Error("dist/ not found, run `deno task compile:all` first");
+
+  for (const name of BINARIES) {
+    await Deno.stat(`${DIST}/server/${name}`).catch(() => {
+      throw new Error(`dist/server/${name} is missing, run \`deno task compile:all\` first`);
+    });
+  }
 
   await Deno.remove(BUNDLE).catch(() => {});
   await Deno.copyFile("./static/mcpb-manifest.json", MANIFEST);
   await Deno.copyFile("./static/icon.png", ICON);
+  await Deno.copyFile("./static/mcpb-launcher.sh", LAUNCHER);
   try {
     await mcpb("validate", MANIFEST);
     await mcpb("pack", DIST, BUNDLE);
     await mcpb("sign", BUNDLE, "--self-signed");
   } finally {
+    await Deno.remove(LAUNCHER);
     await Deno.remove(ICON);
     await Deno.remove(MANIFEST);
   }

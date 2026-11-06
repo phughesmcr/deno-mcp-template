@@ -9,23 +9,28 @@
   "icon": "icon.png",
   "server": {
     "type": "binary",
-    "entry_point": "server/server_mac_arm64",
+    "entry_point": "server/launch.sh",
     "mcp_config": {
-      "command": "${__dirname}/server/server_mac_arm64",
-      "args": ["--no-http"],
+      "command": "sh",
+      "args": [
+        "${__dirname}/server/launch.sh",
+        "--no-http"
+      ],
       "platform_overrides": {
         "win32": {
           "command": "${__dirname}/server/server.exe",
-          "args": ["--no-http"]
-        },
-        "linux": {
-          "command": "${__dirname}/server/server_linux_x64",
-          "args": ["--no-http"]
+          "args": [
+            "--no-http"
+          ]
         }
       }
     }
   },
   "compatibility": {
-    "platforms": ["darwin", "win32", "linux"]
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ]
   }
 }

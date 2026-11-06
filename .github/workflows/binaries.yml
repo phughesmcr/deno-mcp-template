@@ -1,0 +1,36 @@
+name: Binaries
+
+on:
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  binary:
+    name: ${{ matrix.task }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, task: "compile:linux:x64", binary: dist/server/server_linux_x64 }
+          - {
+              os: ubuntu-24.04-arm,
+              task: "compile:linux:arm64",
+              binary: dist/server/server_linux_arm64,
+            }
+          - { os: windows-latest, task: "compile:win", binary: dist/server/server.exe }
+          - { os: macos-latest, task: "compile:mac:arm64", binary: dist/server/server_mac_arm64 }
+          - { os: macos-15-intel, task: "compile:mac:x64", binary: dist/server/server_mac_x64 }
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.8
+      - name: Compile
+        run: deno task ${{ matrix.task }}
+      - name: Smoke test
+        run: deno run -A scripts/smoke-binary.ts ${{ matrix.binary }}

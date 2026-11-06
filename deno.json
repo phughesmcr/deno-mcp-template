@@ -65,64 +65,33 @@
     "clean:dist": "deno run -A scripts/clean-dist.ts",
     "compile:win": {
       "description": "Create a binary for Windows",
-      "dependencies": ["clean:dist"],
       "command": "deno compile -A --include ./static -o ./dist/server/server.exe --target x86_64-pc-windows-msvc --icon=./static/icon.ico main.ts"
     },
     "compile:mac:arm64": {
       "description": "Create a binary for Apple silicon macs (M1, M2, etc.)",
-      "dependencies": ["clean:dist"],
       "command": "deno compile -A --include ./static -o ./dist/server/server_mac_arm64 --target aarch64-apple-darwin main.ts"
     },
     "compile:mac:x64": {
       "description": "Create a binary for Intel macs",
-      "dependencies": ["clean:dist"],
       "command": "deno compile -A --include ./static -o ./dist/server/server_mac_x64 --target x86_64-apple-darwin main.ts"
     },
     "compile:linux:x64": {
       "description": "Create a binary for Linux (x64)",
-      "dependencies": ["clean:dist"],
       "command": "deno compile -A --include ./static -o ./dist/server/server_linux_x64 --target x86_64-unknown-linux-gnu main.ts"
     },
     "compile:linux:arm64": {
       "description": "Create a binary for Linux (arm64)",
-      "dependencies": ["clean:dist"],
       "command": "deno compile -A --include ./static -o ./dist/server/server_linux_arm64 --target aarch64-unknown-linux-gnu main.ts"
     },
     "compile:all": {
-      "description": "Create binaries for all available platforms",
-      "dependencies": [
-        "clean:dist",
-        "compile:win",
-        "compile:mac:arm64",
-        "compile:mac:x64",
-        "compile:linux:x64",
-        "compile:linux:arm64"
-      ]
+      "description": "Create binaries for all platforms (cleans dist/ first)",
+      "dependencies": ["clean:dist"],
+      "command": "deno task compile:win && deno task compile:mac:arm64 && deno task compile:mac:x64 && deno task compile:linux:x64 && deno task compile:linux:arm64"
     },
     "mcpb:pack": "deno run -A scripts/mcpb.ts",
-    "mcpb:win": {
-      "description": "Create an MCP Bundle for windows",
-      "dependencies": ["compile:win", "mcpb:pack"]
-    },
-    "mcpb:mac:arm64": {
-      "description": "Create an MCP Bundle for mac (arm64)",
-      "dependencies": ["compile:mac:arm64", "mcpb:pack"]
-    },
-    "mcpb:mac:x64": {
-      "description": "Create an MCP Bundle for mac (x64)",
-      "dependencies": ["compile:mac:x64", "mcpb:pack"]
-    },
-    "mcpb:linux:x64": {
-      "description": "Create an MCP Bundle for linux (x64)",
-      "dependencies": ["compile:linux:x64", "mcpb:pack"]
-    },
-    "mcpb:linux:arm64": {
-      "description": "Create an MCP Bundle for linux (arm64)",
-      "dependencies": ["compile:linux:arm64", "mcpb:pack"]
-    },
     "mcpb:all": {
-      "description": "Create an MCP Bundle for all platforms",
-      "dependencies": ["compile:all", "mcpb:pack"]
+      "description": "Create one MCP Bundle containing every platform binary",
+      "command": "deno task compile:all && deno task mcpb:pack"
     }
   },
   "compilerOptions": {
