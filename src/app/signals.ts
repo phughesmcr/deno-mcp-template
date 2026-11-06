@@ -1,14 +1,25 @@
+import { APP_NAME } from "$/shared/constants.ts";
+
 /** Sets up signal handlers for graceful shutdown; returns a disposer for tests and clean stop. */
 export function setupSignalHandlers(onShutdown: () => Promise<void>): () => void {
+  const shutdown = () =>
+    onShutdown().catch((error) => console.error(`${APP_NAME}: shutdown failed`, error));
+
   const handleExit = (code: number) => {
-    onShutdown().finally(() => Deno.exit(code));
+    shutdown().finally(() => Deno.exit(code));
   };
 
-  const onBeforeUnload = () => {
-    void onShutdown();
+  /** `preventDefault` keeps the event loop running, which the shutdown needs to finish. */
+  const onBeforeUnload = (event: Event) => {
+    event.preventDefault();
+    globalThis.removeEventListener("beforeunload", onBeforeUnload);
+    void shutdown();
   };
 
-  const onUnhandledRejection = (_event: PromiseRejectionEvent) => {
+  /** `preventDefault` stops Deno exiting at once, which would cut the shutdown short. */
+  const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+    event.preventDefault();
+    console.error(`${APP_NAME}: unhandled rejection`, event.reason);
     handleExit(1);
   };
 

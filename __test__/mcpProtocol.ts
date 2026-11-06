@@ -28,11 +28,24 @@ export async function withKvPath(run: (kvPath: string) => Promise<void>): Promis
   }
 }
 
-function freePort(): number {
+export function freePort(): number {
   const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
   const { port } = listener.addr;
   listener.close();
   return port;
+}
+
+/** Resolves once anything answers on `url`. */
+export async function waitForHttp(url: string): Promise<void> {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const ready = await fetch(url).then(async (response) => {
+      await response.body?.cancel();
+      return true;
+    }, () => false);
+    if (ready) return;
+    await delay(50);
+  }
+  throw new Error(`nothing answered on ${url}`);
 }
 
 /** Connects `client` to a server on a free port, runs `exercise`, then stops the server. */
@@ -55,15 +68,7 @@ export async function overHttp(
     const url = `http://127.0.0.1:${port}/mcp`;
 
     try {
-      for (let attempt = 0; attempt < 200; attempt++) {
-        const ready = await fetch(url).then(async (response) => {
-          await response.body?.cancel();
-          return true;
-        }, () => false);
-        if (ready) break;
-        await delay(50);
-      }
-
+      await waitForHttp(url);
       await client.connect(new StreamableHTTPClientTransport(new URL(url)));
       try {
         await exercise(client);

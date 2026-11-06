@@ -57,7 +57,15 @@ export function createApp(
     publicBaseUrl: resolvePublicBaseUrl(config.http),
   };
   const createServer = () => createMcpServer(ctx);
-  const stdio = options?.stdio ?? createStdioManager(createServer, events, config.stdio);
+
+  /** With HTTP off nothing is left to serve, so stop and let the process exit. */
+  const onStdioClientClosed = (): void => {
+    const closing = config.http.enabled ? stdio.disconnect() : stop();
+    closing.catch((error) => console.error(`${APP_NAME}: STDIO shutdown failed`, error));
+  };
+
+  const stdio = options?.stdio ??
+    createStdioManager(createServer, events, config.stdio, onStdioClientClosed);
   const http = options?.http ??
     createHttpServer(createServer, config.http, { kv: kvRuntime, events });
   const watcher = createKvWatcher(kvRuntime);
