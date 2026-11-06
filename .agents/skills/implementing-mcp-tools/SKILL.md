@@ -12,7 +12,7 @@ The server is stateless and speaks protocol revision 2026-07-28 only (`@modelcon
 ```
 Task Progress:
 - [ ] Step 1: Create tool file in src/mcp/tools/
-- [ ] Step 2: Define a Zod schema and call defineTool({ name, inputSchema, handler })
+- [ ] Step 2: Define Zod schemas and call defineTool({ name, inputSchema, outputSchema, annotations, handler })
 - [ ] Step 3: Export the result as the default export
 - [ ] Step 4: Register in src/mcp/tools/mod.ts
 - [ ] Step 5: Run `deno fmt`, then `deno task ci` to verify
@@ -28,6 +28,10 @@ import { z } from "zod";
 import { defineTool } from "$/mcp/plugin-types.ts";
 import { createCallToolTextResponse } from "$/shared/utils.ts";
 
+const outputSchema = z.object({
+  result: z.string().describe("What the tool produced"),
+});
+
 export default defineTool({
   name: "my-tool-name", // kebab-case
   title: "Human-readable title",
@@ -35,11 +39,14 @@ export default defineTool({
   inputSchema: z.object({
     myField: z.string().min(1, "Required").describe("What this field does"),
   }),
+  outputSchema,
+  annotations: { readOnlyHint: true, openWorldHint: false },
   // Optional: runtime: { requiresNet: true } when the tool does outbound I/O
   handler: async ({ myField }, _ctx, _deps) => {
     // `myField` is already validated and typed; no safeParse needed.
     // ... tool logic ...
-    return createCallToolTextResponse({ result: myField });
+    const result: z.infer<typeof outputSchema> = { result: myField };
+    return createCallToolTextResponse(result, result);
   },
 });
 ```
@@ -76,12 +83,16 @@ From `src/mcp/plugin-types.ts`:
 
 From `src/shared/utils.ts`:
 
-- **`createCallToolTextResponse(obj, structuredContent?)`** - Wraps `obj` as JSON text content
+- **`createCallToolTextResponse(obj, structuredContent?)`** - Wraps `obj` as JSON text content. Pass the same object twice for a tool with an `outputSchema`
 - **`createCallToolErrorResponse(obj, structuredContent?)`** - Same but sets `isError: true`
 
 ## Validation
 
 The SDK validates `args` against `inputSchema` before the handler runs, so do not `safeParse` them again. Use `.default(...)` for optional args with fallbacks (see `increment-counter`). Use `z.object({})` for tools without arguments.
+
+## Output Schema
+
+Declare an `outputSchema` whenever the result has a fixed shape, and return matching `structuredContent`. The SDK validates it, and a mismatch or a missing `structuredContent` turns the call into a tool error. `isError` results and `inputRequired` returns skip that check, so error responses keep their own shape. Multi-round tools whose results differ by outcome, like `elicit-input`, are better without one.
 
 ## Error Handling Pattern
 
@@ -114,6 +125,8 @@ import { inputRequired, inputResponse } from "@modelcontextprotocol/server";
 ```
 
 Helpers in `src/mcp/inputResponses.ts`: `wasDeclined(ctx, key)`, `samplingText(ctx, key)`, `rootCount(ctx, key)`.
+
+> **Deprecated features:** sampling, roots and logging are deprecated by SEP-2577, still in the spec for at least twelve months. The demos stay so clients can test them, but do not build new features on `inputRequired.createMessage`, `rootCount` or `ctx.mcpReq.log`.
 
 #### Sampling (LLM-powered)
 
@@ -178,7 +191,8 @@ import { incrementPersistedCounterValue } from "../resources/counterStore.ts";
 
 handler: async ({ delta }, _ctx, { kv }) => {
   const value = await incrementPersistedCounterValue(delta, kv);
-  return createCallToolTextResponse({ value, delta, uri: COUNTER_URI });
+  const result: z.infer<typeof outputSchema> = { value, delta, uri: COUNTER_URI };
+  return createCallToolTextResponse(result, result);
 },
 ```
 
@@ -212,18 +226,26 @@ Resource updates use `{ kind: "resource_updated", uri }`.
 
 ## Annotations
 
-Add `annotations` to the definition for client hints:
+Every tool declares `annotations`, because clients use them to decide when to ask the user. They are hints, so never rely on them for security. Say what is true of the tool, as the defaults assume the worst (`readOnlyHint: false`, `destructiveHint: true`, `idempotentHint: false`, `openWorldHint: true`):
+
+| Tool | Annotations |
+|------|-------------|
+| Reads only, closed domain (`echo`) | `{ readOnlyHint: true, openWorldHint: false }` |
+| Reads the open web (`fetch-website-info`) | `{ readOnlyHint: true, openWorldHint: true }` |
+| Changes state, additively (`increment-counter`) | `{ readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }` |
+| Same result if repeated (`notify-list-changed`) | `{ readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }` |
+
+`destructiveHint` and `idempotentHint` only mean anything when `readOnlyHint` is false.
+
+## Cancellation and Timeouts
+
+`ctx.mcpReq.signal` aborts when the client cancels. Combine it with a timeout and pass the result to anything that takes a signal:
 
 ```typescript
-defineTool({
-  name: "my-tool",
-  title: "My Tool",
-  description: "...",
-  inputSchema: z.object({}),
-  annotations: { readOnlyHint: true, openWorldHint: false },
-  handler: () => createCallToolTextResponse({ ok: true }),
-});
+const signal = AbortSignal.any([ctx.mcpReq.signal, AbortSignal.timeout(10_000)]);
 ```
+
+`AbortSignal.timeout` rejects with a `TimeoutError`, not an `AbortError`. The SDK discards a cancelled request's result, so stopping early only saves work.
 
 ## Additional Resources
 

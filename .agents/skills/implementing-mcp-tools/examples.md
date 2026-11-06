@@ -11,6 +11,19 @@ import { z } from "zod";
 
 import { defineTool } from "$/mcp/plugin-types.ts";
 import { createCallToolErrorResponse, createCallToolTextResponse } from "$/shared/utils.ts";
+import {
+  DisallowedFetchUrlError,
+  headUrlWithSafeRedirects,
+} from "$/shared/validation/safeToolFetchUrl.ts";
+
+const outputSchema = z.object({
+  url: z.string().describe("The URL that answered, after any redirects"),
+  status: z.number().int().describe("HTTP status code"),
+  statusText: z.string().describe("HTTP status text"),
+  redirected: z.boolean().describe("Whether at least one redirect was followed"),
+  headers: z.record(z.string(), z.string()).describe("A selection of the response headers"),
+  timestamp: z.iso.datetime().describe("When the response was received"),
+});
 
 export default defineTool({
   name: "fetch-website-info",
@@ -22,17 +35,14 @@ export default defineTool({
       .max(2000, "URL too long")
       .describe("The URL to fetch information for"),
   }),
+  outputSchema,
+  annotations: { readOnlyHint: true, openWorldHint: true },
   runtime: { requiresNet: true },
-  handler: async ({ url }) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+  handler: async ({ url }, ctx) => {
+    const signal = AbortSignal.any([ctx.mcpReq.signal, AbortSignal.timeout(10_000)]);
 
     try {
-      const response = await fetch(url, {
-        method: "HEAD",
-        signal: controller.signal,
-        redirect: "follow",
-      });
+      const { response, redirected } = await headUrlWithSafeRedirects(url, signal);
 
       const headers: Record<string, string> = {};
       for (const key of ["content-type", "server", "x-powered-by", "cache-control", "etag"]) {
@@ -40,26 +50,26 @@ export default defineTool({
         if (value) headers[key] = value;
       }
 
-      return createCallToolTextResponse({
+      const result: z.infer<typeof outputSchema> = {
         url: response.url,
         status: response.status,
         statusText: response.statusText,
-        redirected: response.redirected,
+        redirected,
         headers,
         timestamp: new Date().toISOString(),
-      });
-    } catch (fetchError) {
-      if (fetchError instanceof Error && fetchError.name === "AbortError") {
+      };
+      return createCallToolTextResponse(result, result);
+    } catch (error) {
+      if (error instanceof DisallowedFetchUrlError) {
+        return createCallToolErrorResponse({ error: "URL not allowed" });
+      }
+      if (error instanceof Error && error.name === "TimeoutError") {
         return createCallToolErrorResponse({ error: "Request timed out after 10 seconds", url });
       }
       return createCallToolErrorResponse({
-        error: fetchError instanceof Error
-          ? `Network error: ${fetchError.message}`
-          : "Unknown network error",
+        error: error instanceof Error ? `Network error: ${error.message}` : "Unknown network error",
         url,
       });
-    } finally {
-      clearTimeout(timeoutId);
     }
   },
 });
@@ -67,8 +77,10 @@ export default defineTool({
 
 Key patterns:
 - Arguments arrive validated; no `safeParse` in the handler
+- `outputSchema` plus matching `structuredContent`: pass the same object as both arguments of `createCallToolTextResponse`. Error results skip the schema
+- `annotations` say this tool only reads, but reaches the open web
 - `runtime: { requiresNet: true }` feeds the permission preflight
-- Timeout with `AbortController`, cleared in `finally`
+- `AbortSignal.any` stops on client cancellation or the timeout; `AbortSignal.timeout` rejects with a `TimeoutError`, not an `AbortError`
 - Specific error messages per failure mode
 
 ---
@@ -85,6 +97,12 @@ import { createCallToolTextResponse } from "$/shared/utils.ts";
 import { COUNTER_URI } from "../resources/counter.ts";
 import { incrementPersistedCounterValue } from "../resources/counterStore.ts";
 
+const outputSchema = z.object({
+  value: z.number().int().describe("The counter after this increment"),
+  delta: z.number().int().describe("The amount added"),
+  uri: z.string().describe("The resource holding the counter"),
+});
+
 export default defineTool({
   name: "increment-counter",
   title: "Increment counter",
@@ -93,15 +111,24 @@ export default defineTool({
     delta: z.number().int().min(1, "Delta must be at least 1").max(1000, "Delta too large")
       .default(1),
   }),
+  outputSchema,
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
   handler: async ({ delta }, _ctx, { kv }) => {
     const value = await incrementPersistedCounterValue(delta, kv);
-    return createCallToolTextResponse({ value, delta, uri: COUNTER_URI });
+    const result: z.infer<typeof outputSchema> = { value, delta, uri: COUNTER_URI };
+    return createCallToolTextResponse(result, result);
   },
 });
 ```
 
 Key patterns:
 - `.default(...)` instead of `args ?? {}` for optional fields
+- `idempotentHint: false` because a repeated call adds to the counter again
 - Third handler argument is the shared `McpServerFactoryContext`; `kv` is the process-wide Deno KV runtime
 - Subscribers are notified by the KV watcher through the `ServerEventBus`; the tool just mutates state
 
@@ -109,7 +136,7 @@ Key patterns:
 
 ## Sampling Tool - Poem Generator
 
-`src/mcp/tools/poem.ts` asks the client's LLM via an `input_required` round:
+`src/mcp/tools/poem.ts` asks the client's LLM via an `input_required` round. Sampling is deprecated by SEP-2577, still in the spec for at least twelve months:
 
 ```typescript
 import { inputRequired, inputResponse } from "@modelcontextprotocol/server";
@@ -131,6 +158,7 @@ export default defineTool({
       .max(5000, "Prompt too long (max 5000 characters)")
       .describe("The prompt to generate a poem for"),
   }),
+  annotations: { readOnlyHint: true, openWorldHint: false },
   handler: ({ prompt }, ctx) => {
     const view = inputResponse(ctx.mcpReq.inputResponses, INPUT_KEY);
     if (view.kind === "missing") {
@@ -201,6 +229,7 @@ export default defineTool({
   inputSchema: z.object({
     purpose: z.string().min(1, "Purpose is required").max(200, "Purpose too long"),
   }),
+  annotations: { readOnlyHint: true, openWorldHint: false },
   handler: ({ purpose }, ctx) => {
     if (wasDeclined(ctx, INPUT_KEY)) return createCallToolTextResponse({ cancelled: true });
 
@@ -228,7 +257,7 @@ Key patterns:
 
 ## Notification Tool - Logging
 
-`src/mcp/tools/logMessage.ts` sends structured log messages:
+`src/mcp/tools/logMessage.ts` sends structured log messages. Logging is deprecated by SEP-2577, still in the spec for at least twelve months:
 
 ```typescript
 import { z } from "zod";
@@ -254,6 +283,7 @@ export default defineTool({
     ]).default("info"),
     logger: z.string().max(100, "Logger name too long").optional(),
   }),
+  annotations: { readOnlyHint: true, openWorldHint: false },
   handler: async ({ message, level, logger }, ctx) => {
     await ctx.mcpReq.log(level, { message }, logger);
     return createCallToolTextResponse({ logged: true, level, logger: logger ?? null, message });
@@ -270,6 +300,12 @@ Log levels: `debug`, `info`, `notice`, `warning`, `error`, `critical`, `alert`, 
 `src/mcp/tools/notifyListChanged.ts` publishes on the shared `ServerEventBus`:
 
 ```typescript
+annotations: {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+},
 handler: ({ target }, _ctx, { events }) => {
   events.publish({ kind: EVENT_KINDS[target] }); // "tools_list_changed" | "prompts_list_changed" | "resources_list_changed"
   return createCallToolTextResponse({ notified: true, target });
@@ -288,6 +324,10 @@ import { z } from "zod";
 import { defineTool } from "$/mcp/plugin-types.ts";
 import { createCallToolTextResponse } from "$/shared/utils.ts";
 
+const outputSchema = z.object({
+  // TODO: define your result fields
+});
+
 export default defineTool({
   name: "TODO-tool-name",
   title: "TODO title",
@@ -295,9 +335,12 @@ export default defineTool({
   inputSchema: z.object({
     // TODO: define your input fields
   }),
+  outputSchema,
+  annotations: { readOnlyHint: true, openWorldHint: false }, // TODO: say what is true of this tool
   handler: (_args, _ctx, _deps) => {
     // TODO: implement tool logic
-    return createCallToolTextResponse({ /* TODO: result */ });
+    const result: z.infer<typeof outputSchema> = { /* TODO: result */ };
+    return createCallToolTextResponse(result, result);
   },
 });
 ```

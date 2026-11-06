@@ -7,17 +7,18 @@ Complete, working examples from the codebase.
 `src/mcp/resources/helloWorld.ts` is the simplest resource:
 
 ```typescript
-import type { ReadResourceResult, ResourceMetadata } from "@modelcontextprotocol/server";
+import type { ReadResourceResult } from "@modelcontextprotocol/server";
 
-import type { ResourcePlugin } from "$/mcp/plugin-types.ts";
+import type { ResourceConfig, ResourcePlugin } from "$/mcp/plugin-types.ts";
 
 const name = "helloWorld";
 
 const uri = "hello://world";
 
-const config: ResourceMetadata = {
+const config: ResourceConfig = {
   description: "A simple greeting message",
   mimeType: "text/plain",
+  cacheHint: { ttlMs: 60 * 60 * 1000, cacheScope: "public" }, // The text never changes.
 };
 
 async function readCallback(): Promise<ReadResourceResult> {
@@ -46,6 +47,7 @@ Key patterns:
 - `type: "resource"` for fixed-URI resources
 - `readCallback` may take no parameters; the full signature is `(uri, ctx, deps)`
 - Returns `ReadResourceResult` with `contents` array
+- `cacheHint` lets clients reuse a read. Leave it out for anything that changes (the default is no caching), and use `cacheScope: "public"` only for content that is the same for every client
 
 ---
 
@@ -176,10 +178,13 @@ Add new entries here for each KV-backed resource to enable automatic subscriptio
 ```typescript
 import {
   type CompleteResourceTemplateCallback,
+  ProtocolError,
+  ProtocolErrorCode,
+  type ReadResourceResult,
   type ResourceMetadata,
   ResourceTemplate,
+  type Variables,
 } from "@modelcontextprotocol/server";
-import type { ReadResourceResult } from "@modelcontextprotocol/server";
 
 import type { ResourceTemplatePlugin } from "$/mcp/plugin-types.ts";
 
@@ -215,16 +220,13 @@ const config: ResourceMetadata = {
   mimeType: "text/plain",
 };
 
-async function readCallback(
-  uri: URL,
-  variables: Record<string, unknown>,
-): Promise<ReadResourceResult> {
-  const _name = uri.toString().match(/^greetings:\/\/(.+)$/);
-  if (!_name) throw new SyntaxError("Invalid greetings URI format");
-
-  const name = (variables.name as string) ?? _name[1];
-  if (!name || typeof name !== "string" || name.trim().length === 0) {
-    throw new SyntaxError("Name parameter is required and must be a non-empty string");
+function readCallback(uri: URL, variables: Variables): ReadResourceResult {
+  const { name } = variables;
+  if (typeof name !== "string" || name.trim().length === 0) {
+    throw new ProtocolError(
+      ProtocolErrorCode.InvalidParams,
+      "Name parameter is required and must be a non-empty string",
+    );
   }
 
   const sanitizedName = name
