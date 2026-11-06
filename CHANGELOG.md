@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as described in
 [VERSIONING.md](VERSIONING.md).
 
-## [Unreleased](https://github.com/phughesmcr/deno-mcp-template/compare/v0.7.0...HEAD)
+## [Unreleased](https://github.com/phughesmcr/deno-mcp-template/compare/v0.8.0...HEAD)
+
+## [0.8.0](https://github.com/phughesmcr/deno-mcp-template/releases/tag/v0.8.0) - 2026-11-06
 
 ### Changed
 
