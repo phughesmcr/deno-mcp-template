@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "strict": true,
     "skipLibCheck": true,
     "module": "ESNext",
@@ -9,13 +9,17 @@
   "imports": {
     "@modelcontextprotocol/client": "npm:@modelcontextprotocol/client@^2.4.0",
     "@modelcontextprotocol/ext-apps": "npm:@modelcontextprotocol/ext-apps@^2.0.4",
-    "typescript": "npm:typescript@^5.9.3",
+    "typescript": "npm:typescript@^7.0.2",
     "vite": "npm:vite@^6.3.5",
     "vite-plugin-singlefile": "npm:vite-plugin-singlefile@^2.3.0"
   },
   "nodeModulesDir": "auto",
   "tasks": {
     "install-deps": "deno install --allow-scripts=npm:esbuild --frozen",
-    "build": "deno run -A npm:vite build"
+    "check": "deno fmt --check src vite.config.ts && deno lint src vite.config.ts && deno check --frozen src vite.config.ts && deno test --frozen --allow-read src",
+    "build": {
+      "dependencies": ["check"],
+      "command": "deno run -A npm:vite build"
+    }
   }
 }

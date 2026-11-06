@@ -1,4 +1,4 @@
-import { closeKvStore, configureKvPath, createProcessKvRuntime, openKvStore } from "$/kv/mod.ts";
+import { createProcessKvRuntime, getProcessKvRuntime } from "$/kv/mod.ts";
 
 Deno.test("createProcessKvRuntime: open then get returns same instance", async () => {
   const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
@@ -52,15 +52,16 @@ Deno.test("createProcessKvRuntime: cannot change path while open", async () => {
   }
 });
 
-Deno.test("global store helpers delegate to process runtime", async () => {
+Deno.test("getProcessKvRuntime: shares one runtime and one Kv", async () => {
   const kvPath = await Deno.makeTempFile({ suffix: ".sqlite3" });
+  const rt = getProcessKvRuntime();
   try {
-    configureKvPath(kvPath);
-    const a = await openKvStore();
-    const b = await openKvStore();
-    if (a !== b) throw new Error("expected same store");
-    await closeKvStore();
+    if (rt !== getProcessKvRuntime()) throw new Error("expected same runtime");
+    const a = await rt.open(kvPath);
+    const b = await getProcessKvRuntime().get();
+    if (a !== b) throw new Error("expected same Kv instance");
   } finally {
+    await rt.close();
     await Deno.remove(kvPath).catch(() => {});
   }
 });

@@ -9,8 +9,9 @@ deno task build:mcp-ui
 ```
 
 This runs Deno tasks in this directory: `deno install` (with `mcp-ui/deno.lock`
-and `--frozen`) plus `deno run -A npm:vite build`. No Node.js or `npm` CLI is
-required. After changing dependencies in `deno.json` (`imports`), run
+and `--frozen`), the `check` task (format, lint, type-check, test), then
+`deno run -A npm:vite build`. `deno task ci` runs all of it. No Node.js or `npm`
+CLI is required. After changing dependencies in `deno.json` (`imports`), run
 `deno install --allow-scripts=npm:esbuild` from `mcp-ui/` (without `--frozen`
 once) to refresh `deno.lock`, then commit the lockfile.
 

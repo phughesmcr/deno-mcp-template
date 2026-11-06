@@ -16,35 +16,39 @@ import type {
 
 import "./mcp-app.css";
 
-const argUrlEl = document.getElementById("arg-url") as HTMLElement;
-const resultPanel = document.getElementById("result-panel") as HTMLElement;
-const errorPanel = document.getElementById("error-panel") as HTMLElement;
-const errorTextEl = document.getElementById("error-text") as HTMLElement;
-const cancelPanel = document.getElementById("cancel-panel") as HTMLElement;
-const cancelTextEl = document.getElementById("cancel-text") as HTMLElement;
-const resultMetaEl = document.getElementById("result-meta") as HTMLElement;
-const headersBody = document.querySelector(
+/** Finds an element the page must contain, so a mismatch with the HTML fails at startup. */
+function requireElement<T extends HTMLElement>(
+  selector: string,
+  type: new () => T,
+): T {
+  const element = document.querySelector(selector);
+  if (!(element instanceof type)) {
+    throw new Error(`Expected ${type.name} at "${selector}"`);
+  }
+  return element;
+}
+
+const argUrlEl = requireElement("#arg-url", HTMLElement);
+const resultPanel = requireElement("#result-panel", HTMLElement);
+const errorPanel = requireElement("#error-panel", HTMLElement);
+const errorTextEl = requireElement("#error-text", HTMLElement);
+const cancelPanel = requireElement("#cancel-panel", HTMLElement);
+const cancelTextEl = requireElement("#cancel-text", HTMLElement);
+const resultMetaEl = requireElement("#result-meta", HTMLElement);
+const headersBody = requireElement(
   "#headers-table tbody",
-) as HTMLTableSectionElement;
-const btnDownload = document.getElementById(
-  "btn-download",
-) as HTMLButtonElement;
-const btnDone = document.getElementById("btn-done") as HTMLButtonElement;
-const btnRefreshResources = document.getElementById(
-  "btn-refresh-resources",
-) as HTMLButtonElement;
-const resourcesErrorEl = document.getElementById(
-  "resources-error",
-) as HTMLElement;
-const resourceListEl = document.getElementById(
-  "resource-list",
-) as HTMLUListElement;
-const resourcePreviewEl = document.getElementById(
-  "resource-preview",
-) as HTMLElement;
-const resourcesHintEl = document.getElementById(
-  "resources-hint",
-) as HTMLElement;
+  HTMLTableSectionElement,
+);
+const btnDownload = requireElement("#btn-download", HTMLButtonElement);
+const btnDone = requireElement("#btn-done", HTMLButtonElement);
+const btnRefreshResources = requireElement(
+  "#btn-refresh-resources",
+  HTMLButtonElement,
+);
+const resourcesErrorEl = requireElement("#resources-error", HTMLElement);
+const resourceListEl = requireElement("#resource-list", HTMLUListElement);
+const resourcePreviewEl = requireElement("#resource-preview", HTMLElement);
+const resourcesHintEl = requireElement("#resources-hint", HTMLElement);
 
 /** Latest successful structured payload for host-mediated download. */
 let lastSuccessPayload: SuccessPayload | null = null;
@@ -229,7 +233,7 @@ function onToolCancelled(params: AppEventMap["toolcancelled"]): void {
 const app = new App({ name: "Website info", version: "1.0.0" });
 appRef = app;
 
-async function onTeardown(): Promise<Record<string, never>> {
+function onTeardown(): Record<string, never> {
   app.removeEventListener("toolinput", onToolInput);
   app.removeEventListener("toolresult", onToolResult);
   app.removeEventListener("toolcancelled", onToolCancelled);
