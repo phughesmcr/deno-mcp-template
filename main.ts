@@ -17,7 +17,7 @@
  *
  * @example claude-desktop-config.json manually using the HTTP endpoint
  * Start the server using `deno task start` first.
- * `mcp-remote` 0.16.1 speaks 2025-11-25, so it needs `legacy: "reject"` changed first.
+ * `mcp-remote` 0.16.0 speaks 2025-11-25, so it needs `legacy: "reject"` changed first.
  * ```json
  * {
  *   "mcpServers": {

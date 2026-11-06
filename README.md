@@ -188,7 +188,7 @@ Compile tasks bundle the `static/` directory, so binaries serve static routes wi
 
 **HTTP with mcp-remote:**
 
-This fails while the server rejects legacy clients: `mcp-remote` 0.16.1 sends 2025-11-25 and gets an unsupported-version error. Use it only if you change `legacy: "reject"` (see above).
+This fails while the server rejects legacy clients: `mcp-remote` 0.16.0 sends 2025-11-25 and gets an unsupported-version error. Use it only if you change `legacy: "reject"` (see above).
 
 ```json
 {
