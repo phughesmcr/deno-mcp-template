@@ -1,5 +1,6 @@
 import { getProcessKvRuntime } from "$/kv/mod.ts";
 import { createHonoApp } from "$/app/http/hono.ts";
+import { resolveRateLimitIdentity } from "$/app/http/rateLimitIdentity.ts";
 import type { AppConfig } from "$/shared/config-types.ts";
 import { assertEquals, baseHttpConfig, noopMcpHandler } from "./helpers.ts";
 
@@ -23,8 +24,6 @@ async function performRequest(
 
 Deno.test({
   name: "rate limiter uses stable client identity even with spoofed forwarding headers",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const app = createTestApp();
     const clientIp = "10.10.10.10";
@@ -48,8 +47,6 @@ Deno.test({
 
 Deno.test({
   name: "rate limiter does not share fallback bucket across distinct client IPs",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const app = createTestApp();
 
@@ -65,8 +62,6 @@ Deno.test({
 
 Deno.test({
   name: "with trust-proxy, rate limiter uses X-Forwarded-For when socket IP is absent",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const app = createTestApp(baseHttpConfig({ trustProxy: true }));
     const xff = "203.0.113.77";
@@ -87,8 +82,6 @@ Deno.test({
 
 Deno.test({
   name: "requests with no client IP use strict unknown-client rate limit",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const app = createTestApp();
 
@@ -100,4 +93,15 @@ Deno.test({
     const blocked = await performRequest(app, undefined, {});
     assertEquals(blocked.status, 429);
   },
+});
+
+Deno.test("rate limit identity only trusts well-formed IPv6 addresses", () => {
+  const identify = (ip: string) => resolveRateLimitIdentity(false, ip, () => undefined).type;
+
+  for (const ip of ["::1", "[::1]", "2001:db8::1", "::ffff:192.0.2.1"]) {
+    assertEquals(identify(ip), "ip");
+  }
+  for (const ip of [":::::", "abc", "1:2", "::1]/x", "::1]@evil.example"]) {
+    assertEquals(identify(ip), "unknown");
+  }
 });

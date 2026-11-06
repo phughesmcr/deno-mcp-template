@@ -94,12 +94,8 @@ export function registerUrlElicitationRoutes<E extends Env>(
 
   /** Records the outcome; the client reads it from KV when it retries the tool call. */
   app.post("/mcp-elicitation/confirm", async function (c) {
-    let body: Record<string, string>;
-    try {
-      body = await c.req.parseBody() as Record<string, string>;
-    } catch {
-      return c.html(errorPage("Invalid form body."), 400);
-    }
+    const body = await c.req.parseBody().catch(() => null);
+    if (!body) return c.html(errorPage("Invalid form body."), 400);
 
     const elicitation = typeof body.elicitation === "string" ? body.elicitation.trim() : "";
     const action = typeof body.action === "string" ? body.action.trim() : "";

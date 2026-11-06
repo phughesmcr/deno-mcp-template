@@ -17,8 +17,8 @@ function isPlausibleIpv4(s: string): boolean {
 function isPlausibleIpv6(s: string): boolean {
   let t = s.trim();
   if (t.startsWith("[") && t.endsWith("]")) t = t.slice(1, -1);
-  if (!t.includes(":") || t.length > 45) return false;
-  return /^[0-9a-fA-F:]+$/.test(t);
+  // The character check stops a value like `::1]/x` closing the bracket and still parsing as a URL.
+  return /^[0-9a-fA-F:.]+$/.test(t) && URL.canParse(`http://[${t}]`);
 }
 
 function normalizeClientIpCandidate(raw: string | undefined): string | undefined {

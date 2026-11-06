@@ -14,8 +14,6 @@ function createTestApp(handler: McpFetchHandler = noopMcpHandler) {
 
 Deno.test({
   name: "internal handler failures return a generic error without internal details",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const app = createTestApp({
       fetch: () => Promise.reject(new Error("database timeout")),
@@ -40,8 +38,6 @@ Deno.test({
 
 Deno.test({
   name: "invalid requests still return specific client-facing validation errors",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const app = createTestApp(createTestMcpHandler());
 
@@ -63,8 +59,6 @@ Deno.test({
 
 Deno.test({
   name: "non-MCP routes do not expose Error.message in 500 responses",
-  sanitizeOps: false,
-  sanitizeResources: false,
   fn: async () => {
     const app = createTestApp();
 
