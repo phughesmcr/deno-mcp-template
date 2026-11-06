@@ -3,8 +3,7 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
-adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as described in
-[VERSIONING.md](VERSIONING.md).
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased](https://github.com/phughesmcr/deno-mcp-template/compare/v0.8.0...HEAD)
 
@@ -27,7 +26,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as describ
 - CI runs on `dev` and passes `DENO_DEPLOY_TOKEN`, so the real sandbox test runs.
 - `deploy.yml` has a `prod` dispatch input (default false), so a manual run makes a preview. It checks
   org and app access first, smoke-tests the deployed URL, and prints app logs on failure.
-- Agent rules and skills moved from `.cursor/` to `.agents/`.
+- Agent rules moved to `AGENTS.md` and skills to `.agents/skills/`. `CONTRIBUTING.md` and
+  `SECURITY.md` moved to `.github/`.
 - Conformance runs `--requirements 2026-07-28` on `@modelcontextprotocol/conformance`
   0.2.0-alpha.12, and CI pins Deno 2.9.8.
 
@@ -35,6 +35,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as describ
 
 - **BREAKING:** MCP sessions, the KV event store, experimental MCP tasks, `Deno.cron` maintenance,
   `MCP_MAX_TASK_TTL_MS` / `--max-task-ttl-ms`, and the `delayed-echo` and `guided-poem` tools.
+- `AUTHORS.md`, `CONTRIBUTORS.md`, `SUPPORT.md` and `.cursorignore`.
 
 ### Fixed
 
@@ -50,9 +51,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as describ
 
 ### Added
 
-- Governance documentation: `VERSIONING.md`, `DEPENDENCY_POLICY.md`, `ROADMAP.md`, SEP-1730-oriented
-  issue labels (`deno task labels:github` / `scripts/setup-sep1730-labels.sh`), issue templates, and
-  maintainer triage expectations in `CONTRIBUTING.md`.
+- SEP-1730-oriented issue labels (`deno task labels:github` / `scripts/setup-sep1730-labels.sh`), issue templates, and
+  maintainer triage expectations in `.github/CONTRIBUTING.md`.
 - `.github/dependabot.yml` for automated dependency update PRs where supported.
 - `deno task deploy:setup` sets up a new Deno Deploy app, and `scripts/smoke-deploy.ts` checks a
   deployed server answers MCP.

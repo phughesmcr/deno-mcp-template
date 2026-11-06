@@ -1,7 +1,3 @@
----
-description: Top-level rules and information for the project
-alwaysApply: true
----
 # Deno MCP Template Development Guide
 
 Deno version: 2.9.8 (pinned in CI)
@@ -78,10 +74,14 @@ deno.json     # Project configuration
 main.ts       # The main entry point
 scripts/
 ├── clean-dist.ts                   # Cleans dist/ build output
+├── conformance-baseline.yml        # Expected conformance failures
+├── deploy-setup.ts                 # `deno task deploy:setup` creates a Deno Deploy app
 ├── mcpb.ts                         # Packs a compiled binary into dist/server.mcpb (`deno task mcpb:*`)
 ├── run-mcp-conformance.sh          # Runs the MCP conformance suite against a local server
 ├── setup-sep1730-labels.sh         # GitHub label setup
-└── setup-template.ts               # `deno task setup` renames the template
+├── setup-template.ts               # `deno task setup` renames the template
+├── smoke-binary.ts                 # Smoke test for compiled binaries
+└── smoke-deploy.ts                 # Checks a deployed server answers MCP
 src/
 ├── app/
 │   ├── http/

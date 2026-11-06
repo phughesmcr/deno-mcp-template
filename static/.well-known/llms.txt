@@ -7,7 +7,7 @@
 ## Project documentation
 
 - [README.md](https://github.com/phughesmcr/deno-mcp-template/blob/main/README.md): Quick start, `deno task` commands, JSR subpath imports, infrastructure table, example MCP features, and customization checklist.
-  - [Development guide / architecture](https://github.com/phughesmcr/deno-mcp-template/blob/main/.agents/rules/project.mdc): `src/mcp/` vs `src/app/`, per-request `McpServer` instances, shared KV and event bus, HTTP security (host, CORS, DNS rebinding), and project layout.
+  - [Development guide / architecture](https://github.com/phughesmcr/deno-mcp-template/blob/main/AGENTS.md): `src/mcp/` vs `src/app/`, per-request `McpServer` instances, shared KV and event bus, HTTP security (host, CORS, DNS rebinding), and project layout.
 
 ## HTTP surface
 

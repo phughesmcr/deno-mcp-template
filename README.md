@@ -81,7 +81,7 @@ When this package is published to JSR, you can import the full program (`main.ts
 - **`jsr:@scope/name/mcp`** — `createMcpServer`, `mcpServerDefinition`, the factory context type, and related exports. The host must still open Deno KV (and any other shared services) before handling requests, same as `createApp` does.
 - **`jsr:@scope/name/app`** — `createApp` for embedding the STDIO + HTTP host without copying `main.ts`.
 
-See [`.agents/rules/project.mdc`](.agents/rules/project.mdc) (Architecture) for the per-request `McpServer` instances and the shared factory context.
+See [`AGENTS.md`](AGENTS.md) (Architecture) for the per-request `McpServer` instances and the shared factory context.
 
 ## What's Included
 
@@ -348,7 +348,7 @@ Use `--origin` for full origins (e.g. `https://example.com`) and `--host` for ho
 
 ### MCP conformance
 
-This template ships **built-in showcase** features named like the upstream reference server (`test_*` tools, `test://…` resources, `test_*` prompts) alongside the demo tools—see the individual modules in `src/mcp/tools/test*.ts`, `src/mcp/resources/test*Resource.ts`, and `src/mcp/prompts/test*Prompt*.ts`. `deno task conformance:server` runs the pinned [`@modelcontextprotocol/conformance`](https://www.npmjs.com/package/@modelcontextprotocol/conformance) CLI against the default HTTP server (rate limiting is disabled in the helper script to avoid HTTP 429 during long runs). A scenario such as `tools-call-simple-text` can still “pass” on non-reference tools if the response is plain text—even when `isError` is true—so use the conformance task or Inspector when validating behavior. Optional expected failures live in `conformance-baseline.yml` (empty `server: []` means CI fails on any failure).
+This template ships **built-in showcase** features named like the upstream reference server (`test_*` tools, `test://…` resources, `test_*` prompts) alongside the demo tools—see the individual modules in `src/mcp/tools/test*.ts`, `src/mcp/resources/test*Resource.ts`, and `src/mcp/prompts/test*Prompt*.ts`. `deno task conformance:server` runs the pinned [`@modelcontextprotocol/conformance`](https://www.npmjs.com/package/@modelcontextprotocol/conformance) CLI against the default HTTP server (rate limiting is disabled in the helper script to avoid HTTP 429 during long runs). A scenario such as `tools-call-simple-text` can still “pass” on non-reference tools if the response is plain text—even when `isError` is true—so use the conformance task or Inspector when validating behavior. Optional expected failures live in `scripts/conformance-baseline.yml` (empty `server: []` means CI fails on any failure).
 
 ### Runtime permissions
 
@@ -395,18 +395,16 @@ __bench__                   # Benchmarks
 ```
 
 For the annotated source tree, transport internals, and development caveats, see
-[`.agents/rules/project.mdc`](.agents/rules/project.mdc).
+[`AGENTS.md`](AGENTS.md).
 
 ## Extras
 
 Included quality-of-life files:
 
-- `.agents/rules/` -- Agent rules for this project
+- `AGENTS.md` -- Agent rules for this project
 - `.agents/skills/` -- Agent skills for implementing tools, resources, and prompts (see below)
-- `.cursorignore` -- tells Cursor to exclude files in addition to `.gitignore`
 - `.vscode/` -- recommended extensions, Deno as default formatter
-- `.github/` -- CI/CD workflows, sponsors config, issue templates
-- `CONTRIBUTING.md`, `SECURITY.md`, etc. -- community management files for GitHub
+- `.github/` -- CI/CD workflows, sponsors config, issue templates, contributing and security policies
 
 ### Skills
 

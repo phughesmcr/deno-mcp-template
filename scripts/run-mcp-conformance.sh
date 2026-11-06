@@ -10,7 +10,7 @@ set -euo pipefail
 #
 # Usage:
 #   ./scripts/run-mcp-conformance.sh [--verbose] [--scenario NAME] ...
-# With baseline (conformance-baseline.yml present):
+# With baseline (scripts/conformance-baseline.yml present):
 #   expected failures are ignored for CI stability.
 #
 # Conformance server env (set automatically below):
@@ -22,7 +22,7 @@ cd "$ROOT"
 
 PORT="${MCP_HTTP_PORT:-3001}"
 URL="http://localhost:${PORT}/mcp"
-BASELINE="$ROOT/conformance-baseline.yml"
+BASELINE="$ROOT/scripts/conformance-baseline.yml"
 CONFORMANCE_CLI_VERSION="${MCP_CONFORMANCE_CLI_VERSION:-0.2.0-alpha.12}"
 
 export MCP_HTTP_RATE_LIMIT_ENABLED=false

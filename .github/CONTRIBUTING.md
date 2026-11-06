@@ -43,6 +43,28 @@ Try to include:
 Please remember to use `deno fmt` and `deno lint` and fix any linter errors
 before submitting pull requests
 
+## Versioning
+
+This project follows [Semantic Versioning](https://semver.org/), and `version` in `deno.json` is the
+canonical version. While the major version is `0`, minor releases may include breaking changes and
+patch releases stay safe to drop in.
+
+Treat these as breaking: changes to `exports` in `deno.json`, renamed or removed CLI flags and
+environment variables, changed transport or security defaults, and changes to what
+`deno task setup` renames. Every release with user-visible changes gets a `CHANGELOG.md` entry.
+
+## Updating dependencies
+
+`deno.lock` is frozen, so dependency updates are explicit. Commit it with `deno.json`:
+
+```bash
+deno outdated
+deno install --entrypoint main.ts --frozen=false
+```
+
+The MCP conformance CLI version is pinned in `deno.json` and `scripts/run-mcp-conformance.sh`, so
+bump it on purpose.
+
 ## Issue labels (SEP-1730)
 
 Maintainers use this taxonomy so automated governance checks (for example MCP
