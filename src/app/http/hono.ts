@@ -85,6 +85,11 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
     }),
   );
 
+  applyHttpCorsMiddleware(app, config, httpSecurityPolicy);
+
+  app.use(createHttpBearerAuthMiddleware(config.httpBearerToken));
+
+  // After auth: clients without a known IP share one limit, which requests without a token must not use up.
   if (config.rateLimit.enabled) {
     const rl = config.rateLimit;
     app.use(
@@ -101,10 +106,6 @@ function configureMiddleware(app: Hono<HonoEnv>, config: AppConfig["http"]): Hon
       }),
     );
   }
-
-  applyHttpCorsMiddleware(app, config, httpSecurityPolicy);
-
-  app.use(createHttpBearerAuthMiddleware(config.httpBearerToken));
 
   return app;
 }

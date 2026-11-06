@@ -132,3 +132,39 @@ Deno.test({
     }
   },
 });
+
+Deno.test({
+  name: "requests without a valid token don't use up the shared rate limit",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    const app = createHonoApp({
+      config: baseHttpConfig({
+        httpBearerToken: secret,
+        rateLimit: { enabled: true, windowMs: 60_000, limit: 2, unknownClientLimit: 2 },
+      }),
+      handler: noopMcpHandler,
+      kv: getProcessKvRuntime(),
+    });
+    const post = (authorization?: string) =>
+      app.fetch(
+        new Request("http://localhost/mcp", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...(authorization ? { authorization } : {}),
+          },
+          body: "{}",
+        }),
+        {},
+      );
+
+    for (let i = 0; i < 5; i++) {
+      assertEquals((await post()).status, 401);
+    }
+    const authorized = `Bearer ${secret}`;
+    assertEquals((await post(authorized)).status, 204);
+    assertEquals((await post(authorized)).status, 204);
+    assertEquals((await post(authorized)).status, 429);
+  },
+});

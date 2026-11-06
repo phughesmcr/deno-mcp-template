@@ -281,7 +281,7 @@ deno deploy --prod
 
 Preview URLs include the revision ID, so an exact allowlist can't cover them.
 
-On Deploy the server sees no client IP, so all clients share the unknown-client rate limit: 20 requests per 15 minutes per instance. A single client session can use that up. Raise it with `MCP_HTTP_RATE_LIMIT_UNKNOWN_MAX`. The limiter runs before the token check, so unauthenticated requests count against the same shared limit.
+On Deploy the server sees no client IP, so all clients share the unknown-client rate limit: 20 requests per 15 minutes per instance. A single client session can use that up. Raise it with `MCP_HTTP_RATE_LIMIT_UNKNOWN_MAX`. Requests to `/mcp` without a valid token don't count, so they can't use up that limit, but failed token guesses aren't rate limited.
 
 Set `DENO_DEPLOY_TOKEN`, `DENO_DEPLOY_ORG`, and `DENO_DEPLOY_APP` in GitHub Actions secrets for automatic deploys. Remove `.github/workflows/deploy.yml` if not using Deploy.
 
