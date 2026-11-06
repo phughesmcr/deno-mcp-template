@@ -6,6 +6,7 @@
 import type { Client } from "@modelcontextprotocol/client";
 import { delay } from "@std/async/delay";
 
+import { FETCH_WEBSITE_INFO_RESOURCE_URI as uri } from "$/mcp/apps/fetchWebsiteInfoApp.ts";
 import { assert, assertEquals, waitFor } from "./helpers.ts";
 import { createLegacyClient, firstText, overStdio } from "./mcpProtocol.ts";
 
@@ -133,7 +134,6 @@ Deno.test("a 2025-era client hears about a resource only while subscribed", () =
 
 Deno.test("a 2025-era client can read the MCP App resource", () =>
   overLegacyStdio(createLegacyClient(), async (client) => {
-    const uri = "ui://deno-mcp-template/fetch-website-info.html";
     const { contents } = await client.readResource({ uri });
     assertEquals(contents[0]?.uri, uri);
   }));
